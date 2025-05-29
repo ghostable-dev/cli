@@ -6,7 +6,7 @@ This repository contains the **CLI client** for interacting with the Ghostable p
 
 ---
 
-## 🚀 What is Ghostable?
+## What is Ghostable?
 
 Ghostable makes it easy to store, organize, and securely share `.env` variables for your Laravel applications. Ghostable integrates seamlessly into your development workflow — locally or in CI.
 
