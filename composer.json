@@ -1,5 +1,5 @@
 {
-  "name": "ghostable-dev/ghostable-cli",
+  "name": "ghostable-dev/cli",
   "description": "CLI wrapper for Ghostable.",
   "keywords": ["laravel", "cli", "env", "environment", "ghostable"],
   "homepage": "https://ghostable.dev",
