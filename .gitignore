@@ -1,0 +1,25 @@
+# Compiled output / dependencies
+/vendor
+.phpunit.cache
+composer.lock
+
+# Environment files
+.env
+.env.backup
+.env.production
+.env.staging
+auth.json
+
+# Local editor & tooling
+/.idea
+/.vscode
+/.fleet
+/.nova
+/.zed
+
+# Ghostable config
+ghostable.yml
+
+# OS junk
+.DS_Store
+Thumbs.db

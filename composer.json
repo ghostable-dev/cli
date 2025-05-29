@@ -1,0 +1,53 @@
+{
+  "name": "ghostable-dev/ghostable-cli",
+  "description": "CLI wrapper for Ghostable.",
+  "keywords": ["laravel", "cli", "env", "environment", "ghostable"],
+  "homepage": "https://ghostable.dev",
+  "license": "MIT",
+  "bin": ["ghostable"],
+  "autoload": {
+    "psr-4": {
+      "Ghostable\\": "src/",
+      "Ghostable\\Tests\\": "tests/"
+    }
+  },
+  "autoload-dev": {
+    "psr-4": {
+      "App\\": "tests/Fixtures/App"
+    }
+  },
+  "require": {
+    "php": "^8.2",
+    "illuminate/support": "^10.0 || ^11.0",
+    "illuminate/console": "^10.0 || ^11.0",
+    "illuminate/container": "^10.0 || ^11.0",
+    "illuminate/filesystem": "^10.0 || ^11.0",
+    "laravel/prompts": "^0.2",
+    "symfony/console": "^7.2",
+    "symfony/process": "^7.2",
+    "symfony/yaml": "^7.2",
+    "vlucas/phpdotenv": "^5.6",
+    "guzzlehttp/guzzle": "^7.9"
+  },
+  "extra": {
+    "laravel": {
+      "providers": [
+        "Ghostable\\Ghostable\\GhostableServiceProvider"
+      ]
+    }
+  },
+  "minimum-stability": "stable",
+  "prefer-stable": true,
+  "require-dev": {
+    "laravel/pint": "^1.22",
+    "larastan/larastan": "^3.4",
+    "orchestra/testbench": "^9.0"
+  },
+  "config": {
+    "platform": {
+      "php": "8.2"
+    },
+    "sort-packages": true,
+    "optimize-autoloader": true
+  }
+}
