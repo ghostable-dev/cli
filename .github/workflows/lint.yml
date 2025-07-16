@@ -1,5 +1,8 @@
 name: Lint & Auto-Format
 
+permissions:
+  contents: write
+
 on:
   push:
     branches: [main, develop]
@@ -9,17 +12,34 @@ on:
 jobs:
   pint:
     runs-on: ubuntu-latest
-    
+
     steps:
-      - uses: actions/checkout@v3
-      - uses: shivammathur/setup-php@v2
+      - name: Checkout code
+        uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
+          persist-credentials: true
+
+      - name: Setup PHP
+        uses: shivammathur/setup-php@v2
         with:
           php-version: '8.2'
-      - uses: ramsey/composer-install@v2
+
+      - name: Install dependencies
+        uses: ramsey/composer-install@v2
         with:
           composer-options: '--no-progress --no-interaction'
-      - run: vendor/bin/pint
-      - uses: stefanzweifel/git-auto-commit-action@v5
+
+      - name: Configure Git for bot commits
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+      - name: Run Pint (auto-fix)
+        run: vendor/bin/pint --write
+
+      - name: Commit and push formatting changes
+        uses: stefanzweifel/git-auto-commit-action@v5
         with:
           commit_message: chore: auto-format with Pint
           commit_options: '--no-verify'
