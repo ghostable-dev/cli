@@ -4,6 +4,7 @@ namespace Ghostable\Commands;
 
 use Ghostable\Helpers;
 use Ghostable\Manifest;
+use GuzzleHttp\Exception\ClientException;
 use Symfony\Component\Console\Input\InputArgument;
 
 use function Laravel\Prompts\confirm;
@@ -44,7 +45,27 @@ class EnvPushCommand extends Command
             return Command::SUCCESS;
         }
 
-        $response = $this->ghostable->push(Manifest::id(), $env, $lines);
+        try {
+            ob_start();
+            $response = $this->ghostable->push(Manifest::id(), $env, $lines);
+            ob_end_clean();
+        } catch (ClientException $e) {
+            ob_end_clean();
+
+            if ($e->getResponse()?->getStatusCode() === 422) {
+                Helpers::danger('Push failed due to validation errors:');
+                $data = json_decode((string) $e->getResponse()?->getBody(), true);
+                foreach (($data['errors'] ?? []) as $field => $messages) {
+                    foreach ((array) $messages as $message) {
+                        Helpers::line('  - '.$message);
+                    }
+                }
+            } else {
+                Helpers::danger('Push failed.');
+            }
+
+            return Command::FAILURE;
+        }
 
         Helpers::info("✅ Environment <comment>{$env}</comment> pushed to Ghostable.");
         Helpers::info("{$response['message']}");
