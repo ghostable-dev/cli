@@ -16,6 +16,9 @@
       "App\\": "tests/Fixtures/App"
     }
   },
+  "scripts": {
+    "pint": "./vendor/bin/pint"
+  },
   "require": {
     "php": "^8.2",
     "illuminate/support": "^10.0 || ^11.0",

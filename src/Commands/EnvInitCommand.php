@@ -4,11 +4,10 @@ namespace Ghostable\Commands;
 
 use Ghostable\Helpers;
 use Ghostable\Manifest;
-use Symfony\Component\Console\Input\InputArgument;
 use Symfony\Component\Console\Input\InputOption;
 
-use function Laravel\Prompts\text;
 use function Laravel\Prompts\select;
+use function Laravel\Prompts\text;
 
 class EnvInitCommand extends Command
 {
