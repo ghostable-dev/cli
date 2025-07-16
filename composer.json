@@ -17,7 +17,8 @@
     }
   },
   "scripts": {
-    "pint": "./vendor/bin/pint"
+    "pint": "./vendor/bin/pint",
+    "phpstan": "./vendor/bin/phpstan analyse --memory-limit=2G"
   },
   "require": {
     "php": "^8.2",

@@ -28,7 +28,10 @@ class GhostableConsoleClient
 
         return $response['token'] ?? null;
     }
-
+    
+    /**
+     * @return array<string,mixed>
+     */
     public function user(): array
     {
         return $this->requestJson(
@@ -37,6 +40,9 @@ class GhostableConsoleClient
         );
     }
 
+    /**
+     * @return array<string,mixed>
+     */
     public function teams(): array
     {
         return $this->requestJson(
@@ -44,7 +50,10 @@ class GhostableConsoleClient
             '/teams'
         )['data'] ?? [];
     }
-
+    
+    /**
+     * @return array<string,mixed>
+     */
     public function projects(string $teamId): array
     {
         return $this->requestJson(
@@ -53,6 +62,9 @@ class GhostableConsoleClient
         )['data'] ?? [];
     }
 
+    /**
+     * @return array<string,mixed>
+     */
     public function createProject(string $teamId, string $name): array
     {
         return $this->requestJson(
@@ -62,11 +74,17 @@ class GhostableConsoleClient
         )['data'] ?? [];
     }
 
+    /**
+     * @return array<string,mixed>
+     */
     public function envTypes(): array
     {
         return $this->requestJson(self::GET, '/environment-types')['data'];
     }
 
+    /**
+     * @return array<string,mixed>
+     */
     public function createEnvironment(
         string $projectId,
         string $name,
@@ -79,6 +97,9 @@ class GhostableConsoleClient
         )['data'] ?? [];
     }
 
+    /**
+     * @return array<string,mixed>
+     */
     public function push(string $projectId, string $name, array $vars): array
     {
         return $this->requestJson(
@@ -98,6 +119,8 @@ class GhostableConsoleClient
 
     /**
      * Perform a JSON API request.
+     * 
+     * @return array<string,mixed>
      */
     protected function requestJson(string $method, string $uri, array $json = []): array
     {
@@ -126,6 +149,9 @@ class GhostableConsoleClient
 
     /**
      * Perform a JSON-based request with standard headers.
+     * 
+     * @param $json array<string,mixed>
+     * @return array<string,mixed>
      */
     protected function requestWithHeaders(
         string $method,
