@@ -58,9 +58,9 @@ class EnvPushCommand extends Command
 
         return Command::SUCCESS;
     }
-    
+
     /**
-     * @param string[] $envs
+     * @param  string[]  $envs
      */
     protected function resolveEnvFromOption(mixed $name, array $envs): ?string
     {
@@ -75,9 +75,9 @@ class EnvPushCommand extends Command
 
         return $name;
     }
-    
+
     /**
-     * @param string[] $envs
+     * @param  string[]  $envs
      */
     protected function promptForEnv(array $envs): string
     {

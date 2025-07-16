@@ -28,7 +28,7 @@ class GhostableConsoleClient
 
         return $response['token'] ?? null;
     }
-    
+
     /**
      * @return array<string,mixed>
      */
@@ -50,7 +50,7 @@ class GhostableConsoleClient
             '/teams'
         )['data'] ?? [];
     }
-    
+
     /**
      * @return array<string,mixed>
      */
@@ -119,7 +119,7 @@ class GhostableConsoleClient
 
     /**
      * Perform a JSON API request.
-     * 
+     *
      * @return array<string,mixed>
      */
     protected function requestJson(string $method, string $uri, array $json = []): array
@@ -149,8 +149,8 @@ class GhostableConsoleClient
 
     /**
      * Perform a JSON-based request with standard headers.
-     * 
-     * @param $json array<string,mixed>
+     *
+     * @param  $json  array<string,mixed>
      * @return array<string,mixed>
      */
     protected function requestWithHeaders(
