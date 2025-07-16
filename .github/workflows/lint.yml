@@ -28,7 +28,7 @@ jobs:
           npm ci
 
       - name: Run Pint (auto-fix)
-        run: vendor/bin/pint --write
+        run: vendor/bin/pint
 
       - name: Commit formatting changes
         uses: stefanzweifel/git-auto-commit-action@v5

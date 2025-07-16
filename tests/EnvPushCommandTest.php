@@ -2,19 +2,19 @@
 
 namespace Ghostable\Tests;
 
+use Ghostable\Application;
 use Ghostable\Commands\EnvPushCommand;
 use Ghostable\Env\Env;
 use Ghostable\GhostableConsoleClient;
-use Illuminate\Container\Container;
-use Symfony\Component\Console\Tester\CommandTester;
-use Ghostable\Application;
-use Symfony\Component\Yaml\Yaml;
 use GuzzleHttp\Exception\ClientException;
 use GuzzleHttp\Psr7\Request;
 use GuzzleHttp\Psr7\Response;
+use Illuminate\Container\Container;
 use Laravel\Prompts\Key;
 use Laravel\Prompts\Prompt;
 use Symfony\Component\Console\Command\Command;
+use Symfony\Component\Console\Tester\CommandTester;
+use Symfony\Component\Yaml\Yaml;
 
 class EnvPushCommandTest extends TestCase
 {
@@ -74,7 +74,7 @@ class EnvPushCommandTest extends TestCase
             }
         };
 
-        $app = new Application();
+        $app = new Application;
         $app->add($command);
 
         return $app->find('env:push');
