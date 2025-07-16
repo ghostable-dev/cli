@@ -9,29 +9,17 @@ on:
 jobs:
   pint:
     runs-on: ubuntu-latest
-
+    
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      - name: Setup PHP
-        uses: shivammathur/setup-php@v2
+      - uses: actions/checkout@v3
+      - uses: shivammathur/setup-php@v2
         with:
-          php-version: '8.4'
-
-      - name: Add private Composer repo credentials
-        run: composer config http-basic.composer.fluxui.dev "${{ secrets.FLUX_USERNAME }}" "${{ secrets.FLUX_LICENSE_KEY }}"
-
-      - name: Install dependencies
-        run: |
-          composer install -q --no-ansi --no-interaction --no-scripts --no-progress --prefer-dist
-          npm ci
-
-      - name: Run Pint (auto-fix)
-        run: vendor/bin/pint
-
-      - name: Commit formatting changes
-        uses: stefanzweifel/git-auto-commit-action@v5
+          php-version: '8.2'
+      - uses: ramsey/composer-install@v2
+        with:
+          composer-options: '--no-progress --no-interaction'
+      - run: vendor/bin/pint
+      - uses: stefanzweifel/git-auto-commit-action@v5
         with:
           commit_message: chore: auto-format with Pint
           commit_options: '--no-verify'
