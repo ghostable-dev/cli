@@ -4,12 +4,12 @@ namespace Ghostable\Tests;
 
 use Ghostable\GhostableConsoleClient;
 use GuzzleHttp\Client;
+use GuzzleHttp\Exception\ClientException;
 use GuzzleHttp\Handler\MockHandler;
 use GuzzleHttp\HandlerStack;
 use GuzzleHttp\Middleware;
-use GuzzleHttp\Psr7\Response;
-use GuzzleHttp\Exception\ClientException;
 use GuzzleHttp\Psr7\Request;
+use GuzzleHttp\Psr7\Response;
 
 class GhostableConsoleClientTest extends TestCase
 {
@@ -25,7 +25,8 @@ class GhostableConsoleClientTest extends TestCase
 
         $guzzle = new Client(['handler' => $stack]);
 
-        return new class($guzzle, $token) extends GhostableConsoleClient {
+        return new class($guzzle, $token) extends GhostableConsoleClient
+        {
             public function __construct(private Client $client, private ?string $token)
             {
                 parent::__construct();
@@ -33,7 +34,7 @@ class GhostableConsoleClientTest extends TestCase
 
             protected function authorizationHeader(): ?string
             {
-                return $this->token ? 'Bearer ' . $this->token : null;
+                return $this->token ? 'Bearer '.$this->token : null;
             }
 
             protected function client(): Client
@@ -47,7 +48,7 @@ class GhostableConsoleClientTest extends TestCase
     {
         $history = [];
         $client = $this->client([
-            new Response(200, [], json_encode(['token' => 'abc']))
+            new Response(200, [], json_encode(['token' => 'abc'])),
         ], null, $history);
 
         $token = $client->login('jane@example.com', 'secret');
@@ -66,7 +67,7 @@ class GhostableConsoleClientTest extends TestCase
     {
         $history = [];
         $client = $this->client([
-            new Response(200, [], json_encode(['id' => 1]))
+            new Response(200, [], json_encode(['id' => 1])),
         ], 'token', $history);
 
         $data = $client->user();
@@ -82,8 +83,8 @@ class GhostableConsoleClientTest extends TestCase
     {
         $history = [];
         $client = $this->client([
-            new Response(200, [], json_encode(['data' => [['id' => 1]]] )),
-            new Response(200, [], json_encode(['data' => ['id' => 2]] ))
+            new Response(200, [], json_encode(['data' => [['id' => 1]]])),
+            new Response(200, [], json_encode(['data' => ['id' => 2]])),
         ], 'tok', $history);
 
         $projects = $client->projects('99');
@@ -101,7 +102,7 @@ class GhostableConsoleClientTest extends TestCase
         $history = [];
         $client = $this->client([
             new Response(200, [], json_encode(['data' => ['laravel']])),
-            new Response(200, [], json_encode(['data' => ['id' => 3]]))
+            new Response(200, [], json_encode(['data' => ['id' => 3]])),
         ], 'a', $history);
 
         $types = $client->envTypes();
@@ -118,7 +119,7 @@ class GhostableConsoleClientTest extends TestCase
     {
         $history = [];
         $client = $this->client([
-            new Response(200, [], json_encode(['ok' => true]))
+            new Response(200, [], json_encode(['ok' => true])),
         ], 't', $history);
 
         $result = $client->push('123', 'production', ['FOO' => 'bar']);
@@ -134,7 +135,7 @@ class GhostableConsoleClientTest extends TestCase
     {
         $history = [];
         $client = $this->client([
-            new Response(200, [], "FOO=bar\n")
+            new Response(200, [], "FOO=bar\n"),
         ], 'tok', $history);
 
         $result = $client->pull('321', 'dev');
@@ -195,4 +196,3 @@ class GhostableConsoleClientTest extends TestCase
         }
     }
 }
-
