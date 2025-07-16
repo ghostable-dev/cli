@@ -79,7 +79,7 @@ class GhostableConsoleClient
      */
     public function envTypes(): array
     {
-        return $this->requestJson(self::GET, '/environment-types')['data'];
+        return $this->requestJson(self::GET, '/environment-types')['data'] ?? [];
     }
 
     /**
