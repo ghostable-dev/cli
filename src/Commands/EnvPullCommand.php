@@ -48,7 +48,7 @@ class EnvPullCommand extends Command
     }
 
     /**
-     * @param string[] $envs
+     * @param  string[]  $envs
      */
     protected function resolveEnvFromOption(mixed $name, array $envs): ?string
     {
@@ -60,9 +60,9 @@ class EnvPullCommand extends Command
 
         return $name;
     }
-    
+
     /**
-     * @param string[] $envs
+     * @param  string[]  $envs
      */
     protected function promptForEnv(array $envs): string
     {
