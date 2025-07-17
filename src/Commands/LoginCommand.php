@@ -21,8 +21,6 @@ class LoginCommand extends Command
             $token = $this->attemptLogin();
         } catch (ClientException $e) {
             Helpers::abort('Authentication failed ('.$e->getCode().')');
-
-            return Command::FAILURE;
         }
 
         $this->store($token);

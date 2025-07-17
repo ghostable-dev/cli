@@ -4,6 +4,7 @@ namespace Ghostable\Commands;
 
 use Ghostable\Helpers;
 use Ghostable\Manifest;
+use GuzzleHttp\Exception\ClientException;
 use Symfony\Component\Console\Input\InputArgument;
 
 use function Laravel\Prompts\confirm;
@@ -37,14 +38,36 @@ class EnvPushCommand extends Command
         }
 
         Helpers::info("You're about to push the <comment>{$env}</comment> environment to Ghostable.");
-        Helpers::warn('This will overwrite the existing environment configuration.' . PHP_EOL);
+        Helpers::warn('This will overwrite the existing environment configuration.'.PHP_EOL);
         if (! confirm('Are you sure you want to continue?')) {
             Helpers::warn('Cancelled. No changes were made.');
 
             return Command::SUCCESS;
         }
 
-        $response = $this->ghostable->push(Manifest::id(), $env, $lines);
+        try {
+            ob_start();
+            $response = $this->ghostable->push(Manifest::id(), $env, $lines);
+            ob_end_clean();
+        } catch (ClientException $e) {
+            ob_end_clean();
+
+            $response = $e->getResponse();
+
+            if ($response->getStatusCode() === 422) {
+                Helpers::danger('Push failed due to validation errors:');
+                $data = json_decode((string) $response->getBody(), true);
+                foreach (($data['errors'] ?? []) as $field => $messages) {
+                    foreach ((array) $messages as $message) {
+                        Helpers::line('  - '.$message);
+                    }
+                }
+            } else {
+                Helpers::danger('Push failed.');
+            }
+
+            return Command::FAILURE;
+        }
 
         Helpers::info("✅ Environment <comment>{$env}</comment> pushed to Ghostable.");
         Helpers::info("{$response['message']}");
@@ -59,6 +82,9 @@ class EnvPushCommand extends Command
         return Command::SUCCESS;
     }
 
+    /**
+     * @param  string[]  $envs
+     */
     protected function resolveEnvFromOption(mixed $name, array $envs): ?string
     {
         if (! in_array($name, $envs)) {
@@ -73,6 +99,9 @@ class EnvPushCommand extends Command
         return $name;
     }
 
+    /**
+     * @param  string[]  $envs
+     */
     protected function promptForEnv(array $envs): string
     {
         return select(

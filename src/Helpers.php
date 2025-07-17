@@ -110,7 +110,7 @@ class Helpers
     /**
      * Write text to the console.
      */
-    public static function write($text): void
+    public static function write(string $text): void
     {
         static::app('output')->write($text);
     }

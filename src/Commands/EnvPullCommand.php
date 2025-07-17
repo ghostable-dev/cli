@@ -47,6 +47,9 @@ class EnvPullCommand extends Command
         return Command::SUCCESS;
     }
 
+    /**
+     * @param  string[]  $envs
+     */
     protected function resolveEnvFromOption(mixed $name, array $envs): ?string
     {
         if (! in_array($name, $envs)) {
@@ -58,6 +61,9 @@ class EnvPullCommand extends Command
         return $name;
     }
 
+    /**
+     * @param  string[]  $envs
+     */
     protected function promptForEnv(array $envs): string
     {
         return select(

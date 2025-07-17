@@ -1,5 +1,5 @@
 {
-  "name": "ghostable-dev/ghostable-cli",
+  "name": "ghostable-dev/cli",
   "description": "CLI wrapper for Ghostable.",
   "keywords": ["laravel", "cli", "env", "environment", "ghostable"],
   "homepage": "https://ghostable.dev",
@@ -16,13 +16,17 @@
       "App\\": "tests/Fixtures/App"
     }
   },
+  "scripts": {
+    "pint": "./vendor/bin/pint",
+    "phpstan": "./vendor/bin/phpstan analyse --memory-limit=2G"
+  },
   "require": {
     "php": "^8.2",
     "illuminate/support": "^10.0 || ^11.0",
     "illuminate/console": "^10.0 || ^11.0",
     "illuminate/container": "^10.0 || ^11.0",
     "illuminate/filesystem": "^10.0 || ^11.0",
-    "laravel/prompts": "^0.2",
+    "laravel/prompts": "^0.3",
     "symfony/console": "^7.2",
     "symfony/process": "^7.2",
     "symfony/yaml": "^7.2",

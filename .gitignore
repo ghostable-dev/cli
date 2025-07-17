@@ -1,6 +1,7 @@
 # Compiled output / dependencies
 /vendor
 .phpunit.cache
+.phpunit.result.cache
 composer.lock
 
 # Environment files
