@@ -100,6 +100,19 @@ class Manifest
             ->toArray();
     }
 
+    public static function environmentType(string $name): ?string
+    {
+        $env = collect(static::current()['environments'] ?? [])
+            ->map(function ($env) {
+                return is_array($env)
+                    ? $env
+                    : ['name' => $env, 'type' => null];
+            })
+            ->firstWhere('name', $name);
+
+        return $env['type'] ?? null;
+    }
+
     protected static function write(array $manifest, $path = null): void
     {
         file_put_contents(
