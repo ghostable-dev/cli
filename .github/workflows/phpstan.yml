@@ -1,0 +1,34 @@
+name: PHPStan
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  phpstan:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.3'
+
+      - name: Install Dependencies
+        uses: ramsey/composer-install@v2
+        with:
+          composer-options: '--no-progress --no-interaction --prefer-dist'
+
+      - name: Cache PHPStan result
+        uses: actions/cache@v3
+        with:
+          path: ~/.cache/phpstan
+          key: ${{ runner.os }}-phpstan-${{ github.sha }}
+          restore-keys: |
+            ${{ runner.os }}-phpstan-
+
+      - name: Run PHPStan
+        run: vendor/bin/phpstan analyse --error-format=github --no-progress --level=4 --memory-limit=2G
