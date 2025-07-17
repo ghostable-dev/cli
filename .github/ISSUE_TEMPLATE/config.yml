@@ -1,0 +1,5 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Security Issues
+    url: mailto:security@ghostable.dev
+    about: Please email us to report security vulnerabilities. Do not open a GitHub issue.
