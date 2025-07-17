@@ -26,7 +26,7 @@
     "illuminate/console": "^10.0 || ^11.0",
     "illuminate/container": "^10.0 || ^11.0",
     "illuminate/filesystem": "^10.0 || ^11.0",
-    "laravel/prompts": "^0.2",
+    "laravel/prompts": "^0.3",
     "symfony/console": "^7.2",
     "symfony/process": "^7.2",
     "symfony/yaml": "^7.2",
