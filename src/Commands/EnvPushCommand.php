@@ -52,9 +52,11 @@ class EnvPushCommand extends Command
         } catch (ClientException $e) {
             ob_end_clean();
 
-            if ($e->getResponse()?->getStatusCode() === 422) {
+            $response = $e->getResponse();
+
+            if ($response->getStatusCode() === 422) {
                 Helpers::danger('Push failed due to validation errors:');
-                $data = json_decode((string) $e->getResponse()?->getBody(), true);
+                $data = json_decode((string) $response->getBody(), true);
                 foreach (($data['errors'] ?? []) as $field => $messages) {
                     foreach ((array) $messages as $message) {
                         Helpers::line('  - '.$message);
