@@ -1,13 +1,9 @@
 # Ghostable CLI
 
-**Ghostable** is a secure, Laravel-friendly platform for managing and sharing environment variables across teams, projects, and CI pipelines.
+**Ghostable** is a secure, Laravel-friendly platform for managing and sharing environment variables across teams, projects and CI pipelines. This repository contains the CLI client used to interact with that platform.
 
-This repository contains the **CLI client** for interacting with the Ghostable platform.
+Ghostable stores and organizes your `.env` variables, validates them, and integrates seamlessly into your development workflow—locally or in CI.
 
----
+Read the [official documentation](https://docs.ghostable.dev) or try it out at [Ghostable.dev](https://ghostable.dev).
 
-## What is Ghostable?
-
-Ghostable makes it easy to store, organize, and securely share `.env` variables for your Laravel applications. Ghostable integrates seamlessly into your development workflow — locally or in CI.
-
-To learn more about Ghostable and how to use this CLI, please consult the [official documentation](https://docs.ghostable.dev).
+See [SECURITY.md](./SECURITY.md) for our security policy.
