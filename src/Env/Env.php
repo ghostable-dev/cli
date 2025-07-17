@@ -3,6 +3,7 @@
 namespace Ghostable\Env;
 
 use Dotenv\Parser\Parser;
+use Ghostable\Manifest;
 
 class Env
 {
@@ -91,7 +92,9 @@ class Env
      */
     public function resolvePathForEnv(string $name): string
     {
-        $sanitized = ltrim(str($name)->trim()->lower(), '.');
+        $type = Manifest::environmentType($name) ?? $name;
+
+        $sanitized = ltrim(str($type)->trim()->lower(), '.');
 
         $path = "{$this->basePath}/.env";
 
