@@ -1,6 +1,6 @@
 {
   "name": "ghostable-dev/cli",
-  "description": "CLI wrapper for Ghostable.",
+  "description": "Official CLI tool for securely managing and interacting with Ghostable environment variables.",
   "keywords": ["laravel", "cli", "env", "environment", "ghostable"],
   "homepage": "https://ghostable.dev",
   "license": "MIT",
