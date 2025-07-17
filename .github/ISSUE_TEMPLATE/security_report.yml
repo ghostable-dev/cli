@@ -1,0 +1,11 @@
+name: Security Issue
+description: Please do not report security vulnerabilities here.
+title: "[Security]: "
+labels: ["security"]
+assignees: []
+body:
+  - type: markdown
+    attributes:
+      value: |
+        **Do not open security issues in this public tracker.**
+        Instead, email [security@ghostable.dev](mailto:security@ghostable.dev) as described in [SECURITY.md](../../SECURITY.md).
