@@ -1,9 +1,17 @@
 {
   "name": "ghostable-dev/cli",
-  "description": "CLI wrapper for Ghostable.",
-  "keywords": ["laravel", "cli", "env", "environment", "ghostable"],
+  "description": "Official CLI tool for securely managing and interacting with Ghostable environment variables.",
+  "keywords": [
+    "ghostable",
+    "cli",
+    "laravel",
+    "environment variables",
+    "security"
+  ],
   "homepage": "https://ghostable.dev",
+  "type": "library",
   "license": "MIT",
+  "version": "1.0.0-beta",
   "bin": ["ghostable"],
   "autoload": {
     "psr-4": {
@@ -17,6 +25,7 @@
     }
   },
   "scripts": {
+    "test": "./vendor/bin/phpunit",
     "pint": "./vendor/bin/pint",
     "phpstan": "./vendor/bin/phpstan analyse --memory-limit=2G"
   },
@@ -40,7 +49,7 @@
       ]
     }
   },
-  "minimum-stability": "stable",
+  "minimum-stability": "beta",
   "prefer-stable": true,
   "require-dev": {
     "laravel/pint": "^1.22",
