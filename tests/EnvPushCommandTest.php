@@ -88,7 +88,9 @@ class EnvPushCommandTest extends TestCase
         file_put_contents($manifest, Yaml::dump([
             'id' => 'p1',
             'name' => 'Test',
-            'environments' => ['local'],
+            'environments' => [
+                ['name' => 'local', 'type' => 'laravel'],
+            ],
         ]));
 
         Prompt::fake([Key::ENTER]);

@@ -49,7 +49,10 @@ class EnvInitCommand extends Command
 
         Helpers::info("✅ Environment <comment>$name</comment> created successfully.");
 
-        Manifest::addEnvironment($env['name']);
+        Manifest::addEnvironment([
+            'name' => $env['name'] ?? $name,
+            'type' => $env['type'] ?? $selectedType,
+        ]);
 
         return Command::SUCCESS;
     }

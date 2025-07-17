@@ -23,13 +23,13 @@ class EnvPushCommand extends Command
     {
         $this->ensureAccessTokenIsAvailable();
 
-        $project = Manifest::current();
+        $envNames = Manifest::environmentNames();
 
         $option = $this->option('environment');
 
         $env = $option
-            ? $this->resolveEnvFromOption($option, $project['environments'])
-            : $this->promptForEnv($project['environments']);
+            ? $this->resolveEnvFromOption($option, $envNames)
+            : $this->promptForEnv($envNames);
 
         try {
             $lines = $this->env->getRaw($env);

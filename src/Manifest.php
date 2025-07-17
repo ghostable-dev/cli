@@ -54,27 +54,50 @@ class Manifest
             'id' => $project['id'],
             'name' => $project['name'],
             'environments' => collect($project['environments'])
-                ->map(fn ($env) => $env['name'])
+                ->map(function ($env) {
+                    return [
+                        'name' => $env['name'],
+                        'type' => $env['type'] ?? null,
+                    ];
+                })
                 ->values()
                 ->toArray(),
         ]));
     }
 
-    public static function addEnvironment(string $environment): void
+    public static function addEnvironment(array $environment): void
     {
         $manifest = static::current();
 
         $environments = collect($manifest['environments'] ?? [])
-            ->filter(fn ($e) => is_string($e)) // Ensure list format
-            ->push($environment)
-            ->unique()
-            ->sort()
+            ->map(function ($e) {
+                return is_string($e)
+                    ? ['name' => $e, 'type' => null]
+                    : $e;
+            })
+            ->push([
+                'name' => $environment['name'],
+                'type' => $environment['type'] ?? null,
+            ])
+            ->unique('name')
+            ->sortBy('name')
             ->values()
             ->all();
 
         $manifest['environments'] = $environments;
 
         static::write($manifest);
+    }
+
+    /**
+     * @return array<int, string>
+     */
+    public static function environmentNames(): array
+    {
+        return collect(static::current()['environments'] ?? [])
+            ->map(fn ($env) => is_array($env) ? $env['name'] : $env)
+            ->values()
+            ->toArray();
     }
 
     protected static function write(array $manifest, $path = null): void

@@ -22,13 +22,13 @@ class EnvPullCommand extends Command
     {
         $this->ensureAccessTokenIsAvailable();
 
-        $project = Manifest::current();
+        $envNames = Manifest::environmentNames();
 
         $option = $this->option('environment');
 
         $env = $option
-            ? $this->resolveEnvFromOption($option, $project['environments'])
-            : $this->promptForEnv($project['environments']);
+            ? $this->resolveEnvFromOption($option, $envNames)
+            : $this->promptForEnv($envNames);
 
         Helpers::info("You're about to pull the <comment>{$env}</comment> environment from Ghostable.");
         Helpers::warn('This will overwrite the existing environment file (if present).'.PHP_EOL);
