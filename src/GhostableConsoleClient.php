@@ -16,7 +16,8 @@ class GhostableConsoleClient
     private const GET = 'GET';
 
     public function __construct(
-        protected string $baseUrl = 'https://ghostable.dev/api/'
+        protected string $baseUrl = 'https://ghostable.dev/api/',
+        protected ?string $token = null
     ) {}
 
     public function login(string $email, string $password): ?string
@@ -114,6 +115,14 @@ class GhostableConsoleClient
         return $this->requestRaw(
             self::GET,
             "/projects/{$projectId}/environments/{$name}/pull"
+        );
+    }
+    
+    public function deploy(): string
+    {
+        return $this->requestRaw(
+            self::GET,
+            "/ci/deploy"
         );
     }
 
@@ -216,9 +225,7 @@ class GhostableConsoleClient
      */
     protected function authorizationHeader(): ?string
     {
-        $token = Config::get('access_token');
-
-        return $token ? 'Bearer '.$token : null;
+        return $this->token ? 'Bearer '.$this->token : null;
     }
 
     /**
