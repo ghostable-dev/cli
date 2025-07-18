@@ -38,12 +38,12 @@ class Config
         }
 
         // 2. Check $_ENV superglobal (may be empty in some contexts)
-        if (!empty($_ENV['GHOSTABLE_CI_TOKEN'])) {
+        if (! empty($_ENV['GHOSTABLE_CI_TOKEN'])) {
             return $_ENV['GHOSTABLE_CI_TOKEN'];
         }
 
         // 3. Check $_SERVER as a last resort (sometimes env vars end up here)
-        if (!empty($_SERVER['GHOSTABLE_CI_TOKEN'])) {
+        if (! empty($_SERVER['GHOSTABLE_CI_TOKEN'])) {
             return $_SERVER['GHOSTABLE_CI_TOKEN'];
         }
 
