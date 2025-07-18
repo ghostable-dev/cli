@@ -31,7 +31,24 @@ class Config
      */
     public static function getCiToken(): ?string
     {
-        return $_ENV['GHOSTABLE_CI_TOKEN'] ?? null;
+        // 1. Check the OS-level environment
+        $token = getenv('GHOSTABLE_CI_TOKEN');
+        if ($token !== false && trim($token) !== '') {
+            return $token;
+        }
+
+        // 2. Check $_ENV superglobal (may be empty in some contexts)
+        if (!empty($_ENV['GHOSTABLE_CI_TOKEN'])) {
+            return $_ENV['GHOSTABLE_CI_TOKEN'];
+        }
+
+        // 3. Check $_SERVER as a last resort (sometimes env vars end up here)
+        if (!empty($_SERVER['GHOSTABLE_CI_TOKEN'])) {
+            return $_SERVER['GHOSTABLE_CI_TOKEN'];
+        }
+
+        // 4. Nothing found
+        return null;
     }
 
     /**
