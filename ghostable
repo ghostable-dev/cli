@@ -40,5 +40,6 @@ $app->add(new Commands\ProjectListCommand);
 $app->add(new Commands\EnvInitCommand);
 $app->add(new Commands\EnvPushCommand);
 $app->add(new Commands\EnvPullCommand);
+$app->add(new Commands\DeployCommand);
 
 $app->run();
