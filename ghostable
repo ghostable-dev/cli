@@ -1,6 +1,13 @@
 #!/usr/bin/env php
 <?php
 
+use Dotenv\Dotenv;
+use Dotenv\Environment\Adapter\EnvConstAdapter as V3EnvConstAdapter;
+use Dotenv\Environment\Adapter\ServerConstAdapter as V3ServerConstAdapter;
+use Dotenv\Environment\DotenvFactory;
+use Dotenv\Repository\Adapter\EnvConstAdapter as V4orV5EnvConstAdapter;
+use Dotenv\Repository\Adapter\ServerConstAdapter as V4orV5ServerConstAdapter;
+use Dotenv\Repository\RepositoryBuilder;
 use Illuminate\Container\Container;
 use Ghostable\Application;
 use Ghostable\Commands;
@@ -13,6 +20,43 @@ if (file_exists(__DIR__.'/../../autoload.php')) {
 } else {
     require __DIR__.'/vendor/autoload.php';
 }
+
+/**
+ * Load environment variables explicitly.
+ */
+(function () {
+    if (class_exists(RepositoryBuilder::class)) {
+        $adapters = [
+            V4orV5EnvConstAdapter::class,
+            V4orV5ServerConstAdapter::class,
+        ];
+
+        if (method_exists(RepositoryBuilder::class, 'addReader')) { // V5
+            $repository = RepositoryBuilder::createWithNoAdapters();
+
+            foreach ($adapters as $adapter) {
+                $repository = $repository
+                    ->addReader($adapter)
+                    ->addWriter($adapter);
+            }
+        } else { // V4
+            $adapters = array_map(fn ($adapterClass) => new $adapterClass(), $adapters);
+
+            $repository = RepositoryBuilder::create()
+                ->withReaders($adapters)
+                ->withWriters($adapters);
+        }
+
+        Dotenv::create(
+            $repository->immutable()->make(),
+            getcwd()
+        )->safeLoad();
+    } else { // V3 fallback
+        Dotenv::create(getcwd(), null, new DotenvFactory([
+            new V3EnvConstAdapter, new V3ServerConstAdapter,
+        ]))->safeLoad();
+    }
+})();
 
 /**
  * Create the container instance.
@@ -32,14 +76,14 @@ $app->add(new Commands\TeamListCommand);
 $app->add(new Commands\TeamCurrentCommand);
 $app->add(new Commands\TeamSwitchCommand);
 
-// Projects ...
+// Projects...
 $app->add(new Commands\InitCommand);
 $app->add(new Commands\ProjectListCommand);
 
-// Environments
+// Environments...
 $app->add(new Commands\EnvInitCommand);
 $app->add(new Commands\EnvPushCommand);
 $app->add(new Commands\EnvPullCommand);
-$app->add(new Commands\DeployCommand);
+$app->add(new Commands\EnvDeployCommand);
 
 $app->run();

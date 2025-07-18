@@ -25,6 +25,14 @@ class Config
     {
         return self::get(self::TEAM, null);
     }
+    
+    /**
+     * Retrieve the Ghostable CI token from environment.
+     */
+    public static function getCiToken(): ?string
+    {
+        return $_ENV['GHOSTABLE_CI_TOKEN'] ?? null;
+    }
 
     /**
      * Get the given configuration value.
