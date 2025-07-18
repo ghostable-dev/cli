@@ -13,7 +13,7 @@ class DeployCommand extends Command
 {
     protected function configure(): void
     {
-        $this->setName('deploy')
+        $this->setName('env:deploy')
             ->addArgument('environment', InputArgument::REQUIRED, 'The environment to deploy')
             ->addOption('output', null, InputOption::VALUE_OPTIONAL, 'Where to write the env file', '.env')
             ->addOption('validate', null, InputOption::VALUE_NONE, 'Validate the environment after pulling')
@@ -23,7 +23,7 @@ class DeployCommand extends Command
     public function handle(): ?int
     {
         $token = getenv('GHOSTABLE_CI_TOKEN');
-
+        
         if (! $token) {
             Helpers::danger('GHOSTABLE_CI_TOKEN environment variable is not set.');
 

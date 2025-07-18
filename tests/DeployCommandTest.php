@@ -30,7 +30,7 @@ class DeployCommandTest extends TestCase
         $app = new Application;
         $app->add($command);
 
-        return $app->find('deploy');
+        return $app->find('env:deploy');
     }
 
     protected function makeManifest(): string
