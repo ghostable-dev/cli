@@ -23,7 +23,7 @@ class DeployCommand extends Command
     public function handle(): ?int
     {
         $token = getenv('GHOSTABLE_CI_TOKEN');
-        
+
         if (! $token) {
             Helpers::danger('GHOSTABLE_CI_TOKEN environment variable is not set.');
 
