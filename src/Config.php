@@ -25,7 +25,7 @@ class Config
     {
         return self::get(self::TEAM, null);
     }
-    
+
     /**
      * Retrieve the Ghostable CI token from environment.
      */

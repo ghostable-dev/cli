@@ -117,12 +117,12 @@ class GhostableConsoleClient
             "/projects/{$projectId}/environments/{$name}/pull"
         );
     }
-    
+
     public function deploy(): string
     {
         return $this->requestRaw(
             self::GET,
-            "/ci/deploy"
+            '/ci/deploy'
         );
     }
 

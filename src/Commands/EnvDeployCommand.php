@@ -18,7 +18,7 @@ class EnvDeployCommand extends Command
     public function handle(): ?int
     {
         $token = $this->config->getCiToken();
-        
+
         if (! $token) {
             Helpers::danger('GHOSTABLE_CI_TOKEN environment variable is not set.');
 
@@ -34,12 +34,12 @@ class EnvDeployCommand extends Command
         }
 
         if ($this->option('validate')) {
-            
+
         }
 
         file_put_contents('.env', $contents);
 
-        Helpers::info("✅ Environment variables successfully written to .env");
+        Helpers::info('✅ Environment variables successfully written to .env');
 
         return Command::SUCCESS;
     }

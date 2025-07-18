@@ -32,14 +32,14 @@ abstract class Command extends SymfonyCommand
         parent::__construct();
 
         $this->env = new Env;
-        
+
         $this->config = new Config;
-        
+
         $this->ghostable = $this->makeGhostableClient(
             token: $this->config->getAccessToken()
         );
     }
-    
+
     protected function makeGhostableClient(string $token): GhostableConsoleClient
     {
         return new GhostableConsoleClient(token: $token);
