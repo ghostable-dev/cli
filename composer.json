@@ -6,13 +6,13 @@
   "license": "MIT",
   "bin": ["ghostable"],
   "autoload": {
-    "psr-4": {
-      "Ghostable\\": "src/",
-      "Ghostable\\Tests\\": "tests/"
+  "psr-4": {
+    "Ghostable\\": "src/"
     }
   },
   "autoload-dev": {
     "psr-4": {
+      "Ghostable\\Tests\\": "tests/",
       "App\\": "tests/Fixtures/App"
     }
   },
@@ -48,9 +48,6 @@
     "orchestra/testbench": "^10.4"
   },
   "config": {
-    "platform": {
-      "php": "8.2"
-    },
     "sort-packages": true,
     "optimize-autoloader": true
   }
