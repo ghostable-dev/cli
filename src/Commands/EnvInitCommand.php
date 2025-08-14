@@ -51,7 +51,32 @@ class EnvInitCommand extends Command
             scroll: 12
         );
 
-        $name = $this->option('name') ?? text('What is the name of the environment?');
+        $name = $this->option('name');
+
+        if (! $name) {
+            $suggested = $this->ghostable->suggestedEnvironmentNames($projectId, $selectedType);
+            $nameOptions = collect($suggested)
+                ->mapWithKeys(fn ($s) => [$s['name'] => $s['name']])
+                ->all();
+
+            if ($nameOptions) {
+                $nameOptions['custom'] = 'Custom name';
+
+                $choice = select(
+                    label: 'Choose an environment name or enter a custom one (must be unique and slug formatted)',
+                    options: $nameOptions,
+                    scroll: 12,
+                );
+
+                if ($choice === 'custom') {
+                    $name = text('Enter a unique slug-formatted environment name');
+                } else {
+                    $name = $choice;
+                }
+            } else {
+                $name = text('Enter a unique slug-formatted environment name');
+            }
+        }
 
         // Create the environment on the server
         $env = $this->ghostable->createEnvironment(
