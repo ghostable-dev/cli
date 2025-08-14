@@ -168,13 +168,15 @@ class GhostableConsoleClient
     /**
      * Validate an environment and return the API response.
      *
+     * @param  array<int, string>  $vars
      * @return array<string,mixed>
      */
-    public function validateEnvironment(string $projectId, string $name): array
+    public function validateEnvironment(string $projectId, string $name, array $vars): array
     {
         return $this->requestJson(
             self::POST,
-            "/projects/{$projectId}/environments/{$name}/validate"
+            "/projects/{$projectId}/environments/{$name}/validate",
+            ['vars' => $vars]
         );
     }
 
