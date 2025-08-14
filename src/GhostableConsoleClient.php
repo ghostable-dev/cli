@@ -86,15 +86,31 @@ class GhostableConsoleClient
     /**
      * @return array<string,mixed>
      */
+    public function environments(string $projectId): array
+    {
+        return $this->requestJson(
+            self::GET,
+            "/projects/{$projectId}/environments"
+        )['data'] ?? [];
+    }
+
+    /**
+     * @return array<string,mixed>
+     */
     public function createEnvironment(
         string $projectId,
         string $name,
-        string $type
+        string $type,
+        string $base
     ): array {
         return $this->requestJson(
             self::POST,
             "/projects/{$projectId}/environments",
-            ['name' => $name, 'type' => $type]
+            [
+                'name' => $name,
+                'type' => $type,
+                'base' => $base,
+            ]
         )['data'] ?? [];
     }
 
