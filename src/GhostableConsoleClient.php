@@ -86,6 +86,14 @@ class GhostableConsoleClient
     /**
      * @return array<string,mixed>
      */
+    public function envFormats(): array
+    {
+        return $this->requestJson(self::GET, '/environment-formats')['data'] ?? [];
+    }
+
+    /**
+     * @return array<string,mixed>
+     */
     public function environments(string $projectId): array
     {
         return $this->requestJson(
@@ -138,12 +146,15 @@ class GhostableConsoleClient
         );
     }
 
-    public function pull(string $projectId, string $name): string
+    public function pull(string $projectId, string $name, ?string $format = null): string
     {
-        return $this->requestRaw(
-            self::GET,
-            "/projects/{$projectId}/environments/{$name}/pull"
-        );
+        $uri = "/projects/{$projectId}/environments/{$name}/pull";
+
+        if ($format) {
+            $uri .= "?format={$format}";
+        }
+
+        return $this->requestRaw(self::GET, $uri);
     }
 
     public function deploy(): string
