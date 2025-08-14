@@ -83,6 +83,7 @@ $app->add(new Commands\ProjectListCommand);
 // Environments...
 $app->add(new Commands\EnvInitCommand);
 $app->add(new Commands\EnvPushCommand);
+$app->add(new Commands\EnvValidateCommand);
 $app->add(new Commands\EnvPullCommand);
 $app->add(new Commands\EnvDeployCommand);
 
