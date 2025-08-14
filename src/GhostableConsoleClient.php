@@ -181,6 +181,22 @@ class GhostableConsoleClient
     }
 
     /**
+     * Determine the differences between the provided variables and the
+     * current state of an environment.
+     *
+     * @param  array<int, string>  $vars
+     * @return array<string,mixed>
+     */
+    public function diffEnvironment(string $projectId, string $name, array $vars): array
+    {
+        return $this->requestJson(
+            self::POST,
+            "/projects/{$projectId}/environments/{$name}/diff",
+            ['vars' => $vars]
+        );
+    }
+
+    /**
      * Perform a JSON API request.
      *
      * @return array<string,mixed>
