@@ -50,7 +50,7 @@ class EnvInitCommand extends Command
             default: 'standalone',
             scroll: 12
         );
-
+        
         $name = $this->option('name') ?? text('What is the name of the environment?');
 
         // Create the environment on the server
@@ -58,7 +58,7 @@ class EnvInitCommand extends Command
             projectId: $projectId,
             name: $name,
             type: $selectedType,
-            base: $selectedBase,
+            baseId: $selectedBase,
         );
 
         Helpers::info("✅ Environment <comment>$name</comment> created successfully.");

@@ -101,7 +101,7 @@ class GhostableConsoleClient
         string $projectId,
         string $name,
         string $type,
-        string $base
+        ?string $baseId = null
     ): array {
         return $this->requestJson(
             self::POST,
@@ -109,7 +109,7 @@ class GhostableConsoleClient
             [
                 'name' => $name,
                 'type' => $type,
-                'base' => $base,
+                'base_id' => $baseId,
             ]
         )['data'] ?? [];
     }
