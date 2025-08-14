@@ -30,6 +30,21 @@ class EnvPullCommand extends Command
             ? $this->resolveEnvFromOption($option, $envNames)
             : $this->promptForEnv($envNames);
 
+        $formats = $this->ghostable->envFormats();
+        $formatOptions = collect($formats)
+            ->mapWithKeys(fn ($f) => [$f['value'] => $f['label']])
+            ->prepend('Default', 'default')
+            ->all();
+
+        $format = select(
+            label: 'Which format would you like to pull?',
+            options: $formatOptions,
+            default: 'default',
+            scroll: 12,
+        );
+
+        $format = $format === 'default' ? null : $format;
+
         Helpers::info("You're about to pull the <comment>{$env}</comment> environment from Ghostable.");
         Helpers::warn('This will overwrite the existing environment file (if present).'.PHP_EOL);
         if (! confirm('Are you sure you want to continue?')) {
@@ -38,7 +53,7 @@ class EnvPullCommand extends Command
             return Command::SUCCESS;
         }
 
-        $file = $this->ghostable->pull(Manifest::id(), $env);
+        $file = $this->ghostable->pull(Manifest::id(), $env, $format);
 
         $this->env->save($env, $file);
 
