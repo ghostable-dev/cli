@@ -38,6 +38,19 @@ class EnvInitCommand extends Command
             scroll: 12
         );
 
+        $environments = $this->ghostable->environments($projectId);
+        $baseOptions = collect($environments)
+            ->mapWithKeys(fn ($env) => [$env['id'] => $env['name']])
+            ->prepend('Standalone', 'standalone')
+            ->all();
+
+        $selectedBase = select(
+            label: 'Which environment is this based on?',
+            options: $baseOptions,
+            default: 'standalone',
+            scroll: 12
+        );
+
         $name = $this->option('name') ?? text('What is the name of the environment?');
 
         // Create the environment on the server
@@ -45,6 +58,7 @@ class EnvInitCommand extends Command
             projectId: $projectId,
             name: $name,
             type: $selectedType,
+            base: $selectedBase,
         );
 
         Helpers::info("✅ Environment <comment>$name</comment> created successfully.");
