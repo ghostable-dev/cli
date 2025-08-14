@@ -97,6 +97,18 @@ class GhostableConsoleClient
     /**
      * @return array<string,mixed>
      */
+    public function suggestedEnvironmentNames(string $projectId, string $type): array
+    {
+        return $this->requestJson(
+            self::POST,
+            "/projects/{$projectId}/generate-suggested-environment-names",
+            ['type' => $type]
+        )['data'] ?? [];
+    }
+
+    /**
+     * @return array<string,mixed>
+     */
     public function createEnvironment(
         string $projectId,
         string $name,
