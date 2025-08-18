@@ -44,7 +44,7 @@ class LoginCommand extends Command
 
         if (($response['two_factor'] ?? false) === true) {
             Helpers::comment(
-                'Need to use a recovery code? Log in via https://ghostable.dev/login' . PHP_EOL
+                'Need to use a recovery code? Log in via https://ghostable.dev/login'.PHP_EOL
             );
 
             $twoFactor = form()
