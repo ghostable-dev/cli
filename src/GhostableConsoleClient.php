@@ -28,8 +28,7 @@ class GhostableConsoleClient
     public function login(
         string $email,
         string $password,
-        ?string $code = null,
-        ?string $recoveryCode = null
+        ?string $code = null
     ): array {
         $payload = [
             'email' => $email,
@@ -38,10 +37,6 @@ class GhostableConsoleClient
 
         if ($code) {
             $payload['code'] = $code;
-        }
-
-        if ($recoveryCode) {
-            $payload['recovery_code'] = $recoveryCode;
         }
 
         return $this->requestJson(self::POST, '/cli/login', $payload);

@@ -43,16 +43,18 @@ class LoginCommand extends Command
         );
 
         if (($response['two_factor'] ?? false) === true) {
+            Helpers::comment(
+                'Need to use a recovery code? Log in via https://ghostable.dev/login'
+            );
+
             $twoFactor = form()
                 ->password(name: 'code', label: 'Two-factor code')
-                ->password(name: 'recovery_code', label: 'Recovery code')
                 ->submit();
 
             $response = $this->ghostable->login(
                 email: $input['email'],
                 password: $input['password'],
                 code: $twoFactor['code'] ?: null,
-                recoveryCode: $twoFactor['recovery_code'] ?: null,
             );
         }
 
