@@ -20,14 +20,31 @@ class GhostableConsoleClient
         protected ?string $token = null
     ) {}
 
-    public function login(string $email, string $password): ?string
-    {
-        $response = $this->requestJson(self::POST, '/cli/login', [
+    /**
+     * Attempt to authenticate the user and return the API response.
+     *
+     * @return array<string,mixed>
+     */
+    public function login(
+        string $email,
+        string $password,
+        ?string $code = null,
+        ?string $recoveryCode = null
+    ): array {
+        $payload = [
             'email' => $email,
             'password' => $password,
-        ]);
+        ];
 
-        return $response['token'] ?? null;
+        if ($code) {
+            $payload['code'] = $code;
+        }
+
+        if ($recoveryCode) {
+            $payload['recovery_code'] = $recoveryCode;
+        }
+
+        return $this->requestJson(self::POST, '/cli/login', $payload);
     }
 
     /**

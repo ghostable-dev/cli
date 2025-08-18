@@ -37,10 +37,30 @@ class LoginCommand extends Command
             ->password(name: 'password', label: 'Password')
             ->submit();
 
-        return $this->ghostable->login(
+        $response = $this->ghostable->login(
             email: $input['email'],
             password: $input['password'],
         );
+
+        if (($response['two_factor'] ?? false) === true) {
+            $twoFactor = form()
+                ->password(name: 'code', label: 'Two-factor code')
+                ->password(name: 'recovery_code', label: 'Recovery code')
+                ->submit();
+
+            $response = $this->ghostable->login(
+                email: $input['email'],
+                password: $input['password'],
+                code: $twoFactor['code'] ?: null,
+                recoveryCode: $twoFactor['recovery_code'] ?: null,
+            );
+        }
+
+        if (! isset($response['token'])) {
+            Helpers::abort('Authentication failed.');
+        }
+
+        return $response['token'];
     }
 
     protected function store(string $token): void
