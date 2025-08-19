@@ -6,6 +6,7 @@ use Ghostable\Helpers;
 use GuzzleHttp\Exception\ClientException;
 
 use function Laravel\Prompts\form;
+use function Laravel\Prompts\select;
 
 class LoginCommand extends Command
 {
@@ -76,8 +77,31 @@ class LoginCommand extends Command
     {
         $teams = $this->ghostable->teams();
 
-        $this->config->setTeam(collect($teams)->first(function ($team) {
-            return isset($team['id']);
-        })['id']);
+        if (count($teams) === 1) {
+            /** @var array{id: string, name?: string} $team */
+            $team = collect($teams)->first();
+
+            $this->config->setTeam($team['id']);
+
+            $teamName = $team['name'] ?? $team['id'];
+
+            Helpers::info("Using team: <comment>{$teamName}</comment>");
+
+            return;
+        }
+
+        $teamId = select(
+            'Which team would you like to use?',
+            collect($teams)
+                ->sortBy('name')
+                ->mapWithKeys(fn ($team) => [$team['id'] => $team['name']])
+                ->all(),
+        );
+
+        $this->config->setTeam($teamId);
+
+        $teamName = collect($teams)->firstWhere('id', $teamId)['name'] ?? $teamId;
+
+        Helpers::info("Using team: <comment>{$teamName}</comment>");
     }
 }
