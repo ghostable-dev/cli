@@ -21,6 +21,15 @@ class Application extends SymfonyConsoleApplication
             )
         );
 
+        $definition->addOption(
+            new InputOption(
+                'api-version',
+                null,
+                InputOption::VALUE_OPTIONAL,
+                'Override the Ghostable API version (default: v1)'
+            )
+        );
+
         return $definition;
     }
 }

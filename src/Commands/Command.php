@@ -4,6 +4,8 @@ namespace Ghostable\Commands;
 
 use DateTime;
 use Exception;
+use Ghostable\Api\V1Adapter;
+use Ghostable\Api\V2Adapter;
 use Ghostable\Config;
 use Ghostable\Env\Env;
 use Ghostable\GhostableConsoleClient;
@@ -40,9 +42,16 @@ abstract class Command extends SymfonyCommand
         );
     }
 
-    protected function makeGhostableClient(string $token): GhostableConsoleClient
+    protected function makeGhostableClient(string $token, ?string $version = null): GhostableConsoleClient
     {
-        return new GhostableConsoleClient(token: $token);
+        $version = $version ?? Config::getApiVersion();
+
+        $adapter = match ($version) {
+            'v2' => new V2Adapter,
+            default => new V1Adapter,
+        };
+
+        return new GhostableConsoleClient(adapter: $adapter, token: $token);
     }
 
     protected function execute(
@@ -55,6 +64,13 @@ abstract class Command extends SymfonyCommand
         Helpers::app()->instance('output', $this->output = $output);
 
         $this->configureManifestPath($input);
+
+        if ($version = $input->getOption('api-version')) {
+            $this->ghostable = $this->makeGhostableClient(
+                token: $this->config->getAccessToken(),
+                version: $version,
+            );
+        }
 
         return (int) ($this->handle() ?? 0);
     }
