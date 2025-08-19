@@ -293,9 +293,14 @@ class GhostableConsoleClient
     {
         $status = $e->getResponse()->getStatusCode();
         $body = (string) $e->getResponse()->getBody();
+        $path = $e->getRequest()->getUri()->getPath();
 
         if ($status === 401) {
-            echo "❌ Unauthorized. Run `ghostable login` first.\n";
+            if (str_contains($path, '/cli/login')) {
+                echo "❌ Authentication failed.\n";
+            } else {
+                echo "❌ Unauthorized. Run `ghostable login` first.\n";
+            }
         } elseif ($status === 422) {
             $data = json_decode($body, true);
             foreach (($data['errors'] ?? []) as $field => $messages) {
