@@ -2,8 +2,11 @@
 
 namespace Ghostable;
 
+use Ghostable\Api\Adapter;
+use Ghostable\Api\V1Adapter;
 use GuzzleHttp\Client;
 use GuzzleHttp\Exception\ClientException;
+use Psr\Http\Message\ResponseInterface;
 
 class GhostableConsoleClient
 {
@@ -15,9 +18,13 @@ class GhostableConsoleClient
 
     private const GET = 'GET';
 
+    protected array $supportedVersions = [];
+
     public function __construct(
-        protected string $baseUrl = 'https://ghostable.dev/api/',
-        protected ?string $token = null
+        protected Adapter $adapter = new V1Adapter,
+        protected string $baseUrl = 'https://ghostable.dev',
+        protected ?string $token = null,
+        protected ?Client $httpClient = null
     ) {}
 
     /**
@@ -224,12 +231,18 @@ class GhostableConsoleClient
     protected function requestRaw(string $method, string $uri): string
     {
         try {
-            $response = $this->client()->request($method, ltrim($uri, '/'), [
-                'headers' => array_filter([
-                    'Accept' => self::TYPE_PLAIN,
-                    'Authorization' => $this->authorizationHeader(),
-                ]),
-            ]);
+            $response = $this->client()->request(
+                $method,
+                ltrim($this->adapter->uri($uri), '/'),
+                [
+                    'headers' => array_filter([
+                        'Accept' => self::TYPE_PLAIN,
+                        'Authorization' => $this->authorizationHeader(),
+                    ]),
+                ]
+            );
+
+            $this->handleResponseHeaders($response);
 
             return (string) $response->getBody();
         } catch (ClientException $e) {
@@ -251,14 +264,20 @@ class GhostableConsoleClient
         array $json = []
     ): array {
         try {
-            $response = $this->client()->request($method, ltrim($uri, '/'), [
-                'json' => $json,
-                'headers' => array_filter([
-                    'Accept' => $acceptType,
-                    'Content-Type' => $acceptType,
-                    'Authorization' => $this->authorizationHeader(),
-                ]),
-            ]);
+            $response = $this->client()->request(
+                $method,
+                ltrim($this->adapter->uri($uri), '/'),
+                [
+                    'json' => $json,
+                    'headers' => array_filter([
+                        'Accept' => $acceptType,
+                        'Content-Type' => $acceptType,
+                        'Authorization' => $this->authorizationHeader(),
+                    ]),
+                ]
+            );
+
+            $this->handleResponseHeaders($response);
 
             return json_decode((string) $response->getBody(), true) ?? [];
         } catch (ClientException $e) {
@@ -290,6 +309,20 @@ class GhostableConsoleClient
     }
 
     /**
+     * Handle version-related response headers.
+     */
+    protected function handleResponseHeaders(ResponseInterface $response): void
+    {
+        if ($versions = $response->getHeaderLine('X-Ghostable-Api-Versions')) {
+            $this->supportedVersions = array_map('trim', explode(',', $versions));
+        }
+
+        if ($deprecated = $response->getHeaderLine('X-Ghostable-Deprecation')) {
+            echo "⚠️ API version {$this->adapter->version()} is deprecated. {$deprecated}\n";
+        }
+    }
+
+    /**
      * Get the Authorization header for the current CLI user.
      */
     protected function authorizationHeader(): ?string
@@ -298,11 +331,25 @@ class GhostableConsoleClient
     }
 
     /**
+     * Expose the supported API versions provided by the server.
+     *
+     * @return array<int, string>
+     */
+    public function supportedVersions(): array
+    {
+        return $this->supportedVersions;
+    }
+
+    /**
      * Create the configured Guzzle client.
      */
     protected function client(): Client
     {
-        return new Client([
+        if ($this->httpClient) {
+            return $this->httpClient;
+        }
+
+        return $this->httpClient = new Client([
             'base_uri' => $this->baseUrl,
             'timeout' => 10,
         ]);

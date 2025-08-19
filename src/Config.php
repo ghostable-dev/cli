@@ -10,6 +10,8 @@ class Config
 
     const TEAM = 'team';
 
+    const API_VERSION = 'api_version';
+
     /**
      * Get the access token.
      */
@@ -24,6 +26,28 @@ class Config
     public static function getTeam(): ?string
     {
         return self::get(self::TEAM, null);
+    }
+
+    /**
+     * Get the API version to use for requests.
+     */
+    public static function getApiVersion(): string
+    {
+        $envVersion = getenv('GHOSTABLE_API_VERSION');
+
+        if ($envVersion !== false && trim($envVersion) !== '') {
+            return $envVersion;
+        }
+
+        return self::get(self::API_VERSION, 'v1');
+    }
+
+    /**
+     * Persist the preferred API version.
+     */
+    public static function setApiVersion(string $version): void
+    {
+        self::set(self::API_VERSION, $version);
     }
 
     /**
