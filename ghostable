@@ -9,6 +9,7 @@ use Dotenv\Repository\Adapter\EnvConstAdapter as V4orV5EnvConstAdapter;
 use Dotenv\Repository\Adapter\ServerConstAdapter as V4orV5ServerConstAdapter;
 use Dotenv\Repository\RepositoryBuilder;
 use Illuminate\Container\Container;
+use Composer\InstalledVersions;
 use Ghostable\Application;
 use Ghostable\Commands;
 
@@ -66,7 +67,8 @@ Container::setInstance($container = new Container);
 /**
  * Start the console application.
  */
-$app = new Application('Ghostable', '1.0.0');
+$version = InstalledVersions::getPrettyVersion('ghostable-dev/cli') ?? 'dev';
+$app = new Application('Ghostable', $version);
 
 // Authentication...
 $app->add(new Commands\LoginCommand);
