@@ -3,6 +3,7 @@
 namespace Ghostable\Commands;
 
 use Ghostable\Helpers;
+use Ghostable\Manifest;
 use GuzzleHttp\Exception\ClientException;
 use Symfony\Component\Console\Input\InputOption;
 
@@ -34,7 +35,37 @@ class EnvDeployCommand extends Command
         }
 
         if ($this->option('validate')) {
+            try {
+                ob_start();
+                $response = $ghostable->validateEnvironment(
+                    Manifest::id(),
+                    'deploy',
+                    preg_split("/\r?\n/", trim($contents)) ?: []
+                );
+                ob_end_clean();
+            } catch (ClientException $e) {
+                ob_end_clean();
+                $response = $e->getResponse();
 
+                if ($response->getStatusCode() === 422) {
+                    Helpers::danger('Validation failed due to errors:');
+                    $data = json_decode((string) $response->getBody(), true);
+                    foreach (($data['errors'] ?? []) as $field => $messages) {
+                        foreach ((array) $messages as $message) {
+                            Helpers::line('  - '.$message);
+                        }
+                    }
+                } else {
+                    Helpers::danger('Validation failed.');
+                }
+
+                return Command::FAILURE;
+            }
+
+            Helpers::info('✅ Environment is valid.');
+            if (isset($response['message'])) {
+                Helpers::info($response['message']);
+            }
         }
 
         file_put_contents('.env', $contents, LOCK_EX);
