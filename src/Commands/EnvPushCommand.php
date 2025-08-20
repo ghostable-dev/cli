@@ -41,7 +41,7 @@ class EnvPushCommand extends Command
             Helpers::abort('The environment could not be loaded.');
         }
 
-        Helpers::info("You're about to push the <comment>{$env}</comment> environment to Ghostable.");
+        Helpers::info("Preparing to push the <comment>{$env}</comment> environment to Ghostable.");
         Helpers::warn('This will overwrite the existing environment configuration.'.PHP_EOL);
         if (! confirm('Are you sure you want to continue?')) {
             Helpers::warn('Cancelled. No changes were made.');

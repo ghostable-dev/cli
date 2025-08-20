@@ -70,7 +70,7 @@ class LoginCommand extends Command
     {
         $this->config->setAccessToken($token);
 
-        Helpers::info('Authenticated successfully.'.PHP_EOL);
+        Helpers::info('✅ Authenticated successfully.'.PHP_EOL);
     }
 
     protected function ensureCurrentTeamIsSet(): void
@@ -85,7 +85,7 @@ class LoginCommand extends Command
 
             $teamName = $team['name'] ?? $team['id'];
 
-            Helpers::info("Using team: <comment>{$teamName}</comment>");
+            Helpers::info("✅ Using team: <comment>{$teamName}</comment>");
 
             return;
         }
@@ -102,6 +102,6 @@ class LoginCommand extends Command
 
         $teamName = collect($teams)->firstWhere('id', $teamId)['name'] ?? $teamId;
 
-        Helpers::info("Using team: <comment>{$teamName}</comment>");
+        Helpers::info("✅ Using team: <comment>{$teamName}</comment>");
     }
 }
