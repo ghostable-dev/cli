@@ -79,7 +79,8 @@ class Env
     {
         $path = $this->resolvePathForEnv($name);
 
-        file_put_contents($path, $contents);
+        file_put_contents($path, $contents, LOCK_EX);
+        chmod($path, 0600);
     }
 
     /**

@@ -108,7 +108,8 @@ class Config
 
         Arr::set($config, $key, $value);
 
-        file_put_contents(static::path(), json_encode($config, JSON_PRETTY_PRINT));
+        file_put_contents(static::path(), json_encode($config, JSON_PRETTY_PRINT), LOCK_EX);
+        chmod(static::path(), 0600);
     }
 
     /**
@@ -117,7 +118,7 @@ class Config
     public static function load(): array
     {
         if (! is_dir(dirname(static::path()))) {
-            mkdir(dirname(static::path()), 0755, true);
+            mkdir(dirname(static::path()), 0700, true);
         }
 
         if (file_exists(static::path())) {
