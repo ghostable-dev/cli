@@ -22,7 +22,15 @@ class InitCommand extends Command
 
         $project = $this->determineProject();
 
-        Manifest::fresh($project);
+        $team = collect($this->ghostable->teams())
+            ->where('id', $this->config->getTeam())
+            ->first();
+
+        if (! $team) {
+            Helpers::abort('Unable to determine current team.');
+        }
+
+        Manifest::fresh($project, $team);
 
         Helpers::info("✅ {$project['name']} initialized. ghostable.yaml created.");
 

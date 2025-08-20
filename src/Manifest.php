@@ -24,6 +24,24 @@ class Manifest
         return static::current()['name'];
     }
 
+    public static function teamId(): string
+    {
+        if (! array_key_exists('team_id', static::current())) {
+            Helpers::abort(sprintf('Invalid team ID. Please verify your Ghostable manifest at [%s].', self::resolve()));
+        }
+
+        return static::current()['team_id'];
+    }
+
+    public static function teamName(): string
+    {
+        if (! array_key_exists('team_name', static::current())) {
+            Helpers::abort(sprintf('Invalid team name. Please verify your Ghostable manifest at [%s].', self::resolve()));
+        }
+
+        return static::current()['team_name'];
+    }
+
     public static function resolve(): string
     {
         return Helpers::app('manifest');
@@ -48,11 +66,13 @@ class Manifest
         return Yaml::parse(file_get_contents(self::resolve()));
     }
 
-    public static function fresh(array $project): void
+    public static function fresh(array $project, array $team = []): void
     {
         static::write(array_filter([
             'id' => $project['id'],
             'name' => $project['name'],
+            'team_id' => $team['id'] ?? null,
+            'team_name' => $team['name'] ?? null,
             'environments' => collect($project['environments'])
                 ->map(function ($env) {
                     return [
