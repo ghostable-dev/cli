@@ -35,6 +35,12 @@ class SecretListCommand extends Command
 
         $secrets = $this->ghostable->environmentSecrets(Manifest::id(), $env);
 
+        if (empty($secrets)) {
+            Helpers::info('No secrets found in this environment');
+
+            return Command::SUCCESS;
+        }
+
         table(
             headers: ['ID', 'Type'],
             rows: collect($secrets)->map(function ($secret) {

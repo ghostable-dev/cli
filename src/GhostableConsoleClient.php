@@ -194,14 +194,14 @@ class GhostableConsoleClient
     public function createEnvironmentSecret(
         string $projectId,
         string $name,
-        string $type,
+        string $secret,
         string $value,
     ): array {
         return $this->requestJson(
             self::POST,
             "/projects/{$projectId}/environments/{$name}/secrets",
             [
-                'type' => $type,
+                'name' => $secret,
                 'value' => $value,
             ]
         )['data'] ?? [];
