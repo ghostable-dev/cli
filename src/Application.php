@@ -30,6 +30,15 @@ class Application extends SymfonyConsoleApplication
             )
         );
 
+        $definition->addOption(
+            new InputOption(
+                'debug',
+                null,
+                InputOption::VALUE_NONE,
+                'Display detailed API responses'
+            )
+        );
+
         return $definition;
     }
 }

@@ -20,6 +20,8 @@ class GhostableConsoleClient
 
     protected array $supportedVersions = [];
 
+    protected bool $debug = false;
+
     public function __construct(
         protected Adapter $adapter = new V1Adapter,
         protected string $baseUrl = 'https://ghostable.dev',
@@ -309,7 +311,17 @@ class GhostableConsoleClient
                 }
             }
         } else {
-            echo "❌ API Error ({$status}): {$body}\n";
+            $requestId = $e->getResponse()->getHeaderLine('X-Request-Id');
+
+            if ($this->debug) {
+                echo "❌ API Error ({$status}): {$body}\n";
+            } else {
+                $message = "❌ API Error ({$status})";
+                if ($requestId) {
+                    $message .= " - Request ID: {$requestId}";
+                }
+                echo $message."\n";
+            }
         }
     }
 
@@ -343,6 +355,11 @@ class GhostableConsoleClient
     public function supportedVersions(): array
     {
         return $this->supportedVersions;
+    }
+
+    public function setDebug(bool $debug): void
+    {
+        $this->debug = $debug;
     }
 
     /**
