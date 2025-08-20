@@ -3,7 +3,7 @@
 namespace Ghostable;
 
 use Illuminate\Container\Container;
-use Illuminate\Support\Carbon;
+use Symfony\Component\Console\Output\OutputInterface;
 
 class Helpers
 {
@@ -22,9 +22,19 @@ class Helpers
      */
     public static function app(?string $name = null): mixed
     {
+        $container = Container::getInstance();
+
         return $name
-            ? Container::getInstance()->make($name)
-            : Container::getInstance();
+            ? $container->make($name)
+            : $container;
+    }
+
+    /**
+     * Get the console output instance.
+     */
+    protected static function output(): OutputInterface
+    {
+        return static::app('output');
     }
 
     /**
@@ -32,7 +42,7 @@ class Helpers
      */
     public static function comment(string $text): void
     {
-        static::app('output')->writeln('<comment>'.$text.'</comment>');
+        static::output()->writeln('<comment>'.$text.'</comment>');
     }
 
     /**
@@ -40,7 +50,7 @@ class Helpers
      */
     public static function danger(string $text): void
     {
-        static::app('output')->writeln('<fg=red>'.$text.'</>');
+        static::output()->writeln('<fg=red>'.$text.'</>');
     }
 
     /**
@@ -48,15 +58,7 @@ class Helpers
      */
     public static function warn(string $text): void
     {
-        static::app('output')->writeln('<fg=yellow>'.$text.'</>');
-    }
-
-    /**
-     * Get the home directory for the user.
-     */
-    public static function home(): string
-    {
-        return $_SERVER['HOME'] ?? $_SERVER['USERPROFILE'];
+        static::output()->writeln('<fg=yellow>'.$text.'</>');
     }
 
     /**
@@ -64,15 +66,7 @@ class Helpers
      */
     public static function info(string $text): void
     {
-        static::app('output')->writeln('<info>'.$text.'</info>');
-    }
-
-    /**
-     * Get the file size in kilobytes.
-     */
-    public static function kilobytes(string $file): string
-    {
-        return round(filesize($file) / 1024, 2).'KB';
+        static::output()->writeln('<info>'.$text.'</info>');
     }
 
     /**
@@ -80,38 +74,6 @@ class Helpers
      */
     public static function line(string $text = ''): void
     {
-        static::app('output')->writeln($text);
-    }
-
-    /**
-     * Get the file size in megabytes.
-     */
-    public static function megabytes(string $file): string
-    {
-        return round(filesize($file) / 1024 / 1024, 2).'MB';
-    }
-
-    /**
-     * Display a "step" message.
-     */
-    public static function step(string $text): void
-    {
-        static::line('<fg=blue>==></> '.$text);
-    }
-
-    /**
-     * Display the date in "humanized" time-ago form.
-     */
-    public static function time_ago(string $date): string
-    {
-        return Carbon::parse($date)->diffForHumans();
-    }
-
-    /**
-     * Write text to the console.
-     */
-    public static function write(string $text): void
-    {
-        static::app('output')->write($text);
+        static::output()->writeln($text);
     }
 }
