@@ -31,6 +31,10 @@ class EnvPushCommand extends Command
             ? $this->resolveEnvFromOption($option, $envNames)
             : $this->promptForEnv($envNames);
 
+        if (! $env) {
+            return Command::FAILURE;
+        }
+
         try {
             $lines = $this->env->getRaw($env);
         } catch (\Throwable $e) {
@@ -89,11 +93,32 @@ class EnvPushCommand extends Command
     {
         if (! in_array($name, $envs)) {
             Helpers::warn("Environment <comment>{$name}</comment> not found.");
-            if (confirm('Would you like to create it?')) {
-                // create environment (and push)
+            if (! confirm('Would you like to create it?')) {
+                Helpers::warn('Cancelled. No changes were made.');
+
+                return null;
             }
 
-            return null;
+            $type = Manifest::environmentType($name) ?? 'development';
+
+            try {
+                $env = $this->ghostable->createEnvironment(
+                    projectId: Manifest::id(),
+                    name: $name,
+                    type: $type,
+                );
+            } catch (\Throwable $e) {
+                Helpers::danger('Environment could not be created.');
+
+                return null;
+            }
+
+            Manifest::addEnvironment([
+                'name' => $env['name'] ?? $name,
+                'type' => $env['type'] ?? $type,
+            ]);
+
+            Helpers::info("✅ Environment <comment>{$name}</comment> created successfully.");
         }
 
         return $name;
