@@ -72,6 +72,8 @@ abstract class Command extends SymfonyCommand
             );
         }
 
+        $this->ghostable->setDebug((bool) $input->getOption('debug'));
+
         return (int) ($this->handle() ?? 0);
     }
 
