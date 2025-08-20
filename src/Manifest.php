@@ -54,13 +54,14 @@ class Manifest
             'id' => $project['id'],
             'name' => $project['name'],
             'environments' => collect($project['environments'])
-                ->map(function ($env) {
+                ->mapWithKeys(function ($env) {
                     return [
-                        'name' => $env['name'],
-                        'type' => $env['type'] ?? null,
+                        $env['name'] => array_filter([
+                            'type' => $env['type'] ?? null,
+                        ]),
                     ];
                 })
-                ->values()
+                ->sortKeys()
                 ->toArray(),
         ]));
     }
@@ -69,20 +70,24 @@ class Manifest
     {
         $manifest = static::current();
 
-        $environments = collect($manifest['environments'] ?? [])
-            ->map(function ($e) {
-                return is_string($e)
-                    ? ['name' => $e, 'type' => null]
-                    : $e;
-            })
-            ->push([
-                'name' => $environment['name'],
-                'type' => $environment['type'] ?? null,
-            ])
-            ->unique('name')
-            ->sortBy('name')
-            ->values()
-            ->all();
+        $environments = $manifest['environments'] ?? [];
+
+        // Convert from old list format if necessary
+        if (array_keys($environments) === range(0, count($environments) - 1)) {
+            $environments = collect($environments)
+                ->mapWithKeys(function ($e) {
+                    return is_string($e)
+                        ? [$e => []]
+                        : [$e['name'] => array_filter(['type' => $e['type'] ?? null])];
+                })
+                ->toArray();
+        }
+
+        $environments[$environment['name']] = array_filter([
+            'type' => $environment['type'] ?? null,
+        ]);
+
+        ksort($environments);
 
         $manifest['environments'] = $environments;
 
@@ -94,23 +99,37 @@ class Manifest
      */
     public static function environmentNames(): array
     {
-        return collect(static::current()['environments'] ?? [])
-            ->map(fn ($env) => is_array($env) ? $env['name'] : $env)
-            ->values()
-            ->toArray();
+        $environments = static::current()['environments'] ?? [];
+
+        // If the environments are stored as a numerically indexed list (old format)
+        if (array_keys($environments) === range(0, count($environments) - 1)) {
+            return collect($environments)
+                ->map(fn ($env) => is_array($env) ? $env['name'] : $env)
+                ->values()
+                ->toArray();
+        }
+
+        return array_keys($environments);
     }
 
     public static function environmentType(string $name): ?string
     {
-        $env = collect(static::current()['environments'] ?? [])
-            ->map(function ($env) {
-                return is_array($env)
-                    ? $env
-                    : ['name' => $env, 'type' => null];
-            })
-            ->firstWhere('name', $name);
+        $environments = static::current()['environments'] ?? [];
 
-        return $env['type'] ?? null;
+        // Old list-based format
+        if (array_keys($environments) === range(0, count($environments) - 1)) {
+            $env = collect($environments)
+                ->map(function ($env) {
+                    return is_array($env)
+                        ? $env
+                        : ['name' => $env, 'type' => null];
+                })
+                ->firstWhere('name', $name);
+
+            return $env['type'] ?? null;
+        }
+
+        return $environments[$name]['type'] ?? null;
     }
 
     protected static function write(array $manifest, $path = null): void
