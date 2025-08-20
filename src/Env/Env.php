@@ -95,7 +95,12 @@ class Env
     {
         $type = Manifest::environmentType($name) ?? $name;
 
-        $sanitized = ltrim(str($type)->trim()->lower(), '.');
+        $normalized = ltrim(str($type)->trim()->lower(), '.');
+        $sanitized = basename($normalized);
+
+        if ($sanitized !== $normalized || str_contains($sanitized, '..') || ! preg_match('/^[a-z0-9._-]+$/', $sanitized)) {
+            throw new \InvalidArgumentException("Invalid environment type: {$type}");
+        }
 
         $path = "{$this->basePath}/.env";
 
