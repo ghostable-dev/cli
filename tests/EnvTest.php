@@ -20,7 +20,7 @@ class EnvTest extends TestCase
             'id' => 'p1',
             'name' => 'Demo',
             'environments' => [
-                ['name' => 'prod', 'type' => 'production'],
+                'prod' => ['type' => 'production'],
             ],
         ]));
 
