@@ -18,6 +18,8 @@ class GhostableConsoleClient
 
     private const GET = 'GET';
 
+    private const PUT = 'PUT';
+
     protected array $supportedVersions = [];
 
     protected bool $debug = false;
@@ -115,11 +117,30 @@ class GhostableConsoleClient
     /**
      * @return array<string,mixed>
      */
+    public function secretTypes(): array
+    {
+        return $this->requestJson(self::GET, '/secret-types')['data'] ?? [];
+    }
+
+    /**
+     * @return array<string,mixed>
+     */
     public function environments(string $projectId): array
     {
         return $this->requestJson(
             self::GET,
             "/projects/{$projectId}/environments"
+        )['data'] ?? [];
+    }
+
+    /**
+     * @return array<string,mixed>
+     */
+    public function environmentSecrets(string $projectId, string $name): array
+    {
+        return $this->requestJson(
+            self::GET,
+            "/projects/{$projectId}/environments/{$name}/secrets"
         )['data'] ?? [];
     }
 
@@ -165,6 +186,43 @@ class GhostableConsoleClient
             "/projects/{$projectId}/environments/{$name}/push",
             ['vars' => $vars]
         );
+    }
+
+    /**
+     * @return array<string,mixed>
+     */
+    public function createEnvironmentSecret(
+        string $projectId,
+        string $name,
+        string $type,
+        string $value,
+    ): array {
+        return $this->requestJson(
+            self::POST,
+            "/projects/{$projectId}/environments/{$name}/secrets",
+            [
+                'type' => $type,
+                'value' => $value,
+            ]
+        )['data'] ?? [];
+    }
+
+    /**
+     * @return array<string,mixed>
+     */
+    public function updateEnvironmentSecret(
+        string $projectId,
+        string $name,
+        string $secret,
+        string $value,
+    ): array {
+        return $this->requestJson(
+            self::PUT,
+            "/projects/{$projectId}/environments/{$name}/secrets/{$secret}",
+            [
+                'value' => $value,
+            ]
+        )['data'] ?? [];
     }
 
     public function pull(string $projectId, string $name, ?string $format = null): string
