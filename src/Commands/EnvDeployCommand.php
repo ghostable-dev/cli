@@ -37,7 +37,8 @@ class EnvDeployCommand extends Command
 
         }
 
-        file_put_contents('.env', $contents);
+        file_put_contents('.env', $contents, LOCK_EX);
+        chmod('.env', 0600);
 
         Helpers::info('✅ Environment variables successfully written to .env');
 
