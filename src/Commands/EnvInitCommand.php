@@ -25,7 +25,7 @@ class EnvInitCommand extends Command
         $projectId = Manifest::id();
 
         if (! $projectId) {
-            Helpers::abort('No project is currently selected. Run `ghostable init` first.');
+            Helpers::abort('No project selected. Run `ghostable init` first.');
         }
 
         // Fetch environment types

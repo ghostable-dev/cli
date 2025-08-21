@@ -45,7 +45,7 @@ class EnvPullCommand extends Command
 
         $format = $format === 'default' ? null : $format;
 
-        Helpers::info("You're about to pull the <comment>{$env}</comment> environment from Ghostable.");
+        Helpers::info("Preparing to pull the <comment>{$env}</comment> environment from Ghostable.");
         Helpers::warn('This will overwrite the existing environment file (if present).'.PHP_EOL);
         if (! confirm('Are you sure you want to continue?')) {
             Helpers::warn('Cancelled. No changes were made.');
