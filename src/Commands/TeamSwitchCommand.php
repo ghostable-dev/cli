@@ -36,7 +36,7 @@ class TeamSwitchCommand extends Command
         $this->config->setTeam($teamId);
 
         $teamName = collect($teams)->firstWhere('id', $teamId)['name'] ?? $teamId;
-        Helpers::info("Switched to team: <comment>{$teamName}</comment>");
+        Helpers::info("✅ Using team: <comment>{$teamName}</comment>");
 
         return Command::SUCCESS;
     }
