@@ -36,10 +36,10 @@ class SecretCreateCommand extends Command
         }
 
         $types = $this->ghostable->secretTypes();
-        $type = $this->option('type');
+        $secret = $this->option('type');
 
-        if (! $type) {
-            $type = select(
+        if (! $secret) {
+            $secret = select(
                 label: 'Which secret type?',
                 options: collect($types)->mapWithKeys(
                     fn ($t) => [($t['value'] ?? ($t['id'] ?? '')) => $t['label'] ?? ($t['name'] ?? '')]
@@ -50,7 +50,7 @@ class SecretCreateCommand extends Command
 
         $value = $this->option('value') ?? password('Enter the secret value');
 
-        $this->ghostable->createEnvironmentSecret(Manifest::id(), $env, $type, $value);
+        $this->ghostable->createEnvironmentSecret(Manifest::id(), $env, $secret, $value);
 
         Helpers::info('✅ Secret created successfully.');
 

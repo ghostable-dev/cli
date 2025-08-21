@@ -91,7 +91,6 @@ $app->add(new Commands\EnvPullCommand);
 $app->add(new Commands\EnvDeployCommand);
 
 // Secrets...
-$app->add(new Commands\SecretTypesCommand);
 $app->add(new Commands\SecretListCommand);
 $app->add(new Commands\SecretCreateCommand);
 $app->add(new Commands\SecretUpdateCommand);
