@@ -16,7 +16,7 @@ class EnvPushCommand extends Command
     {
         $this->setName('env:push')
             ->addOption('environment', null, InputArgument::OPTIONAL, 'The environment name')
-            ->setDescription('Upload the environment file for the given environment within the current team context.');
+            ->setDescription('Upload the environment file for the given environment within the current organization context.');
     }
 
     public function handle(): ?int

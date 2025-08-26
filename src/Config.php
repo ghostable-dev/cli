@@ -8,7 +8,7 @@ class Config
 {
     const ACCESS_TOKEN = 'access_token';
 
-    const TEAM = 'team';
+    const ORGANIZATION = 'organization';
 
     const API_VERSION = 'api_version';
 
@@ -21,11 +21,11 @@ class Config
     }
 
     /**
-     * Get the current team.
+     * Get the current organization.
      */
-    public static function getTeam(): ?string
+    public static function getOrganization(): ?string
     {
-        return self::get(self::TEAM, null);
+        return self::get(self::ORGANIZATION, null);
     }
 
     /**
@@ -92,11 +92,11 @@ class Config
     }
 
     /**
-     * Set the current team.
+     * Set the current organization.
      */
-    public static function setTeam(string $teamId): void
+    public static function setOrganization(string $organizationId): void
     {
-        self::set(self::TEAM, $teamId);
+        self::set(self::ORGANIZATION, $organizationId);
     }
 
     /**

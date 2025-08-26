@@ -26,7 +26,7 @@ class LoginCommand extends Command
 
         $this->store($token);
 
-        $this->ensureCurrentTeamIsSet();
+        $this->ensureCurrentOrganizationIsSet();
 
         return Command::SUCCESS;
     }
@@ -73,35 +73,35 @@ class LoginCommand extends Command
         Helpers::info('✅ Authenticated successfully.'.PHP_EOL);
     }
 
-    protected function ensureCurrentTeamIsSet(): void
+    protected function ensureCurrentOrganizationIsSet(): void
     {
-        $teams = $this->ghostable->teams();
+        $organizations = $this->ghostable->organizations();
 
-        if (count($teams) === 1) {
-            /** @var array{id: string, name?: string} $team */
-            $team = collect($teams)->first();
+        if (count($organizations) === 1) {
+            /** @var array{id: string, name?: string} $organization */
+            $organization = collect($organizations)->first();
 
-            $this->config->setTeam($team['id']);
+            $this->config->setOrganization($organization['id']);
 
-            $teamName = $team['name'] ?? $team['id'];
+            $organizationName = $organization['name'] ?? $organization['id'];
 
-            Helpers::info("✅ Using team: <comment>{$teamName}</comment>");
+            Helpers::info("✅ Using organization: <comment>{$organizationName}</comment>");
 
             return;
         }
 
-        $teamId = select(
-            'Which team would you like to use?',
-            collect($teams)
+        $organizationId = select(
+            'Which organization would you like to use?',
+            collect($organizations)
                 ->sortBy('name')
-                ->mapWithKeys(fn ($team) => [$team['id'] => $team['name']])
+                ->mapWithKeys(fn ($organization) => [$organization['id'] => $organization['name']])
                 ->all(),
         );
 
-        $this->config->setTeam($teamId);
+        $this->config->setOrganization($organizationId);
 
-        $teamName = collect($teams)->firstWhere('id', $teamId)['name'] ?? $teamId;
+        $organizationName = collect($organizations)->firstWhere('id', $organizationId)['name'] ?? $organizationId;
 
-        Helpers::info("✅ Using team: <comment>{$teamName}</comment>");
+        Helpers::info("✅ Using organization: <comment>{$organizationName}</comment>");
     }
 }

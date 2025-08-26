@@ -9,7 +9,7 @@ class ProjectListCommand extends Command
     protected function configure(): void
     {
         $this->setName('project:list')
-            ->setDescription('List the projects within the current team context.');
+            ->setDescription('List the projects within the current organization context.');
     }
 
     public function handle(): ?int
@@ -17,7 +17,7 @@ class ProjectListCommand extends Command
         $this->ensureAccessTokenIsAvailable();
 
         $projects = $this->ghostable->projects(
-            $this->config->getTeam()
+            $this->config->getOrganization()
         );
 
         table(

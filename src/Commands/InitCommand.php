@@ -13,7 +13,7 @@ class InitCommand extends Command
     protected function configure(): void
     {
         $this->setName('init')
-            ->setDescription('Initialize a new project in the current directory within the current team context.');
+            ->setDescription('Initialize a new project in the current directory within the current organization context.');
     }
 
     public function handle(): ?int
@@ -32,7 +32,7 @@ class InitCommand extends Command
     protected function determineProject(): array
     {
         $projects = $this->ghostable->projects(
-            $this->config->getTeam()
+            $this->config->getOrganization()
         );
 
         $selection = select(
@@ -59,7 +59,7 @@ class InitCommand extends Command
             )->submit();
 
         $project = $this->ghostable->createProject(
-            teamId: $this->config->getTeam(),
+            organizationId: $this->config->getOrganization(),
             name: $newProjectData['name']
         );
 

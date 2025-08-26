@@ -73,10 +73,10 @@ $app = new Application('Ghostable', $version);
 // Authentication...
 $app->add(new Commands\LoginCommand);
 
-// Teams...
-$app->add(new Commands\TeamListCommand);
-$app->add(new Commands\TeamCurrentCommand);
-$app->add(new Commands\TeamSwitchCommand);
+// Organizations...
+$app->add(new Commands\OrganizationListCommand);
+$app->add(new Commands\OrganizationCurrentCommand);
+$app->add(new Commands\OrganizationSwitchCommand);
 
 // Projects...
 $app->add(new Commands\InitCommand);

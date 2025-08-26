@@ -15,7 +15,7 @@ class EnvInitCommand extends Command
     {
         $this->setName('env:init')
             ->addOption('name', null, InputOption::VALUE_OPTIONAL, 'The environment name')
-            ->setDescription('Initialize a new environment in the current team and project context.');
+            ->setDescription('Initialize a new environment in the current organization and project context.');
     }
 
     public function handle(): ?int
