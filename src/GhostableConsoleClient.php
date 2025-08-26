@@ -67,33 +67,33 @@ class GhostableConsoleClient
     /**
      * @return array<string,mixed>
      */
-    public function teams(): array
+    public function organizations(): array
     {
         return $this->requestJson(
             self::GET,
-            '/teams'
+            '/organizations'
         )['data'] ?? [];
     }
 
     /**
      * @return array<string,mixed>
      */
-    public function projects(string $teamId): array
+    public function projects(string $organizationId): array
     {
         return $this->requestJson(
             self::GET,
-            "/teams/{$teamId}/projects"
+            "/organizations/{$organizationId}/projects"
         )['data'] ?? [];
     }
 
     /**
      * @return array<string,mixed>
      */
-    public function createProject(string $teamId, string $name): array
+    public function createProject(string $organizationId, string $name): array
     {
         return $this->requestJson(
             self::POST,
-            "/teams/{$teamId}/projects",
+            "/organizations/{$organizationId}/projects",
             ['name' => $name]
         )['data'] ?? [];
     }
