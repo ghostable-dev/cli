@@ -70,6 +70,10 @@ class LoginCommand extends Command
     {
         $this->config->setAccessToken($token);
 
+        // Reinitialize the API client with the freshly issued token so that
+        // subsequent requests during this command execution are authorized.
+        $this->ghostable = $this->makeGhostableClient(token: $token);
+
         Helpers::info('✅ Authenticated successfully.'.PHP_EOL);
     }
 
