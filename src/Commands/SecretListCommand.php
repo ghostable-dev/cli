@@ -42,10 +42,11 @@ class SecretListCommand extends Command
         }
 
         table(
-            headers: ['ID', 'Type'],
+            headers: ['ID', 'Name', 'Type'],
             rows: collect($secrets)->map(function ($secret) {
                 return [
                     $secret['id'] ?? '',
+                    $secret['name'] ?? '',
                     $secret['type'] ?? ($secret['secret_type'] ?? ''),
                 ];
             })->values()->all()

@@ -8,6 +8,7 @@ use Symfony\Component\Console\Input\InputOption;
 
 use function Laravel\Prompts\password;
 use function Laravel\Prompts\select;
+use function Laravel\Prompts\text;
 
 class SecretCreateCommand extends Command
 {
@@ -16,6 +17,7 @@ class SecretCreateCommand extends Command
         $this->setName('secret:create')
             ->addOption('environment', null, InputOption::VALUE_OPTIONAL, 'The environment name')
             ->addOption('type', null, InputOption::VALUE_OPTIONAL, 'The secret type')
+            ->addOption('name', null, InputOption::VALUE_OPTIONAL, 'The secret name')
             ->addOption('value', null, InputOption::VALUE_OPTIONAL, 'The secret value')
             ->setDescription('Create a new secret for the given environment.');
     }
@@ -36,10 +38,10 @@ class SecretCreateCommand extends Command
         }
 
         $types = $this->ghostable->secretTypes();
-        $secret = $this->option('type');
+        $type = $this->option('type');
 
-        if (! $secret) {
-            $secret = select(
+        if (! $type) {
+            $type = select(
                 label: 'Which secret type?',
                 options: collect($types)->mapWithKeys(
                     fn ($t) => [($t['value'] ?? ($t['id'] ?? '')) => $t['label'] ?? ($t['name'] ?? '')]
@@ -48,9 +50,11 @@ class SecretCreateCommand extends Command
             );
         }
 
+        $name = $this->option('name') ?? text('Enter the secret name');
+
         $value = $this->option('value') ?? password('Enter the secret value');
 
-        $this->ghostable->createEnvironmentSecret(Manifest::id(), $env, $secret, $value);
+        $this->ghostable->createEnvironmentSecret(Manifest::id(), $env, $type, $name, $value);
 
         Helpers::info('✅ Secret created successfully.');
 

@@ -41,13 +41,13 @@ class EnvInitCommand extends Command
         $environments = $this->ghostable->environments($projectId);
         $baseOptions = collect($environments)
             ->mapWithKeys(fn ($env) => [$env['id'] => $env['name']])
-            ->prepend('Standalone', 'standalone')
+            ->prepend('Standalone', null)
             ->all();
 
         $selectedBase = select(
             label: 'Which environment is this based on?',
             options: $baseOptions,
-            default: 'standalone',
+            default: null,
             scroll: 12
         );
 
