@@ -42,7 +42,7 @@ abstract class Command extends SymfonyCommand
         );
     }
 
-    protected function makeGhostableClient(string $token, ?string $version = null): GhostableConsoleClient
+    protected function makeGhostableClient(?string $token, ?string $version = null): GhostableConsoleClient
     {
         $version = $version ?? Config::getApiVersion();
 

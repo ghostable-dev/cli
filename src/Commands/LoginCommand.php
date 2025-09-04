@@ -81,6 +81,16 @@ class LoginCommand extends Command
     {
         $organizations = $this->ghostable->organizations();
 
+        // 0 orgs → instruct user and stop
+        if (count($organizations) === 0) {
+            Helpers::abort(
+                'No organizations found for this account.' . PHP_EOL .
+                '→ Go to https://ghostable.dev/login to create a new organization or accept any pending invitations.' . PHP_EOL .
+                'Then run: ghostable organization:switch'
+            );
+        }
+
+        // 1 org → auto-select
         if (count($organizations) === 1) {
             /** @var array{id: string, name?: string} $organization */
             $organization = collect($organizations)->first();
@@ -94,12 +104,19 @@ class LoginCommand extends Command
             return;
         }
 
+        // Many orgs → let user pick (fall back to ID if name missing)
+        $options = collect($organizations)
+            ->map(fn ($org) => [
+                'id' => $org['id'],
+                'label' => trim(($org['name'] ?? '') . " ({$org['id']})"),
+            ])
+            ->sortBy('label')
+            ->mapWithKeys(fn ($o) => [$o['id'] => $o['label']])
+            ->all();
+
         $organizationId = select(
             'Which organization would you like to use?',
-            collect($organizations)
-                ->sortBy('name')
-                ->mapWithKeys(fn ($organization) => [$organization['id'] => $organization['name']])
-                ->all(),
+            $options,
         );
 
         $this->config->setOrganization($organizationId);
