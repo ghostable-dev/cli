@@ -147,6 +147,17 @@ class GhostableConsoleClient
     /**
      * @return array<string,mixed>
      */
+    public function environmentSecret(string $projectId, string $name, string $secret): array
+    {
+        return $this->requestJson(
+            self::GET,
+            "/projects/{$projectId}/environments/{$name}/secrets/{$secret}"
+        )['data'] ?? [];
+    }
+
+    /**
+     * @return array<string,mixed>
+     */
     public function suggestedEnvironmentNames(string $projectId, string $type): array
     {
         return $this->requestJson(

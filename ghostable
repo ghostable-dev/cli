@@ -94,5 +94,6 @@ $app->add(new Commands\EnvDeployCommand);
 $app->add(new Commands\SecretListCommand);
 $app->add(new Commands\SecretCreateCommand);
 $app->add(new Commands\SecretUpdateCommand);
+$app->add(new Commands\SecretWriteCommand);
 
 $app->run();
