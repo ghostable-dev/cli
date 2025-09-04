@@ -84,8 +84,8 @@ class LoginCommand extends Command
         // 0 orgs → instruct user and stop
         if (count($organizations) === 0) {
             Helpers::abort(
-                'No organizations found for this account.' . PHP_EOL .
-                '→ Go to https://ghostable.dev/login to create a new organization or accept any pending invitations.' . PHP_EOL .
+                'No organizations found for this account.'.PHP_EOL.
+                '→ Go to https://ghostable.dev/login to create a new organization or accept any pending invitations.'.PHP_EOL.
                 'Then run: ghostable organization:switch'
             );
         }
@@ -108,7 +108,7 @@ class LoginCommand extends Command
         $options = collect($organizations)
             ->map(fn ($org) => [
                 'id' => $org['id'],
-                'label' => trim(($org['name'] ?? '') . " ({$org['id']})"),
+                'label' => trim(($org['name'] ?? '')." ({$org['id']})"),
             ])
             ->sortBy('label')
             ->mapWithKeys(fn ($o) => [$o['id'] => $o['label']])
