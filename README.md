@@ -1,4 +1,4 @@
-<p align="center"><img width="261" src="/art/logo.png" alt="Ghostable Logo"></p>
+![Ghostable Logo](/art/logo.png)
 
 # Ghostable CLI
 [![Total Downloads](http://poser.pugx.org/ghostable-dev/cli/downloads)](https://packagist.org/packages/ghostable-dev/cli)
