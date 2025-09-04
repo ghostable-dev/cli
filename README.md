@@ -1,3 +1,11 @@
+<p align="center"><img width="300" src="/art/logo.png" alt="Ghostable Logo"></p>
+
+<p align="center">
+    [![Total Downloads](http://poser.pugx.org/ghostable-dev/cli/downloads)](https://packagist.org/packages/ghostable-dev/cli)
+    [![Latest Stable Version](http://poser.pugx.org/ghostable-dev/cli/v)](https://packagist.org/packages/ghostable-dev/cli)
+    [![License](http://poser.pugx.org/ghostable-dev/cli/license)](https://packagist.org/packages/ghostable-dev/cli)
+</p>
+
 # Ghostable CLI
 
 **Ghostable** is a secure, Laravel-friendly platform for managing and sharing environment variables across projects and CI pipelines. This repository contains the CLI client used to interact with that platform.
