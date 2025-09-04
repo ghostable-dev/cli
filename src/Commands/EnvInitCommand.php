@@ -77,7 +77,7 @@ class EnvInitCommand extends Command
                 $name = text('Enter a unique slug-formatted environment name');
             }
         }
-        
+
         // Create the environment on the server
         $env = $this->ghostable->createEnvironment(
             projectId: $projectId,

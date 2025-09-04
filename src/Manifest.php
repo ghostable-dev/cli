@@ -39,7 +39,7 @@ class Manifest
         if (! file_exists(self::resolve())) {
             Helpers::abort(
                 sprintf(
-                    'Unable to find a Ghostable manifest at [%s].'. PHP_EOL.
+                    'Unable to find a Ghostable manifest at [%s].'.PHP_EOL.
                     '→ Run <comment>ghostable init</comment> to generate a new manifest file.',
                     self::resolve()
                 )

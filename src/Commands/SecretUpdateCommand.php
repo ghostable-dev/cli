@@ -37,14 +37,14 @@ class SecretUpdateCommand extends Command
         }
 
         $secrets = $this->ghostable->environmentSecrets(Manifest::id(), $env);
-        
+
         if (count($secrets) === 0) {
             Helpers::abort(
                 'No secrets found for this project.'.PHP_EOL.
                 'Then run: ghostable secret:create'
             );
         }
-        
+
         $secret = $this->argument('secret');
 
         if (! $secret) {

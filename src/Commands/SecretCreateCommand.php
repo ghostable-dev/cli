@@ -49,7 +49,7 @@ class SecretCreateCommand extends Command
                 scroll: 12
             );
         }
-        
+
         $name = $this->option('name') ?? text('Enter the secret name');
 
         $value = $this->option('value') ?? password('Enter the secret value');
