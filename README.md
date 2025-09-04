@@ -1,5 +1,3 @@
-![Ghostable Logo](/art/logo.png)
-
 # Ghostable CLI
 [![Total Downloads](http://poser.pugx.org/ghostable-dev/cli/downloads)](https://packagist.org/packages/ghostable-dev/cli)
 [![Latest Stable Version](http://poser.pugx.org/ghostable-dev/cli/v)](https://packagist.org/packages/ghostable-dev/cli)
