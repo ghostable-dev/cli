@@ -16,17 +16,6 @@ class Resolver
     {
         $payload = $client->fetch(Manifest::id(), $env);
 
-        if (is_string($payload)) {
-            $decoded = json_decode($payload, true);
-            if (json_last_error() === JSON_ERROR_NONE) {
-                $payload = $decoded;
-            }
-        }
-
-        if (! is_array($payload) || ! isset($payload['data']) || ! is_array($payload['data'])) {
-            throw new \RuntimeException('Unexpected response shape.');
-        }
-
         $vars = [];
         foreach ($payload['data'] as $row) {
             if (! isset($row['key'])) {
