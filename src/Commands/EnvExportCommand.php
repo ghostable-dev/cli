@@ -2,9 +2,7 @@
 
 namespace Ghostable\Commands;
 
-use Dotenv\Parser\Parser;
 use Ghostable\Manifest;
-use Symfony\Component\Console\Input\InputArgument;
 use Symfony\Component\Console\Input\InputOption;
 use Symfony\Component\Console\Output\ConsoleOutputInterface;
 
@@ -13,14 +11,15 @@ class EnvExportCommand extends Command
     protected function configure(): void
     {
         $this->setName('env:export')
-            ->addOption('environment', 'e', InputArgument::OPTIONAL, 'The environment name')
-            ->addOption('format', 'f', InputArgument::OPTIONAL, 'Output format (dotenv or shell)', 'dotenv')
-            ->addOption('keys', 'k', InputArgument::OPTIONAL, 'Comma-separated list of keys')
+            ->setDescription('Print resolved environment variables')
+            // options + shortcuts
+            ->addOption('environment', 'e', InputOption::VALUE_REQUIRED, 'The environment name (e.g. production, staging)')
+            ->addOption('format', 'f', InputOption::VALUE_REQUIRED, 'Output format (dotenv or shell)', 'dotenv')
+            ->addOption('keys', 'k', InputOption::VALUE_REQUIRED, 'Comma-separated list of keys')
             ->addOption('redact', null, InputOption::VALUE_NEGATABLE, 'Redact secret values', true)
             ->addOption('sort', null, InputOption::VALUE_NEGATABLE, 'Sort by key name', true)
             ->addOption('newline', null, InputOption::VALUE_NEGATABLE, 'End output with a newline', true)
-            ->addOption('print', null, InputArgument::OPTIONAL, 'Print the value of a single key')
-            ->setDescription('Print resolved environment variables');
+            ->addOption('print', 'p', InputOption::VALUE_REQUIRED, 'Print the value of a single key');
     }
 
     public function handle(): ?int
@@ -34,9 +33,16 @@ class EnvExportCommand extends Command
             return 5;
         }
 
-        $format = $this->option('format') ?: 'dotenv';
+        $format = strtolower((string) ($this->option('format') ?: 'dotenv'));
+        if (! in_array($format, ['dotenv', 'shell'], true)) {
+            $this->writeError('ERR[5] Unsupported format. Use "dotenv" or "shell".');
+
+            return 5;
+        }
+
         $keysOption = $this->option('keys');
-        $keys = $keysOption ? array_map('trim', explode(',', $keysOption)) : null;
+        $keys = $keysOption ? array_values(array_filter(array_map('trim', explode(',', $keysOption)), fn ($k) => $k !== '')) : null;
+
         $redact = (bool) $this->option('redact');
         $sort = (bool) $this->option('sort');
         $newline = (bool) $this->option('newline');
@@ -48,33 +54,43 @@ class EnvExportCommand extends Command
             return 3;
         }
 
+        // --- Fetch JSON and build $vars ---
         try {
-            $contents = $this->ghostable->pull(Manifest::id(), $env, 'dotenv');
+            // Expecting associative array like:
+            // ['data' => [ ['key' => 'APP_DEBUG', 'value' => 'false', ...], ... ]]
+            $payload = $this->ghostable->fetch(Manifest::id(), $env); // should return array; if string JSON, json_decode it below
+            if (is_string($payload)) {
+                $decoded = json_decode($payload, true);
+                if (json_last_error() === JSON_ERROR_NONE) {
+                    $payload = $decoded;
+                }
+            }
+            if (! is_array($payload) || ! isset($payload['data']) || ! is_array($payload['data'])) {
+                throw new \RuntimeException('Unexpected response shape.');
+            }
         } catch (\Throwable $e) {
             $this->writeError('ERR[5] Environment not found.');
 
             return 5;
         }
 
-        $parser = new Parser;
         $vars = [];
-        foreach (preg_split("/\r?\n/", trim($contents)) as $line) {
-            $line = trim($line);
-            if ($line === '' || str_starts_with($line, '#')) {
+        foreach ($payload['data'] as $row) {
+            // Skip commented or malformed entries gracefully
+            if (! isset($row['key'])) {
                 continue;
             }
-
-            try {
-                $parsed = $parser->parse($line);
-            } catch (\Throwable $e) {
+            $k = (string) $row['key'];
+            // If server may send null values, coerce to empty string
+            $v = isset($row['value']) ? (string) $row['value'] : '';
+            // Optional: honor is_commented flag
+            if (isset($row['is_commented']) && (int) $row['is_commented'] === 1) {
                 continue;
             }
-
-            foreach ($parsed as $entry) {
-                $vars[$entry->getName()] = $entry->getValue()->get()->getChars();
-            }
+            $vars[$k] = $v;
         }
 
+        // Single-key print mode
         if ($print !== null) {
             if (! array_key_exists($print, $vars)) {
                 $this->writeError('ERR[2] Missing required keys: '.$print);
@@ -90,6 +106,7 @@ class EnvExportCommand extends Command
             return Command::SUCCESS;
         }
 
+        // Determine output order
         if ($keys) {
             $order = [];
             $missing = [];
@@ -108,10 +125,11 @@ class EnvExportCommand extends Command
         } else {
             $order = array_keys($vars);
             if ($sort) {
-                sort($order, SORT_STRING);
+                sort($order, SORT_NATURAL | SORT_FLAG_CASE);
             }
         }
 
+        // Render
         $lines = [];
         foreach ($order as $key) {
             $value = $redact ? 'REDACTED' : $vars[$key];
@@ -134,7 +152,9 @@ class EnvExportCommand extends Command
 
     protected function escapeDotenvValue(string $value): string
     {
+        // Represent newlines safely in a single line
         $value = str_replace("\n", '\\n', $value);
+        // Quote if contains whitespace, #, =, quotes, backslash, or non-printable
         $needsQuotes = preg_match('/\s|#|=|"|\\\\|[^\x20-\x7E]/', $value);
         if ($needsQuotes) {
             $escaped = str_replace(['\\', '"'], ['\\\\', '\\"'], $value);
@@ -148,9 +168,9 @@ class EnvExportCommand extends Command
     protected function escapeShellValue(string $value): string
     {
         $value = str_replace("\n", '\\n', $value);
-        $value = str_replace("'", "'\\''", $value);
 
-        return "'{$value}'";
+        // POSIX: wrap in single quotes and escape existing ones via: '\'' trick
+        return "'".str_replace("'", "'\\''", $value)."'";
     }
 
     protected function isInteractive(): bool
