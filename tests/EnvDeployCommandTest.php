@@ -41,7 +41,7 @@ class EnvDeployCommandTest extends TestCase
             public function fetch(string $projectId, string $env): array
             {
                 $data = [];
-                
+
                 foreach ($this->map as $k => $v) {
                     $row = ['key' => $k, 'value' => $v];
                     $data[] = $row;
@@ -79,7 +79,7 @@ class EnvDeployCommandTest extends TestCase
             '--manifest' => $manifest,
             '--plan' => true,
         ]);
-    
+
         $this->assertSame(0, $exit);
         $display = $tester->getDisplay();
         $this->assertStringContainsString('2 environment variables:', $display);

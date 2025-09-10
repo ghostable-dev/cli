@@ -17,7 +17,7 @@ class Resolver
         $payload = $client->fetch(Manifest::id(), $env);
 
         $vars = [];
-        foreach ($payload['data'] as $row) {
+        foreach ($payload as $row) {
             if (! isset($row['key'])) {
                 continue;
             }
