@@ -9,4 +9,12 @@ Ghostable stores and organizes your `.env` variables, validates them, and integr
 
 Read the [official documentation](https://docs.ghostable.dev) or try it out at [Ghostable.dev](https://ghostable.dev).
 
+## Forge Deployments
+
+Use the `env:forge` command to push environment variables directly to a Laravel Forge site and optionally trigger a deployment:
+
+```bash
+ghostable env:forge --environment=production --server=123 --site=456 --token=FORGE_API_TOKEN --deploy
+```
+
 See [SECURITY.md](./SECURITY.md) for our security policy.
