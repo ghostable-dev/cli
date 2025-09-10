@@ -249,6 +249,14 @@ class GhostableConsoleClient
         return $this->requestRaw(self::GET, $uri);
     }
 
+    public function fetch(string $projectId, string $name): array
+    {
+        return $this->requestJson(
+            self::GET,
+            "/projects/{$projectId}/environments/{$name}/fetch"
+        )['data'] ?? [];
+    }
+
     public function deploy(): string
     {
         return $this->requestRaw(

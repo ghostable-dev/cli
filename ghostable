@@ -89,6 +89,8 @@ $app->add(new Commands\EnvValidateCommand);
 $app->add(new Commands\EnvDiffCommand);
 $app->add(new Commands\EnvPullCommand);
 $app->add(new Commands\EnvDeployCommand);
+$app->add(new Commands\EnvForgeCommand);
+$app->add(new Commands\EnvExportCommand);
 
 // Secrets...
 $app->add(new Commands\SecretListCommand);
