@@ -39,9 +39,24 @@ class EnvExportCommandTest extends TestCase
         {
             public function __construct(private string $contents) {}
 
-            public function pull(string $projectId, string $env, ?string $format = null): string
+            public function fetch(string $projectId, string $env): string
             {
-                return $this->contents;
+                $lines = array_filter(explode("\n", trim($this->contents)));
+                $data = [];
+                foreach ($lines as $line) {
+                    if (! str_contains($line, '=')) {
+                        continue;
+                    }
+                    [$key, $value] = explode('=', $line, 2);
+                    $value = trim($value);
+                    if ((str_starts_with($value, '"') && str_ends_with($value, '"')) ||
+                        (str_starts_with($value, "'") && str_ends_with($value, "'"))) {
+                        $value = substr($value, 1, -1);
+                    }
+                    $data[] = ['key' => $key, 'value' => $value];
+                }
+
+                return json_encode(['data' => $data]);
             }
         };
 
