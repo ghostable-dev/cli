@@ -249,6 +249,14 @@ class GhostableConsoleClient
         return $this->requestRaw(self::GET, $uri);
     }
 
+    public function fetch(string $projectId, string $name): string
+    {
+        return $this->requestRaw(
+            self::GET,
+            "/projects/{$projectId}/environments/{$name}/fetch"
+        );
+    }
+
     public function deploy(): string
     {
         return $this->requestRaw(
