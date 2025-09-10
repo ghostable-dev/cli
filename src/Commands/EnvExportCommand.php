@@ -58,16 +58,7 @@ class EnvExportCommand extends Command
         try {
             // Expecting associative array like:
             // ['data' => [ ['key' => 'APP_DEBUG', 'value' => 'false', ...], ... ]]
-            $payload = $this->ghostable->fetch(Manifest::id(), $env); // should return array; if string JSON, json_decode it below
-            if (is_string($payload)) {
-                $decoded = json_decode($payload, true);
-                if (json_last_error() === JSON_ERROR_NONE) {
-                    $payload = $decoded;
-                }
-            }
-            if (! is_array($payload) || ! isset($payload['data']) || ! is_array($payload['data'])) {
-                throw new \RuntimeException('Unexpected response shape.');
-            }
+            $payload = $this->ghostable->fetch(Manifest::id(), $env);
         } catch (\Throwable $e) {
             $this->writeError('ERR[5] Environment not found.');
 
@@ -75,7 +66,7 @@ class EnvExportCommand extends Command
         }
 
         $vars = [];
-        foreach ($payload['data'] as $row) {
+        foreach ($payload as $row) {
             // Skip commented or malformed entries gracefully
             if (! isset($row['key'])) {
                 continue;

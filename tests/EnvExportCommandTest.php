@@ -39,7 +39,7 @@ class EnvExportCommandTest extends TestCase
         {
             public function __construct(private string $contents) {}
 
-            public function fetch(string $projectId, string $env): string
+            public function fetch(string $projectId, string $env): array
             {
                 $lines = array_filter(explode("\n", trim($this->contents)));
                 $data = [];
@@ -56,7 +56,7 @@ class EnvExportCommandTest extends TestCase
                     $data[] = ['key' => $key, 'value' => $value];
                 }
 
-                return json_encode(['data' => $data]);
+                return $data;
             }
         };
 
