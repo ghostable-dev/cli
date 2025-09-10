@@ -268,12 +268,19 @@ class GhostableConsoleClient
         return $this->requestRaw(self::GET, $uri);
     }
 
-    public function deploy(): string
+    /**
+     * Validate and resolve environment variables for deployment.
+     *
+     * @return array<string,mixed>
+     */
+    public function deploy(): array
     {
-        return $this->requestRaw(
+        $resp = $this->requestJson(
             self::GET,
             '/ci/deploy'
         );
+
+        return $resp['data'] ?? [];
     }
 
     /**

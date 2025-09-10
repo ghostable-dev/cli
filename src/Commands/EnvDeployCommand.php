@@ -2,7 +2,7 @@
 
 namespace Ghostable\Commands;
 
-use Ghostable\Env\Resolver;
+use GuzzleHttp\Exception\ClientException;
 use Symfony\Component\Console\Input\InputOption;
 use Symfony\Component\Console\Output\ConsoleOutputInterface;
 use Symfony\Component\Process\Process;
@@ -42,11 +42,28 @@ class EnvDeployCommand extends Command
         }
 
         try {
-            $envMap = Resolver::resolve($this->ghostable, (string) $env);
-        } catch (\Throwable $e) {
-            $this->writeError('ERR[5] Environment not found.');
+            $rows = $this->ghostable->deploy();
+        } catch (ClientException $e) {
+            if ($e->getResponse()->getStatusCode() === 422) {
+                $this->writeError('ERR[5] Environment validation failed. Deployment aborted.');
+            } else {
+                $this->writeError('ERR[5] Environment not found.');
+            }
 
             return 5;
+        }
+
+        $envMap = [];
+        foreach ($rows as $row) {
+            if (! isset($row['key'])) {
+                continue;
+            }
+            if (isset($row['is_commented']) && (int) $row['is_commented'] === 1) {
+                continue;
+            }
+            $k = (string) $row['key'];
+            $v = isset($row['value']) ? (string) $row['value'] : '';
+            $envMap[$k] = $v;
         }
 
         $keys = array_keys($envMap);
