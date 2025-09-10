@@ -238,23 +238,34 @@ class GhostableConsoleClient
         )['data'] ?? [];
     }
 
-    public function pull(string $projectId, string $name, ?string $format = null): string
-    {
-        $uri = "/projects/{$projectId}/environments/{$name}/pull";
+    public function pull(
+        string $projectId,
+        string $name,
+        ?string $format = null,
+        ?bool $json = false
+    ): array|string {
+        $params = [];
 
-        if ($format) {
-            $uri .= "?format={$format}";
+        if ($format !== null) {
+            $params['format'] = $format; // dotenv variants only
         }
 
-        return $this->requestRaw(self::GET, $uri);
-    }
+        if ($json) {
+            $params['json'] = 1; // trigger JSON representation server-side
+        }
 
-    public function fetch(string $projectId, string $name): array
-    {
-        return $this->requestJson(
-            self::GET,
-            "/projects/{$projectId}/environments/{$name}/fetch"
-        )['data'] ?? [];
+        $query = $params ? ('?'.http_build_query($params)) : '';
+        $uri = "/projects/{$projectId}/environments/{$name}/pull{$query}";
+
+        if ($json) {
+            // Expecting a Laravel resource collection shape: { data: [...] }
+            $resp = $this->requestJson(self::GET, $uri);
+
+            return $resp['data'] ?? [];
+        }
+
+        // Plaintext dotenv
+        return $this->requestRaw(self::GET, $uri);
     }
 
     public function deploy(): string

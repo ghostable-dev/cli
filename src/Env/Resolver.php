@@ -14,7 +14,7 @@ class Resolver
      */
     public static function resolve(GhostableConsoleClient $client, string $env): array
     {
-        $payload = $client->fetch(Manifest::id(), $env);
+        $payload = $client->pull(Manifest::id(), $env, null, true);
 
         $vars = [];
         foreach ($payload as $row) {

@@ -54,11 +54,9 @@ class EnvExportCommand extends Command
             return 3;
         }
 
-        // --- Fetch JSON and build $vars ---
+        // --- Pull JSON and build $vars ---
         try {
-            // Expecting associative array like:
-            // ['data' => [ ['key' => 'APP_DEBUG', 'value' => 'false', ...], ... ]]
-            $payload = $this->ghostable->fetch(Manifest::id(), $env);
+            $payload = $this->ghostable->pull(Manifest::id(), $env, null, true);
         } catch (\Throwable $e) {
             $this->writeError('ERR[5] Environment not found.');
 
