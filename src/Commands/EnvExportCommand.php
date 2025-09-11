@@ -2,51 +2,58 @@
 
 namespace Ghostable\Commands;
 
+use Ghostable\Contracts\EnvRenderer;
+use Ghostable\Contracts\EnvVarExtractor;
+use Ghostable\Helpers;
 use Ghostable\Manifest;
+use RuntimeException;
 use Symfony\Component\Console\Input\InputOption;
-use Symfony\Component\Console\Output\ConsoleOutputInterface;
+use Throwable;
 
 class EnvExportCommand extends Command
 {
+    protected EnvVarExtractor $extractor;
+
+    protected EnvRenderer $renderer;
+
+    public function __construct()
+    {
+        $this->extractor = Helpers::app(EnvVarExtractor::class);
+
+        $this->renderer = Helpers::app(EnvRenderer::class);
+
+        parent::__construct();
+    }
+
     protected function configure(): void
     {
         $this->setName('env:export')
-            ->setDescription('Print resolved environment variables')
-            // options + shortcuts
-            ->addOption('environment', 'e', InputOption::VALUE_REQUIRED, 'The environment name (e.g. production, staging)')
-            ->addOption('format', 'f', InputOption::VALUE_REQUIRED, 'Output format (dotenv or shell)', 'dotenv')
-            ->addOption('keys', 'k', InputOption::VALUE_REQUIRED, 'Comma-separated list of keys')
+            ->setDescription('Print resolved environment variables.')
+            ->addOption('token', null, InputOption::VALUE_OPTIONAL, 'Ghostable CLI token (env-scoped)')
+            ->addOption('environment', 'e', InputOption::VALUE_REQUIRED, 'Environment name (required if no --token)')
+            ->addOption('format', 'f', InputOption::VALUE_REQUIRED, 'Output format: dotenv|shell', 'dotenv')
+            ->addOption('keys', 'k', InputOption::VALUE_REQUIRED, 'Comma-separated list of keys to include')
             ->addOption('redact', null, InputOption::VALUE_NEGATABLE, 'Redact secret values', true)
             ->addOption('sort', null, InputOption::VALUE_NEGATABLE, 'Sort by key name', true)
             ->addOption('newline', null, InputOption::VALUE_NEGATABLE, 'End output with a newline', true)
-            ->addOption('print', 'p', InputOption::VALUE_REQUIRED, 'Print the value of a single key');
+            ->addOption('print', 'p', InputOption::VALUE_REQUIRED, 'Print only the value of a single key');
     }
 
     public function handle(): ?int
     {
-        $this->ensureAccessTokenIsAvailable();
-
-        $env = $this->option('environment');
-        if (! $env) {
-            $this->writeError('ERR[5] Environment not specified.');
-
-            return 5;
-        }
-
+        $explicitToken = $this->option('token'); // <-- optional explicit CLI token decides the code path
         $format = strtolower((string) ($this->option('format') ?: 'dotenv'));
+        $keysOpt = $this->option('keys');
+        $redact = (bool) $this->option('redact');
+        $sort = (bool) $this->option('sort');
+        $newline = (bool) $this->option('newline');
+        $print = $this->option('print');
+
         if (! in_array($format, ['dotenv', 'shell'], true)) {
             $this->writeError('ERR[5] Unsupported format. Use "dotenv" or "shell".');
 
             return 5;
         }
-
-        $keysOption = $this->option('keys');
-        $keys = $keysOption ? array_values(array_filter(array_map('trim', explode(',', $keysOption)), fn ($k) => $k !== '')) : null;
-
-        $redact = (bool) $this->option('redact');
-        $sort = (bool) $this->option('sort');
-        $newline = (bool) $this->option('newline');
-        $print = $this->option('print');
 
         if (! $redact && ! $this->isInteractive()) {
             $this->writeError('ERR[3] --no-redact is only allowed on an interactive TTY.');
@@ -54,134 +61,50 @@ class EnvExportCommand extends Command
             return 3;
         }
 
-        // --- Fetch JSON and build $vars ---
+        // Fetch & extract variables
         try {
-            // Expecting associative array like:
-            // ['data' => [ ['key' => 'APP_DEBUG', 'value' => 'false', ...], ... ]]
-            $payload = $this->ghostable->fetch(Manifest::id(), $env);
-        } catch (\Throwable $e) {
-            $this->writeError('ERR[5] Environment not found.');
+            $payload = $this->getVars($explicitToken);
+            $vars = $this->extractor->extract($payload);
+        } catch (Throwable $e) {
+            $this->writeError('ERR[5] Environment resolution failed.');
 
             return 5;
         }
 
-        $vars = [];
-        foreach ($payload as $row) {
-            // Skip commented or malformed entries gracefully
-            if (! isset($row['key'])) {
-                continue;
-            }
-            $k = (string) $row['key'];
-            // If server may send null values, coerce to empty string
-            $v = isset($row['value']) ? (string) $row['value'] : '';
-            // Optional: honor is_commented flag
-            if (isset($row['is_commented']) && (int) $row['is_commented'] === 1) {
-                continue;
-            }
-            $vars[$k] = $v;
-        }
-
-        // Single-key print mode
+        // Single-key mode
         if ($print !== null) {
-            if (! array_key_exists($print, $vars)) {
-                $this->writeError('ERR[2] Missing required keys: '.$print);
+            $out = $this->renderer->renderSingle($vars, (string) $print, $format, $redact, $newline);
+            $this->writeInfo($out);
 
-                return 2;
-            }
-            $value = $redact ? 'REDACTED' : $vars[$print];
-            $this->output->write($value);
-            if ($newline) {
-                $this->output->write("\n");
-            }
-
-            return Command::SUCCESS;
-        }
-
-        // Determine output order
-        if ($keys) {
-            $order = [];
-            $missing = [];
-            foreach ($keys as $key) {
-                if (array_key_exists($key, $vars)) {
-                    $order[] = $key;
-                } else {
-                    $missing[] = $key;
-                }
-            }
-            if ($missing) {
-                $this->writeError('ERR[2] Missing required keys: '.implode(', ', $missing));
-
-                return 2;
-            }
-        } else {
-            $order = array_keys($vars);
-            if ($sort) {
-                sort($order, SORT_NATURAL | SORT_FLAG_CASE);
-            }
+            return self::SUCCESS;
         }
 
         // Render
-        $lines = [];
-        foreach ($order as $key) {
-            $value = $redact ? 'REDACTED' : $vars[$key];
-            if ($format === 'shell') {
-                $lines[] = 'export '.$key.'='.$this->escapeShellValue($value);
-            } else {
-                $lines[] = $key.'='.$this->escapeDotenvValue($value);
-            }
-        }
+        $onlyKeys = $keysOpt
+            ? array_values(array_filter(array_map('trim', explode(',', (string) $keysOpt)), fn ($k) => $k !== ''))
+            : null;
+        $out = $this->renderer->render($vars, $format, $onlyKeys, $onlyKeys ? false : $sort, $redact, $newline);
+        $this->writeLine($out);
 
-        $output = implode("\n", $lines);
-        if ($newline) {
-            $output .= "\n";
-        }
-
-        $this->output->write($output);
-
-        return Command::SUCCESS;
+        return self::SUCCESS;
     }
 
-    protected function escapeDotenvValue(string $value): string
+    protected function getVars(?string $token): array
     {
-        // Represent newlines safely in a single line
-        $value = str_replace("\n", '\\n', $value);
-        // Quote if contains whitespace, #, =, quotes, backslash, or non-printable
-        $needsQuotes = preg_match('/\s|#|=|"|\\\\|[^\x20-\x7E]/', $value);
-        if ($needsQuotes) {
-            $escaped = str_replace(['\\', '"'], ['\\\\', '\\"'], $value);
+        // Explicit token → make an ad-hoc client and call deploy()
+        if ($token !== null && $token !== '') {
+            $client = $this->makeGhostableClient(token: (string) $token);
 
-            return '"'.$escaped.'"';
+            return $client->deploy();
         }
 
-        return $value;
-    }
-
-    protected function escapeShellValue(string $value): string
-    {
-        $value = str_replace("\n", '\\n', $value);
-
-        // POSIX: wrap in single quotes and escape existing ones via: '\'' trick
-        return "'".str_replace("'", "'\\''", $value)."'";
-    }
-
-    protected function isInteractive(): bool
-    {
-        if (function_exists('stream_isatty')) {
-            return @stream_isatty(STDOUT);
-        }
-        if (function_exists('posix_isatty')) {
-            return @posix_isatty(STDOUT);
+        // No explicit token → require env and use the existing client
+        $env = (string) ($this->option('environment') ?? '');
+        if ($env === '') {
+            throw new RuntimeException('ERR[5] Environment not specified (use --environment|-e).');
         }
 
-        return false;
-    }
-
-    protected function writeError(string $message): void
-    {
-        if ($this->output instanceof ConsoleOutputInterface) {
-            $this->output->getErrorOutput()->writeln($message);
-        } else {
-            $this->output->writeln($message);
-        }
+        // $this->ghostable must already be authenticated (CI token/config)
+        return $this->ghostable->pull(Manifest::id(), $env, null, true);
     }
 }

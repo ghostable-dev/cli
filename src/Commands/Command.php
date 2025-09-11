@@ -107,4 +107,31 @@ abstract class Command extends SymfonyCommand
 
         throw new Exception("Please authenticate using the 'login' command before proceeding.");
     }
+
+    protected function writeError(string $message): void
+    {
+        Helpers::danger($message);
+    }
+
+    protected function writeLine(string $message): void
+    {
+        Helpers::line($message);
+    }
+
+    protected function writeInfo(string $message): void
+    {
+        Helpers::info($message);
+    }
+
+    protected function isInteractive(): bool
+    {
+        if (function_exists('stream_isatty')) {
+            return @stream_isatty(STDOUT);
+        }
+        if (function_exists('posix_isatty')) {
+            return @posix_isatty(STDOUT);
+        }
+
+        return false;
+    }
 }

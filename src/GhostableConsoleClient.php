@@ -238,9 +238,22 @@ class GhostableConsoleClient
         )['data'] ?? [];
     }
 
-    public function pull(string $projectId, string $name, ?string $format = null): string
-    {
+    /**
+     * @return array<string,mixed>|string
+     */
+    public function pull(
+        string $projectId,
+        string $name,
+        ?string $format = null,
+        bool $json = false
+    ): array|string {
         $uri = "/projects/{$projectId}/environments/{$name}/pull";
+
+        if ($json) {
+            $params = ['format' => $format, 'json' => $json];
+
+            return $this->requestJson(self::GET, $uri, $params)['data'] ?? [];
+        }
 
         if ($format) {
             $uri .= "?format={$format}";
@@ -249,20 +262,15 @@ class GhostableConsoleClient
         return $this->requestRaw(self::GET, $uri);
     }
 
-    public function fetch(string $projectId, string $name): array
+    /**
+     * @return array<string,mixed>
+     */
+    public function deploy(): array
     {
         return $this->requestJson(
             self::GET,
-            "/projects/{$projectId}/environments/{$name}/fetch"
-        )['data'] ?? [];
-    }
-
-    public function deploy(): string
-    {
-        return $this->requestRaw(
-            self::GET,
             '/ci/deploy'
-        );
+        )['data'] ?? [];
     }
 
     /**
@@ -379,6 +387,8 @@ class GhostableConsoleClient
         if ($status === 401) {
             if (str_contains($path, '/cli/login')) {
                 echo "❌ Authentication failed.\n";
+            } elseif (str_contains($path, '/ci/deploy')) {
+                echo "❌ Deploy failed: invalid or expired CLI token.\n";
             } else {
                 echo "❌ Unauthorized. Run `ghostable login` first.\n";
             }
