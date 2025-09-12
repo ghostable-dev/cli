@@ -12,9 +12,13 @@ use Dotenv\Repository\RepositoryBuilder;
 use Ghostable\Application;
 use Ghostable\Commands;
 use Ghostable\Contracts\EnvBuilder;
+use Ghostable\Contracts\EnvEditor;
 use Ghostable\Contracts\EnvRenderer;
+use Ghostable\Contracts\EnvStore;
 use Ghostable\Contracts\EnvVarExtractor;
+use Ghostable\Env\Env;
 use Ghostable\Support\ChildEnvBuilder;
+use Ghostable\Support\DefaultEnvEditor;
 use Ghostable\Support\DefaultEnvRenderer;
 use Ghostable\Support\DefaultEnvVarExtractor;
 use Illuminate\Container\Container;
@@ -73,9 +77,13 @@ Container::setInstance($container = new Container);
 /**
  * Bind core services
  */
-$container->bind(EnvVarExtractor::class, fn () => new DefaultEnvVarExtractor(skipComments: true));
 $container->bind(EnvBuilder::class, fn () => new ChildEnvBuilder());
+$container->bind(EnvStore::class, fn () => new Env());
+$container->bind(EnvEditor::class, function ($app) {
+    return new DefaultEnvEditor($app->make(EnvStore::class), $app->make(EnvRenderer::class));
+});
 $container->bind(EnvRenderer::class, fn () => new DefaultEnvRenderer());
+$container->bind(EnvVarExtractor::class, fn () => new DefaultEnvVarExtractor(skipComments: true));
 
 /**
  * Start the console application.
@@ -109,5 +117,10 @@ $app->add(new Commands\SecretListCommand);
 $app->add(new Commands\SecretCreateCommand);
 $app->add(new Commands\SecretUpdateCommand);
 $app->add(new Commands\SecretWriteCommand);
+
+// Provider specific deploys
+$app->add(new Commands\EnvDeployCloudCommand);
+$app->add(new Commands\EnvDeployForgeCommand);
+$app->add(new Commands\EnvDeployVaporCommand);
 
 $app->run();

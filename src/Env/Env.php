@@ -3,9 +3,10 @@
 namespace Ghostable\Env;
 
 use Dotenv\Parser\Parser;
+use Ghostable\Contracts\EnvStore;
 use Ghostable\Manifest;
 
-class Env
+class Env implements EnvStore
 {
     /**
      * The Dotenv parsing engine.
