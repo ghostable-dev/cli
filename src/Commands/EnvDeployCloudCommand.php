@@ -57,5 +57,6 @@ class EnvDeployCloudCommand extends EnvDeployCommand
         $this->writeLine('Ghostable 👻 deployed!');
 
         return Command::SUCCESS;
+
     }
 }
