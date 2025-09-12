@@ -7,7 +7,7 @@ use Ghostable\Contracts\EnvRenderer;
 use Ghostable\Helpers;
 use GuzzleHttp\Exception\ClientException;
 
-class EnvDeployCloudCommand extends EnvDeployCommand
+class EnvDeployForgeCommand extends EnvDeployCommand
 {
     protected EnvRenderer $renderer;
 
@@ -26,8 +26,8 @@ class EnvDeployCloudCommand extends EnvDeployCommand
     {
         parent::configure();
 
-        $this->setName('deploy:cloud')
-            ->setDescription('Deploy Ghostable managed environment variables into Laravel Cloud.');
+        $this->setName('deploy:forge')
+            ->setDescription('Deploy Ghostable managed environment variables into Laravel Forge.');
     }
 
     public function handle(): ?int
