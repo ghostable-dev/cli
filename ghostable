@@ -120,5 +120,7 @@ $app->add(new Commands\SecretWriteCommand);
 
 // Provider specific deploys
 $app->add(new Commands\EnvDeployCloudCommand);
+$app->add(new Commands\EnvDeployForgeCommand);
+$app->add(new Commands\EnvDeployVaporCommand);
 
 $app->run();
