@@ -55,7 +55,7 @@ class EnvDeployCloudCommand extends EnvDeployCommand
 
         $this->editor->merge('local', $vars);
         $this->writeLine('Ghostable 👻 deployed!');
-        
+
         return Command::SUCCESS;
     }
 }
