@@ -1,6 +1,6 @@
 {
-  "name": "ghostable-cli",
-  "version": "0.1.0",
+  "name": "@ghostable/cli",
+  "version": "0.1.0-beta",
   "type": "module",
   "bin": {
     "ghostable": "dist/cli.js"
@@ -44,5 +44,18 @@
     "tsx": "^4.19.0",
     "typescript": "^5.5.4",
     "vitest": "^3.2.4"
-  }
+  },
+  "description": "**Ghostable** is a secure, Laravel-friendly platform for managing and sharing environment variables across projects and CI pipelines. This repository contains the CLI client used to interact with that platform.",
+  "main": "eslint.config.js",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/ghostable-dev/cli-next.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/ghostable-dev/cli-next/issues"
+  },
+  "homepage": "https://github.com/ghostable-dev/cli-next#readme"
 }
