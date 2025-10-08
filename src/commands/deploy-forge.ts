@@ -99,6 +99,10 @@ export function registerDeployForgeCommand(program: Command) {
             );
             process.exit(1);
           }
+          
+          const cwd = workDir;
+          const dotEnv = path.join(cwd, ".env");
+          const outFile = path.resolve(cwd, opts.out ?? `.env.encrypted`);
 
           const envKeyB64 = `base64:${b64(randomBytes(32))}`;
           // ensure key is present in the plain .env file
@@ -112,54 +116,22 @@ export function registerDeployForgeCommand(program: Command) {
           const encSpin = ora(
             "Encrypting .env via php artisan env:encrypt…",
           ).start();
+          const res = spawnSync("php", ["artisan", "env:encrypt", `--key=${envKeyB64}`], { stdio: "pipe" });
 
-          // We will temporarily swap `.env` so artisan reads the desired file.
-          const cwd = workDir;
-          const dotEnv = path.join(cwd, ".env");
-          const backup = path.join(cwd, ".env.__ghostable_backup__");
-          const targetOut = path.resolve(cwd, opts.out ?? `.env.encrypted`);
-
-          let hadOriginal = false;
-          try {
-            // backup any existing .env
-            if (fs.existsSync(dotEnv)) {
-              fs.renameSync(dotEnv, backup);
-              hadOriginal = true;
-            }
-            // copy .env.<env> → .env (so artisan reads it)
-            fs.copyFileSync(envPath, dotEnv);
-
-            // run php artisan env:encrypt --key="base64:..."
-            const res = spawnSync(
-              "php",
-              ["artisan", "env:encrypt", `--key=${envKeyB64}`],
-              { stdio: "pipe" },
-            );
-            if (res.status !== 0) {
-              encSpin.fail("php artisan env:encrypt failed.");
-              process.stderr.write(res.stderr?.toString() ?? "");
-              throw new Error("env:encrypt failed");
-            }
-
-            // artisan should produce .env.encrypted in cwd; move it
-            const produced = path.join(cwd, ".env.encrypted");
-            if (!fs.existsSync(produced)) {
-              encSpin.fail("Expected .env.encrypted not found.");
-              throw new Error("missing .env.encrypted");
-            }
-            fs.renameSync(produced, targetOut);
-
-            encSpin.succeed(
-              `Encrypted blob → ${path.relative(cwd, targetOut)}`,
-            );
-          } finally {
-            // restore original .env if it existed
-            // remove temp .env
-            if (fs.existsSync(dotEnv)) fs.unlinkSync(dotEnv);
-            if (hadOriginal && fs.existsSync(backup)) {
-              fs.renameSync(backup, dotEnv);
-            }
+          if (res.status !== 0) {
+            encSpin.fail("php artisan env:encrypt failed.");
+            process.stderr.write(res.stderr?.toString() ?? "");
+            process.exit(1);
           }
+
+          const produced = path.join(cwd, ".env.encrypted");
+          if (!fs.existsSync(produced)) {
+            encSpin.fail("Expected .env.encrypted not found.");
+            process.exit(1);
+          }
+
+          fs.renameSync(produced, outFile);
+          encSpin.succeed(`Encrypted blob → ${path.relative(cwd, outFile)}`);
         }
 
         log.ok("Ghostable 👻 deployed (local).");
