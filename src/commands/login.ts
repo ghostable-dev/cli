@@ -16,7 +16,10 @@ export function registerLoginCommand(program: Command) {
       const session = new SessionService();
       const client = GhostableClient.unauthenticated(apiBase);
 
-      const email = await input({ message: "Email:", validate: (v) => v.includes("@") || "Enter a valid email" });
+      const email = await input({
+        message: "Email:",
+        validate: (v) => v.includes("@") || "Enter a valid email",
+      });
       const pwd = await password({ message: "Password:" });
 
       const spinner = ora("Authenticating…").start();
@@ -44,7 +47,9 @@ export function registerLoginCommand(program: Command) {
             message: "Choose your organization",
             choices: orgs.map((o) => ({ name: o.label(), value: o.id })),
           });
-          log.ok(`✅ Using organization: ${orgs.find((o) => o.id === organizationId)?.label()}`);
+          log.ok(
+            `✅ Using organization: ${orgs.find((o) => o.id === organizationId)?.label()}`,
+          );
         } else {
           log.warn("No organizations found. Create one in the dashboard.");
         }

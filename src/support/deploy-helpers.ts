@@ -2,9 +2,19 @@ import chalk from "chalk";
 import { select } from "@inquirer/prompts";
 import { Manifest } from "./Manifest.js";
 import { SessionService } from "../services/SessionService.js";
-import { GhostableClient, type ProjectionBundle, type ProjectionEntry } from "../services/GhostableClient.js";
+import {
+  GhostableClient,
+  type ProjectionBundle,
+  type ProjectionEntry,
+} from "../services/GhostableClient.js";
 import { config } from "../config/index.js";
-import { initSodium, deriveKeys, aeadDecrypt, scopeFromAAD, hmacSHA256 } from "../crypto.js";
+import {
+  initSodium,
+  deriveKeys,
+  aeadDecrypt,
+  scopeFromAAD,
+  hmacSHA256,
+} from "../crypto.js";
 import { loadOrCreateKeys } from "../keys.js";
 
 type ManifestContext = {
@@ -24,7 +34,9 @@ type DecryptionResult = {
   warnings: string[];
 };
 
-export async function resolveManifestContext(requestedEnv?: string): Promise<ManifestContext> {
+export async function resolveManifestContext(
+  requestedEnv?: string,
+): Promise<ManifestContext> {
   let projectId: string;
   let projectName: string;
   let envNames: string[];
@@ -51,8 +63,8 @@ export async function resolveManifestContext(requestedEnv?: string): Promise<Man
           `❌ Environment "${envName}" not found in ghostable.yml. Available: ${envNames
             .slice()
             .sort()
-            .join(", ")}`
-        )
+            .join(", ")}`,
+        ),
       );
     }
   } else {
@@ -76,18 +88,27 @@ export async function resolveToken(explicitToken?: string): Promise<string> {
 
   if (!token) {
     throw new Error(
-      chalk.red("❌ No API token. Use --token or set GHOSTABLE_CI_TOKEN or run `ghostable login`.")
+      chalk.red(
+        "❌ No API token. Use --token or set GHOSTABLE_CI_TOKEN or run `ghostable login`.",
+      ),
     );
   }
 
   return token;
 }
 
-export function createGhostableClient(token: string, apiBase?: string): GhostableClient {
-  return GhostableClient.unauthenticated(apiBase ?? config.apiBase).withToken(token);
+export function createGhostableClient(
+  token: string,
+  apiBase?: string,
+): GhostableClient {
+  return GhostableClient.unauthenticated(apiBase ?? config.apiBase).withToken(
+    token,
+  );
 }
 
-export async function decryptProjection(bundle: ProjectionBundle): Promise<DecryptionResult> {
+export async function decryptProjection(
+  bundle: ProjectionBundle,
+): Promise<DecryptionResult> {
   await initSodium();
   const { masterSeedB64 } = await loadOrCreateKeys();
   const masterSeed = Buffer.from(masterSeedB64.replace(/^b64:/, ""), "base64");

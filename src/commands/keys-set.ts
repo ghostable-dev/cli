@@ -33,7 +33,9 @@ export function registerKeysSetCommand(program: Command) {
       // 3) Ask for key
       const rawKey = await input({
         message: `Paste the base64 key for ${envName}:`,
-        validate: (v) => /^base64:[A-Za-z0-9+/=]+$/.test(v.trim()) || "Expected format: base64:...",
+        validate: (v) =>
+          /^base64:[A-Za-z0-9+/=]+$/.test(v.trim()) ||
+          "Expected format: base64:...",
       });
       const key = rawKey.trim();
 

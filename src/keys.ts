@@ -10,7 +10,9 @@ export type KeyBundle = {
   ed25519PubB64: string;
 };
 
-export async function loadOrCreateKeys(profile = "default"): Promise<KeyBundle> {
+export async function loadOrCreateKeys(
+  profile = "default",
+): Promise<KeyBundle> {
   const existing = await keytar.getPassword(SERVICE, profile);
   if (existing) return JSON.parse(existing) as KeyBundle;
 

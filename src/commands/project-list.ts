@@ -24,9 +24,11 @@ export function registerProjectListCommand(program: Command) {
       }
 
       // 2) Fetch projects
-      const client = GhostableClient.unauthenticated(config.apiBase).withToken(sess.accessToken);
+      const client = GhostableClient.unauthenticated(config.apiBase).withToken(
+        sess.accessToken,
+      );
       const projects = (await client.projects(orgId)).sort((a, b) =>
-        (a.name ?? "").localeCompare(b.name ?? "")
+        (a.name ?? "").localeCompare(b.name ?? ""),
       );
 
       if (!projects.length) {
@@ -37,13 +39,21 @@ export function registerProjectListCommand(program: Command) {
       // 3) Build display rows
       const rows = projects.map((p) => {
         const envs = Array.isArray(p.environments)
-          ? p.environments.map((e: any) => e?.name).filter(Boolean).join(", ")
+          ? p.environments
+              .map((e: any) => e?.name)
+              .filter(Boolean)
+              .join(", ")
           : "";
         return { ID: String(p.id), Name: p.name ?? "", Environments: envs };
       });
 
       // 4) Print without index column: key by project name
-      const keyed = Object.fromEntries(rows.map((r) => [r.Name || r.ID, { ID: r.ID, Environments: r.Environments }]));
+      const keyed = Object.fromEntries(
+        rows.map((r) => [
+          r.Name || r.ID,
+          { ID: r.ID, Environments: r.Environments },
+        ]),
+      );
       console.table(keyed);
     });
 }

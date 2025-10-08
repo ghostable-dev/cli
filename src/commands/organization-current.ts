@@ -7,7 +7,12 @@ import { log } from "../support/logger.js";
 export function registerOrganizationCurrentCommand(program: Command) {
   program
     .command("org:current")
-    .aliases(["orgs:current", "organizations:current", "organization:current", "current"])
+    .aliases([
+      "orgs:current",
+      "organizations:current",
+      "organization:current",
+      "current",
+    ])
     .description("Show your current organization context.")
     .action(async (opts) => {
       // 1. Load session / access token
@@ -20,18 +25,24 @@ export function registerOrganizationCurrentCommand(program: Command) {
 
       const currentOrgId = sess.organizationId;
       if (!currentOrgId) {
-        log.error("❌ No organization selected. Run `ghostable org:switch` to select one.");
+        log.error(
+          "❌ No organization selected. Run `ghostable org:switch` to select one.",
+        );
         process.exit(1);
       }
 
       // 2. Fetch organizations
-      const client = GhostableClient.unauthenticated(config.apiBase).withToken(sess.accessToken);
+      const client = GhostableClient.unauthenticated(config.apiBase).withToken(
+        sess.accessToken,
+      );
       const orgs = await client.organizations();
       const org = orgs.find((o) => o.id === currentOrgId);
 
       // 3. Display result
       if (!org) {
-        log.error("❌ Unable to determine current organization (not found in API list).");
+        log.error(
+          "❌ Unable to determine current organization (not found in API list).",
+        );
         process.exit(1);
       }
 

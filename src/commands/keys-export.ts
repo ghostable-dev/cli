@@ -11,7 +11,9 @@ import { log } from "../support/logger.js";
 export function registerKeysExportCommand(program: Command) {
   program
     .command("keys:export")
-    .description("Export a base64 environment encryption key (pick from manifest)")
+    .description(
+      "Export a base64 environment encryption key (pick from manifest)",
+    )
     .action(async () => {
       // 1) Read manifest (project + envs)
       let projectId: string, envNames: string[];
@@ -44,7 +46,10 @@ export function registerKeysExportCommand(program: Command) {
 
       // 4) Derive the per-env key and print it
       const { masterSeedB64 } = await loadOrCreateKeys();
-      const masterSeed = Buffer.from(masterSeedB64.replace(/^b64:/, ""), "base64");
+      const masterSeed = Buffer.from(
+        masterSeedB64.replace(/^b64:/, ""),
+        "base64",
+      );
       const scope = `${orgId}/${projectId}/${envName}`;
       const { encKey } = deriveKeys(masterSeed, scope);
 
@@ -56,8 +61,8 @@ export function registerKeysExportCommand(program: Command) {
       log.text(
         chalk.dim(
           `Copy this and store it in a password manager.\n` +
-            `Anyone with this key can decrypt ${envName} for project ${projectId}.`
-        )
+            `Anyone with this key can decrypt ${envName} for project ${projectId}.`,
+        ),
       );
     });
 }

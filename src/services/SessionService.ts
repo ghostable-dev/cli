@@ -4,12 +4,19 @@ import type { Session } from "../entities/Session.js";
 
 export class SessionService {
   async load(): Promise<Session | null> {
-    const raw = await keytar.getPassword(config.keychainService, config.keychainAccount);
+    const raw = await keytar.getPassword(
+      config.keychainService,
+      config.keychainAccount,
+    );
     return raw ? (JSON.parse(raw) as Session) : null;
   }
 
   async save(sess: Session): Promise<void> {
-    await keytar.setPassword(config.keychainService, config.keychainAccount, JSON.stringify(sess));
+    await keytar.setPassword(
+      config.keychainService,
+      config.keychainAccount,
+      JSON.stringify(sess),
+    );
   }
 
   async clear(): Promise<void> {

@@ -19,8 +19,8 @@ import { log } from "../support/logger.js";
 type PushOptions = {
   api?: string;
   token?: string;
-  file?: string;     // optional override; else .env.<env> or .env
-  env?: string;      // optional; prompt if missing
+  file?: string; // optional override; else .env.<env> or .env
+  env?: string; // optional; prompt if missing
   assumeYes?: boolean;
 };
 
@@ -29,7 +29,10 @@ function readEnvFile(filePath: string): Record<string, string> {
   return dotenv.parse(raw);
 }
 
-function resolveEnvFile(envName: string | undefined, explicitPath?: string): string {
+function resolveEnvFile(
+  envName: string | undefined,
+  explicitPath?: string,
+): string {
   if (explicitPath) return path.resolve(process.cwd(), explicitPath);
   if (envName) {
     const candidate = path.resolve(process.cwd(), `.env.${envName}`);
@@ -41,9 +44,14 @@ function resolveEnvFile(envName: string | undefined, explicitPath?: string): str
 export function registerEnvPushCommand(program: Command) {
   program
     .command("env:push")
-    .description("Encrypt and push a local .env file to Ghostable (uses ghostable.yml)")
+    .description(
+      "Encrypt and push a local .env file to Ghostable (uses ghostable.yml)",
+    )
     .option("--file <PATH>", "Path to .env file (default: .env.<env> or .env)")
-    .option("--env <ENV>", "Environment name (if omitted, select from manifest)")
+    .option(
+      "--env <ENV>",
+      "Environment name (if omitted, select from manifest)",
+    )
     .option("-y, --assume-yes", "Skip confirmation prompts", false)
     .action(async (opts: PushOptions) => {
       // 1) Load manifest
@@ -100,34 +108,47 @@ export function registerEnvPushCommand(program: Command) {
         log.info(
           `About to push ${entries.length} variables from ${chalk.bold(filePath)}\n` +
             `→ project ${chalk.bold(projectName)} (${projectId})\n` +
-            (orgId ? `→ org ${chalk.bold(orgId)}\n` : "")
+            (orgId ? `→ org ${chalk.bold(orgId)}\n` : ""),
         );
       }
 
       // 6) Prep crypto + client
       await initSodium(); // no-op with stablelib
       const keyBundle = await loadOrCreateKeys();
-      const masterSeed = Buffer.from(keyBundle.masterSeedB64.replace(/^b64:/, ""), "base64");
-      const edPriv     = Buffer.from(keyBundle.ed25519PrivB64.replace(/^b64:/, ""), "base64");
+      const masterSeed = Buffer.from(
+        keyBundle.masterSeedB64.replace(/^b64:/, ""),
+        "base64",
+      );
+      const edPriv = Buffer.from(
+        keyBundle.ed25519PrivB64.replace(/^b64:/, ""),
+        "base64",
+      );
 
-      const client = GhostableClient.unauthenticated(config.apiBase).withToken(token);
+      const client = GhostableClient.unauthenticated(config.apiBase).withToken(
+        token,
+      );
 
       // 7) Encrypt + push per variable
       const tasks = new Listr(
         entries.map(([name, value]) => ({
           title: `${name}`,
           task: async (_ctx, task) => {
-            const validators: Record<string, any> = { non_empty: value.length > 0 };
+            const validators: Record<string, any> = {
+              non_empty: value.length > 0,
+            };
             if (name === "APP_KEY") {
-              validators.regex   = { id: "base64_44char_v1", ok: /^base64:/.test(value) && value.length >= 44 };
-              validators.length  = value.length;
+              validators.regex = {
+                id: "base64_44char_v1",
+                ok: /^base64:/.test(value) && value.length >= 44,
+              };
+              validators.length = value.length;
             }
 
             const payload = await buildUploadPayload({
               name,
-              env: envName!,          // from manifest selection
-              org: orgId ?? "",       // server can infer if token is org-scoped
-              project: projectId,     // from manifest
+              env: envName!, // from manifest selection
+              org: orgId ?? "", // server can infer if token is org-scoped
+              project: projectId, // from manifest
               plaintext: value,
               masterSeed,
               edPriv,
@@ -139,12 +160,14 @@ export function registerEnvPushCommand(program: Command) {
             task.title = `${name}  ${chalk.green("✓")}`;
           },
         })),
-        { concurrent: false, exitOnError: true }
+        { concurrent: false, exitOnError: true },
       );
 
       try {
         await tasks.run();
-        log.ok(`\n✅ Pushed ${entries.length} variables to ${projectId}:${envName} (encrypted locally).`);
+        log.ok(
+          `\n✅ Pushed ${entries.length} variables to ${projectId}:${envName} (encrypted locally).`,
+        );
       } catch (err: any) {
         log.error(err);
         log.error(`\n❌ env:push failed: ${err?.message ?? err}`);

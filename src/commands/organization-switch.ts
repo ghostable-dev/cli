@@ -8,8 +8,15 @@ import { log } from "../support/logger.js";
 export function registerOrganizationSwitchCommand(program: Command) {
   program
     .command("org:switch")
-    .aliases(["orgs:switch", "organizations:switch", "organization:switch", "switch"])
-    .description("Switch to a different organization context (used as default in subsequent commands)")
+    .aliases([
+      "orgs:switch",
+      "organizations:switch",
+      "organization:switch",
+      "switch",
+    ])
+    .description(
+      "Switch to a different organization context (used as default in subsequent commands)",
+    )
     .option("--id <ORG_ID>", "Organization ID to switch to (skip prompt)")
     .action(async (opts) => {
       const sessionSvc = new SessionService();
@@ -19,11 +26,15 @@ export function registerOrganizationSwitchCommand(program: Command) {
         process.exit(1);
       }
 
-      const client = GhostableClient.unauthenticated(config.apiBase).withToken(sess.accessToken);
+      const client = GhostableClient.unauthenticated(config.apiBase).withToken(
+        sess.accessToken,
+      );
       const orgs = await client.organizations();
 
       if (!orgs.length) {
-        log.error("❌ No organizations available. Create one in the dashboard first.");
+        log.error(
+          "❌ No organizations available. Create one in the dashboard first.",
+        );
         process.exit(1);
       }
 

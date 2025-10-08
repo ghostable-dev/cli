@@ -10,7 +10,8 @@ const formatArgs = (values: unknown[]): string =>
     })
     .join(" ");
 
-const createLogger = (writer: typeof console.log, colorize: (message: string) => string) =>
+const createLogger =
+  (writer: typeof console.log, colorize: (message: string) => string) =>
   (...values: unknown[]) => {
     if (values.length === 0) {
       writer("");

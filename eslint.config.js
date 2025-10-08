@@ -12,15 +12,18 @@ export default [
     languageOptions: {
       parser: tsParser,
       parserOptions: { ecmaVersion: "latest", sourceType: "module" },
+      // globals: {
+      //   ...globals.node,
+      // },
     },
     plugins: {
       "@typescript-eslint": tsPlugin,
-      // prettier, // ← uncomment if you installed it
+      prettier,
     },
     rules: {
       ...tsPlugin.configs.recommended.rules,
       "@typescript-eslint/no-unused-vars": ["warn", { argsIgnorePattern: "^_" }],
-      // "prettier/prettier": "warn", // ← uncomment if using prettier plugin
+      "prettier/prettier": "warn", // ← uncomment if using prettier plugin
     },
   },
 ];

@@ -13,14 +13,15 @@ import type { Command } from "commander";
  * or export default (program: Command) => { ... }
  */
 export async function registerAllCommands(program: Command) {
-  const here = fileURLToPath(new URL(".", import.meta.url));   // .../dist/commands/
+  const here = fileURLToPath(new URL(".", import.meta.url)); // .../dist/commands/
   const files = fs
     .readdirSync(here)
-    .filter(f =>
-      f.endsWith(".js") &&           // compiled files
-      !f.startsWith("_") &&          // skip registry itself
-      !f.endsWith(".d.ts") &&
-      !f.endsWith(".map")
+    .filter(
+      (f) =>
+        f.endsWith(".js") && // compiled files
+        !f.startsWith("_") && // skip registry itself
+        !f.endsWith(".d.ts") &&
+        !f.endsWith(".map"),
     )
     .sort();
 

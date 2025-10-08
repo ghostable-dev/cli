@@ -20,9 +20,11 @@ export function registerOrganizationListCommand(program: Command) {
       const currentOrgId = sess.organizationId;
 
       // Fetch orgs
-      const client = GhostableClient.unauthenticated(config.apiBase).withToken(sess.accessToken);
+      const client = GhostableClient.unauthenticated(config.apiBase).withToken(
+        sess.accessToken,
+      );
       const orgs = (await client.organizations()).sort((a, b) =>
-        (a.name ?? "").localeCompare(b.name ?? "")
+        (a.name ?? "").localeCompare(b.name ?? ""),
       );
 
       if (orgs.length === 0) {
