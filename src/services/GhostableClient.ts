@@ -96,6 +96,22 @@ export class GhostableClient {
     const suffix = qs.toString() ? `?${qs.toString()}` : "";
     return this.http.get<ProjectionBundle>(`/projects/${p}/environments/${e}/pull${suffix}`);
   }
+  
+  async deploy(
+    opts?: {
+      only?: string[];
+      includeMeta?: boolean;
+      includeVersions?: boolean;
+    }
+  ): Promise<ProjectionBundle> {
+    const qs = new URLSearchParams();
+    if (opts?.includeMeta) qs.set("include_meta", "1");
+    if (opts?.includeVersions) qs.set("include_versions", "1");
+    if (opts?.only?.length) for (const k of opts.only) qs.append("only[]", k);
+
+    const suffix = qs.toString() ? `?${qs.toString()}` : "";
+    return this.http.get<ProjectionBundle>(`/ci/deploy`);
+  }
 
   // Example projection fetch
   async projection(params: { org: string; project: string; env: string }): Promise<any> {

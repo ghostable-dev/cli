@@ -1,3 +1,5 @@
+import "dotenv/config";
+
 export interface AppConfig {
   apiBase: string;
   keychainService: string;
