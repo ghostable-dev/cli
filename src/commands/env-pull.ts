@@ -44,7 +44,7 @@ export function registerEnvPullCommand(program: Command) {
   program
     .command("env:pull")
     .description(
-      "Pull, decrypt, merge, and write a local .env for the selected environment (zero-knowledge)",
+      "Pull and decrypt environment variables into a local .env file.",
     )
     .option(
       "--env <ENV>",
