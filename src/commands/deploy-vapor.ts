@@ -15,6 +15,7 @@ import {
 import { log } from "../support/logger.js";
 import { toErrorMessage } from "../support/errors.js";
 import type { ProjectionBundle } from "../services/GhostableClient.js";
+import { resolveWorkDir } from "../support/workdir.js";
 
 export function registerDeployVaporCommand(program: Command) {
   program
@@ -129,7 +130,7 @@ async function deployStandardVariables(
   const pull = runVaporCommand(["env:pull", vaporEnv]);
   ensureSuccessfulVaporProcess(pull, `pull environment "${vaporEnv}"`);
 
-  const envPath = path.resolve(process.cwd(), `.env.${vaporEnv}`);
+  const envPath = path.resolve(resolveWorkDir(), `.env.${vaporEnv}`);
   const existing = readEnvFileSafe(envPath);
   const merged = { ...existing, ...variables };
   writeEnvFile(envPath, merged);

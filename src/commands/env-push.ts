@@ -16,6 +16,7 @@ import { GhostableClient } from "../services/GhostableClient.js";
 import { Manifest } from "../support/Manifest.js";
 import { log } from "../support/logger.js";
 import { toErrorMessage } from "../support/errors.js";
+import { resolveWorkDir } from "../support/workdir.js";
 
 type PushOptions = {
   api?: string;
@@ -34,12 +35,13 @@ function resolveEnvFile(
   envName: string | undefined,
   explicitPath?: string,
 ): string {
-  if (explicitPath) return path.resolve(process.cwd(), explicitPath);
+  const workDir = resolveWorkDir();
+  if (explicitPath) return path.resolve(workDir, explicitPath);
   if (envName) {
-    const candidate = path.resolve(process.cwd(), `.env.${envName}`);
+    const candidate = path.resolve(workDir, `.env.${envName}`);
     if (fs.existsSync(candidate)) return candidate;
   }
-  return path.resolve(process.cwd(), ".env");
+  return path.resolve(workDir, ".env");
 }
 
 export function registerEnvPushCommand(program: Command) {

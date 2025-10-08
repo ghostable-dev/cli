@@ -14,6 +14,7 @@ import {
 import { log } from "../support/logger.js";
 import { toErrorMessage } from "../support/errors.js";
 import type { ProjectionBundle } from "../services/GhostableClient.js";
+import { resolveWorkDir } from "../support/workdir.js";
 
 export function registerDeployForgeCommand(program: Command) {
   program
@@ -82,7 +83,8 @@ export function registerDeployForgeCommand(program: Command) {
         }
 
         // 4) Write .env.<env>
-        const envPath = path.resolve(process.cwd(), `.env`);
+        const workDir = resolveWorkDir();
+        const envPath = path.resolve(workDir, `.env`);
         const previous = readEnvFileSafe(envPath);
         const combined = { ...previous, ...merged };
         writeEnvFile(envPath, combined);
@@ -112,7 +114,7 @@ export function registerDeployForgeCommand(program: Command) {
           ).start();
 
           // We will temporarily swap `.env` so artisan reads the desired file.
-          const cwd = process.cwd();
+          const cwd = workDir;
           const dotEnv = path.join(cwd, ".env");
           const backup = path.join(cwd, ".env.__ghostable_backup__");
           const targetOut = path.resolve(cwd, opts.out ?? `.env.encrypted`);
@@ -171,5 +173,5 @@ function havePhpAndArtisan(): boolean {
   const php = spawnSync("php", ["-v"], { stdio: "ignore" });
   if (php.status !== 0) return false;
   // artisan file in cwd?
-  return fs.existsSync(path.join(process.cwd(), "artisan"));
+  return fs.existsSync(path.join(resolveWorkDir(), "artisan"));
 }

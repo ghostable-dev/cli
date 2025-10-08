@@ -5,6 +5,13 @@
   "bin": {
     "ghostable": "dist/cli.js"
   },
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE.md",
+    "SECURITY.md",
+    "example.env"
+  ],
   "scripts": {
     "build": "tsc -p tsconfig.json",
     "dev": "tsx src/cli.ts",
