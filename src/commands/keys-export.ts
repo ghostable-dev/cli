@@ -7,6 +7,7 @@ import { loadOrCreateKeys } from "../keys.js";
 import { deriveKeys, b64 } from "../crypto.js";
 import { SessionService } from "../services/SessionService.js";
 import { log } from "../support/logger.js";
+import { toErrorMessage } from "../support/errors.js";
 
 export function registerKeysExportCommand(program: Command) {
   program
@@ -20,8 +21,8 @@ export function registerKeysExportCommand(program: Command) {
       try {
         projectId = Manifest.id();
         envNames = Manifest.environmentNames();
-      } catch (e: any) {
-        log.error(e?.message ?? "Missing ghostable.yml manifest.");
+      } catch (error) {
+        log.error(toErrorMessage(error) || "Missing ghostable.yml manifest.");
         process.exit(1);
         return;
       }

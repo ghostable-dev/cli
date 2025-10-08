@@ -14,7 +14,7 @@ export function registerOrganizationCurrentCommand(program: Command) {
       "current",
     ])
     .description("Show your current organization context.")
-    .action(async (opts) => {
+    .action(async () => {
       // 1. Load session / access token
       const sessionSvc = new SessionService();
       const sess = await sessionSvc.load();

@@ -8,13 +8,14 @@ import chalk from "chalk";
 
 import { initSodium } from "../crypto.js";
 import { loadOrCreateKeys } from "../keys.js";
-import { buildUploadPayload } from "../payload.js";
+import { buildUploadPayload, type ValidatorRecord } from "../payload.js";
 
 import { config } from "../config/index.js";
 import { SessionService } from "../services/SessionService.js";
 import { GhostableClient } from "../services/GhostableClient.js";
 import { Manifest } from "../support/Manifest.js";
 import { log } from "../support/logger.js";
+import { toErrorMessage } from "../support/errors.js";
 
 type PushOptions = {
   api?: string;
@@ -60,8 +61,8 @@ export function registerEnvPushCommand(program: Command) {
         projectId = Manifest.id();
         projectName = Manifest.name();
         manifestEnvs = Manifest.environmentNames();
-      } catch (e: any) {
-        log.error(e?.message ?? String(e));
+      } catch (error) {
+        log.error(toErrorMessage(error));
         process.exit(1);
         return;
       }
@@ -133,7 +134,7 @@ export function registerEnvPushCommand(program: Command) {
         entries.map(([name, value]) => ({
           title: `${name}`,
           task: async (_ctx, task) => {
-            const validators: Record<string, any> = {
+            const validators: ValidatorRecord = {
               non_empty: value.length > 0,
             };
             if (name === "APP_KEY") {
@@ -168,9 +169,9 @@ export function registerEnvPushCommand(program: Command) {
         log.ok(
           `\n✅ Pushed ${entries.length} variables to ${projectId}:${envName} (encrypted locally).`,
         );
-      } catch (err: any) {
-        log.error(err);
-        log.error(`\n❌ env:push failed: ${err?.message ?? err}`);
+      } catch (error) {
+        log.error(error);
+        log.error(`\n❌ env:push failed: ${toErrorMessage(error)}`);
         process.exit(1);
       }
     });

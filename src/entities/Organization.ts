@@ -8,7 +8,23 @@ export class Organization {
     return this.name ?? this.id;
   }
 
-  static fromJSON(json: any): Organization {
-    return new Organization(String(json.id), json.name ?? undefined);
+  static fromJSON(json: unknown): Organization {
+    if (!json || typeof json !== "object") {
+      throw new Error("Invalid organization payload");
+    }
+
+    const { id, name } = json as {
+      id?: unknown;
+      name?: unknown;
+    };
+
+    if (id == null) {
+      throw new Error("Organization payload missing id");
+    }
+
+    const organizationName =
+      typeof name === "string" && name.trim().length > 0 ? name : undefined;
+
+    return new Organization(String(id), organizationName);
   }
 }

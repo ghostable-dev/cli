@@ -6,15 +6,15 @@ import path from "node:path";
 import { spawnSync } from "node:child_process";
 import crypto from "node:crypto";
 
-import { config } from "../config/index.js";
 import { writeEnvFile, readEnvFileSafe } from "../support/env-files.js";
 import {
   createGhostableClient,
   decryptProjection,
-  resolveManifestContext,
   resolveToken,
 } from "../support/deploy-helpers.js";
 import { log } from "../support/logger.js";
+import { toErrorMessage } from "../support/errors.js";
+import type { ProjectionBundle } from "../services/GhostableClient.js";
 
 export function registerDeployVaporCommand(program: Command) {
   program
@@ -31,15 +31,15 @@ export function registerDeployVaporCommand(program: Command) {
         let token: string;
         try {
           token = await resolveToken(opts.token);
-        } catch (error: any) {
-          log.error(error?.message ?? error);
+        } catch (error) {
+          log.error(toErrorMessage(error));
           process.exit(1);
         }
         const client = createGhostableClient(token);
 
         // 2) Fetch projection for this env (derived from token)
         const deploySpin = ora(`Fetching encrypted projection…`).start();
-        let bundle: Awaited<ReturnType<typeof client.deploy>>;
+        let bundle: ProjectionBundle;
         try {
           bundle = await client.deploy({
             includeMeta: true,
@@ -47,9 +47,9 @@ export function registerDeployVaporCommand(program: Command) {
             only: opts.only,
           });
           deploySpin.succeed("Projection fetched.");
-        } catch (err: any) {
+        } catch (error) {
           deploySpin.fail("Failed to fetch projection.");
-          log.error(err?.message ?? err);
+          log.error(toErrorMessage(error));
           process.exit(1);
         }
 
@@ -94,15 +94,15 @@ export function registerDeployVaporCommand(program: Command) {
 
         try {
           await deployStandardVariables(vaporEnv, standardVars);
-        } catch (error: any) {
-          log.error(error?.message ?? error);
+        } catch (error) {
+          log.error(toErrorMessage(error));
           process.exit(1);
         }
 
         try {
           await deploySecretVariables(vaporEnv, secretVars);
-        } catch (error: any) {
-          log.error(error?.message ?? error);
+        } catch (error) {
+          log.error(toErrorMessage(error));
           process.exit(1);
         }
 
@@ -173,9 +173,9 @@ async function deploySecretVariables(
         const message = extractProcessError(result);
         log.error(`[ERR]  ${key} → ${message}`);
       }
-    } catch (error: any) {
+    } catch (error) {
       failures++;
-      log.error(`[ERR]  ${key} → ${error?.message ?? error}`);
+      log.error(`[ERR]  ${key} → ${toErrorMessage(error)}`);
     } finally {
       if (filePath) {
         safeUnlink(filePath);
@@ -206,7 +206,7 @@ function createSecretTempFile(value: string): Promise<string> {
       });
       fs.chmodSync(filePath, 0o600);
       resolve(filePath);
-    } catch (error) {
+    } catch {
       safeUnlink(filePath);
       reject(new Error("Failed to write secret to temp file."));
     }
@@ -234,11 +234,13 @@ function ensureSuccessfulVaporProcess(
   throw new Error(`Failed to ${action} using vapor CLI: ${message}`);
 }
 
+type SpawnError = Error & { code?: string };
+
 function extractProcessError(
   result: ReturnType<typeof runVaporCommand>,
 ): string {
   if (result.error) {
-    const err = result.error as NodeJS.ErrnoException;
+    const err = result.error as SpawnError;
     if (err.code === "ETIMEDOUT") {
       return "process timed out";
     }

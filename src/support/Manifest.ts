@@ -30,8 +30,13 @@ function fail(msg: string): never {
 
 function readYaml(file: string): ManifestShape {
   const raw = fs.readFileSync(file, "utf8");
-  const data = yaml.load(raw) as ManifestShape;
-  return (data ?? {}) as ManifestShape;
+  const data = yaml.load(raw);
+
+  if (!data || typeof data !== "object") {
+    return {};
+  }
+
+  return data as ManifestShape;
 }
 
 function writeYaml(file: string, manifest: ManifestShape) {
@@ -49,19 +54,23 @@ function normalizeEnvs(
   envs: ManifestEnvs | undefined,
 ): Record<string, EnvEntry> {
   if (!envs) return {};
-  // Already a map?
-  if (typeof (envs as any) === "object" && !Array.isArray(envs)) {
-    return envs as Record<string, EnvEntry>;
+
+  if (!Array.isArray(envs)) {
+    return { ...envs };
   }
-  // Legacy list → map
-  const list = envs as ManifestEnvsLegacy;
+
   const out: Record<string, EnvEntry> = {};
-  for (const item of list) {
+  for (const item of envs) {
     if (typeof item === "string") {
       out[item] = {};
     } else if (item && typeof item === "object") {
-      const name = (item as any).name;
-      if (name) out[name] = item.type ? { type: item.type } : {};
+      const name =
+        "name" in item && typeof item.name === "string" ? item.name : undefined;
+      if (!name) continue;
+
+      const type =
+        "type" in item && typeof item.type === "string" ? item.type : undefined;
+      out[name] = type ? { type } : {};
     }
   }
   return out;
@@ -152,7 +161,7 @@ export class Manifest {
     const m = this.current(file);
     const envs = normalizeEnvs(m.environments);
     const entry = envs[name];
-    return (entry && (entry as any).type) ?? null;
+    return entry?.type ?? null;
   }
 
   /** Overwrite manifest (advanced use) */
