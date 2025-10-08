@@ -1,10 +1,14 @@
 import fs from "node:fs";
 
-export function writeEnvFile(filePath: string, vars: Record<string, string>): void {
-  const content = Object.keys(vars)
-    .sort((a, b) => a.localeCompare(b))
-    .map(key => `${key}=${vars[key]}`)
-    .join("\n") + "\n";
+export function writeEnvFile(
+  filePath: string,
+  vars: Record<string, string>,
+): void {
+  const content =
+    Object.keys(vars)
+      .sort((a, b) => a.localeCompare(b))
+      .map((key) => `${key}=${vars[key]}`)
+      .join("\n") + "\n";
 
   fs.writeFileSync(filePath, content, "utf8");
 }

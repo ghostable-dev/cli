@@ -1,5 +1,4 @@
 import { Command } from "commander";
-import chalk from "chalk";
 import ora from "ora";
 import fs from "node:fs";
 import os from "node:os";
@@ -15,109 +14,118 @@ import {
   resolveManifestContext,
   resolveToken,
 } from "../support/deploy-helpers.js";
+import { log } from "../support/logger.js";
 
 export function registerDeployVaporCommand(program: Command) {
   program
     .command("deploy:vapor")
-    .description("Deploy Ghostable managed environment variables for Laravel Vapor.")
+    .description(
+      "Deploy Ghostable managed environment variables for Laravel Vapor.",
+    )
     .option("--token <TOKEN>", "Ghostable CI token (or env GHOSTABLE_CI_TOKEN)")
     .option("--vapor-env <ENV>", "Target Vapor environment")
     .option("--only <KEY...>", "Limit to specific keys")
-    .action(async (opts: {
-      token?: string;
-      vaporEnv?: string;
-      only?: string[];
-    }) => {
-      
-      // 1) Token + client
-      let token: string;
-      try {
-        token = await resolveToken(opts.token);
-      } catch (error: any) {
-        console.error(error?.message ?? error);
-        process.exit(1);
-      }
-      const client = createGhostableClient(token);
-
-      // 2) Fetch projection for this env (derived from token)
-      const deploySpin = ora(`Fetching encrypted projection…`).start();
-      let bundle: Awaited<ReturnType<typeof client.deploy>>;
-      try {
-        bundle = await client.deploy({ includeMeta: true, includeVersions: true, only: opts.only });
-        deploySpin.succeed("Projection fetched.");
-      } catch (err:any) {
-        deploySpin.fail("Failed to fetch projection.");
-        console.error(chalk.red(err?.message ?? err));
-        process.exit(1);
-      }
-
-      if (!bundle.secrets.length) {
-        console.log(chalk.yellow("No secrets returned; nothing to deploy."));
-        return;
-      }
-
-      const { secrets, warnings } = await decryptProjection(bundle);
-      for (const warning of warnings) {
-        console.warn(chalk.yellow(`⚠️ ${warning}`));
-      }
-
-      if (!secrets.length) {
-        console.log(chalk.yellow("No decryptable secrets; nothing to deploy."));
-        return;
-      }
-
-      const vaporEnv = (opts.vaporEnv ?? "").trim();
-      if (!vaporEnv) {
-        console.error(chalk.red("❌ The --vapor-env option is required when deploying to Vapor."));
-        process.exit(1);
-      }
-
-      if (!binaryExists("vapor")) {
-        console.error(chalk.red("❌ vapor CLI not found on PATH"));
-        process.exit(1);
-      }
-
-      const standardVars: Record<string, string> = {};
-      const secretVars: Record<string, string> = {};
-
-      for (const secret of secrets) {
-        if (secret.entry.meta?.is_vapor_secret) {
-          secretVars[secret.entry.name] = secret.value;
-        } else {
-          standardVars[secret.entry.name] = secret.value;
+    .action(
+      async (opts: { token?: string; vaporEnv?: string; only?: string[] }) => {
+        // 1) Token + client
+        let token: string;
+        try {
+          token = await resolveToken(opts.token);
+        } catch (error: any) {
+          log.error(error?.message ?? error);
+          process.exit(1);
         }
-      }
+        const client = createGhostableClient(token);
 
-      try {
-        await deployStandardVariables(vaporEnv, standardVars);
-      } catch (error: any) {
-        console.error(chalk.red(error?.message ?? error));
-        process.exit(1);
-      }
+        // 2) Fetch projection for this env (derived from token)
+        const deploySpin = ora(`Fetching encrypted projection…`).start();
+        let bundle: Awaited<ReturnType<typeof client.deploy>>;
+        try {
+          bundle = await client.deploy({
+            includeMeta: true,
+            includeVersions: true,
+            only: opts.only,
+          });
+          deploySpin.succeed("Projection fetched.");
+        } catch (err: any) {
+          deploySpin.fail("Failed to fetch projection.");
+          log.error(err?.message ?? err);
+          process.exit(1);
+        }
 
-      try {
-        await deploySecretVariables(vaporEnv, secretVars);
-      } catch (error: any) {
-        console.error(chalk.red(error?.message ?? error));
-        process.exit(1);
-      }
+        if (!bundle.secrets.length) {
+          log.warn("No secrets returned; nothing to deploy.");
+          return;
+        }
 
-      console.log(chalk.green(`Vapor environment "${vaporEnv}" updated.`));
-    });
+        const { secrets, warnings } = await decryptProjection(bundle);
+        for (const warning of warnings) {
+          log.warn(`⚠️ ${warning}`);
+        }
+
+        if (!secrets.length) {
+          log.warn("No decryptable secrets; nothing to deploy.");
+          return;
+        }
+
+        const vaporEnv = (opts.vaporEnv ?? "").trim();
+        if (!vaporEnv) {
+          log.error(
+            "❌ The --vapor-env option is required when deploying to Vapor.",
+          );
+          process.exit(1);
+        }
+
+        if (!binaryExists("vapor")) {
+          log.error("❌ vapor CLI not found on PATH");
+          process.exit(1);
+        }
+
+        const standardVars: Record<string, string> = {};
+        const secretVars: Record<string, string> = {};
+
+        for (const secret of secrets) {
+          if (secret.entry.meta?.is_vapor_secret) {
+            secretVars[secret.entry.name] = secret.value;
+          } else {
+            standardVars[secret.entry.name] = secret.value;
+          }
+        }
+
+        try {
+          await deployStandardVariables(vaporEnv, standardVars);
+        } catch (error: any) {
+          log.error(error?.message ?? error);
+          process.exit(1);
+        }
+
+        try {
+          await deploySecretVariables(vaporEnv, secretVars);
+        } catch (error: any) {
+          log.error(error?.message ?? error);
+          process.exit(1);
+        }
+
+        log.ok(`Vapor environment "${vaporEnv}" updated.`);
+      },
+    );
 }
 
-async function deployStandardVariables(vaporEnv: string, variables: Record<string, string>): Promise<void> {
+async function deployStandardVariables(
+  vaporEnv: string,
+  variables: Record<string, string>,
+): Promise<void> {
   const count = Object.keys(variables).length;
-  console.log(
-    chalk.cyan(`Deploying (${count}) standard variables to Vapor env "${vaporEnv}"`)
+  log.info(
+    `Deploying (${count}) standard variables to Vapor env "${vaporEnv}"`,
   );
 
   if (!count) {
-    console.log(chalk.yellow("No standard variables to deploy."));
+    log.warn("No standard variables to deploy.");
     return;
   }
 
-  console.log(chalk.cyan(`Pulling existing environment "${vaporEnv}" from Vapor`));
+  log.info(`Pulling existing environment "${vaporEnv}" from Vapor`);
   const pull = runVaporCommand(["env:pull", vaporEnv]);
   ensureSuccessfulVaporProcess(pull, `pull environment "${vaporEnv}"`);
 
@@ -126,21 +134,22 @@ async function deployStandardVariables(vaporEnv: string, variables: Record<strin
   const merged = { ...existing, ...variables };
   writeEnvFile(envPath, merged);
 
-  console.log(chalk.cyan(`Pushing updated environment "${vaporEnv}" to Vapor`));
+  log.info(`Pushing updated environment "${vaporEnv}" to Vapor`);
   const push = runVaporCommand(["env:push", vaporEnv]);
   ensureSuccessfulVaporProcess(push, `push environment "${vaporEnv}"`);
 }
 
-async function deploySecretVariables(vaporEnv: string, variables: Record<string, string>): Promise<void> {
+async function deploySecretVariables(
+  vaporEnv: string,
+  variables: Record<string, string>,
+): Promise<void> {
   const entries = Object.entries(variables);
-  console.log(
-    chalk.cyan(
-      `Deploying (${entries.length}) secret variables to Vapor env "${vaporEnv}"`
-    )
+  log.info(
+    `Deploying (${entries.length}) secret variables to Vapor env "${vaporEnv}"`,
   );
 
   if (!entries.length) {
-    console.log(chalk.yellow("No secret variables to deploy."));
+    log.warn("No secret variables to deploy.");
     return;
   }
 
@@ -158,15 +167,15 @@ async function deploySecretVariables(vaporEnv: string, variables: Record<string,
       ]);
 
       if (result.status === 0) {
-        console.log(chalk.green(`[OK]   ${key}`));
+        log.ok(`[OK]   ${key}`);
       } else {
         failures++;
         const message = extractProcessError(result);
-        console.log(chalk.red(`[ERR]  ${key} → ${message}`));
+        log.error(`[ERR]  ${key} → ${message}`);
       }
     } catch (error: any) {
       failures++;
-      console.log(chalk.red(`[ERR]  ${key} → ${error?.message ?? error}`));
+      log.error(`[ERR]  ${key} → ${error?.message ?? error}`);
     } finally {
       if (filePath) {
         safeUnlink(filePath);
@@ -175,10 +184,12 @@ async function deploySecretVariables(vaporEnv: string, variables: Record<string,
   }
 
   if (failures > 0) {
-    throw new Error(`Vapor secret deployment completed with ${failures} failure(s).`);
+    throw new Error(
+      `Vapor secret deployment completed with ${failures} failure(s).`,
+    );
   }
 
-  console.log(chalk.green("Vapor secret deployment completed successfully."));
+  log.ok("Vapor secret deployment completed successfully.");
 }
 
 function createSecretTempFile(value: string): Promise<string> {
@@ -188,7 +199,11 @@ function createSecretTempFile(value: string): Promise<string> {
     const filePath = path.join(dir, name);
 
     try {
-      fs.writeFileSync(filePath, value, { encoding: "utf8", mode: 0o600, flag: "w" });
+      fs.writeFileSync(filePath, value, {
+        encoding: "utf8",
+        mode: 0o600,
+        flag: "w",
+      });
       fs.chmodSync(filePath, 0o600);
       resolve(filePath);
     } catch (error) {
@@ -209,7 +224,7 @@ function runVaporCommand(args: string[], timeoutSeconds = 120) {
 
 function ensureSuccessfulVaporProcess(
   result: ReturnType<typeof runVaporCommand>,
-  action: string
+  action: string,
 ): void {
   if (result.status === 0) {
     return;
@@ -219,7 +234,9 @@ function ensureSuccessfulVaporProcess(
   throw new Error(`Failed to ${action} using vapor CLI: ${message}`);
 }
 
-function extractProcessError(result: ReturnType<typeof runVaporCommand>): string {
+function extractProcessError(
+  result: ReturnType<typeof runVaporCommand>,
+): string {
   if (result.error) {
     const err = result.error as NodeJS.ErrnoException;
     if (err.code === "ETIMEDOUT") {
@@ -249,9 +266,10 @@ function safeUnlink(filePath: string): void {
 
 function binaryExists(name: string): boolean {
   const paths = (process.env.PATH ?? "").split(path.delimiter).filter(Boolean);
-  const extensions = process.platform === "win32"
-    ? (process.env.PATHEXT?.split(";") ?? [".exe", ".bat", ".cmd"])
-    : [""];
+  const extensions =
+    process.platform === "win32"
+      ? (process.env.PATHEXT?.split(";") ?? [".exe", ".bat", ".cmd"])
+      : [""];
 
   for (const base of paths) {
     for (const ext of extensions) {

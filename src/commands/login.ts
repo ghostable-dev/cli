@@ -1,10 +1,10 @@
 import { Command } from "commander";
 import { input, password, select } from "@inquirer/prompts";
 import ora from "ora";
-import chalk from "chalk";
 import { config } from "../config/index.js";
 import { SessionService } from "../services/SessionService.js";
 import { GhostableClient } from "../services/GhostableClient.js";
+import { log } from "../support/logger.js";
 
 export function registerLoginCommand(program: Command) {
   program
@@ -16,7 +16,10 @@ export function registerLoginCommand(program: Command) {
       const session = new SessionService();
       const client = GhostableClient.unauthenticated(apiBase);
 
-      const email = await input({ message: "Email:", validate: (v) => v.includes("@") || "Enter a valid email" });
+      const email = await input({
+        message: "Email:",
+        validate: (v) => v.includes("@") || "Enter a valid email",
+      });
       const pwd = await password({ message: "Password:" });
 
       const spinner = ora("Authenticating…").start();
@@ -38,19 +41,21 @@ export function registerLoginCommand(program: Command) {
         let organizationId: string | undefined;
         if (orgs.length === 1) {
           organizationId = orgs[0].id;
-          console.log(`✅ Using organization: ${orgs[0].label()}`);
+          log.ok(`✅ Using organization: ${orgs[0].label()}`);
         } else if (orgs.length > 1) {
           organizationId = await select({
             message: "Choose your organization",
             choices: orgs.map((o) => ({ name: o.label(), value: o.id })),
           });
-          console.log(`✅ Using organization: ${orgs.find((o) => o.id === organizationId)?.label()}`);
+          log.ok(
+            `✅ Using organization: ${orgs.find((o) => o.id === organizationId)?.label()}`,
+          );
         } else {
-          console.log(chalk.yellow("No organizations found. Create one in the dashboard."));
+          log.warn("No organizations found. Create one in the dashboard.");
         }
 
         await session.save({ accessToken: token, organizationId });
-        console.log(chalk.green("✅ Session stored in OS keychain."));
+        log.ok("✅ Session stored in OS keychain.");
       } catch (e: any) {
         spinner.fail(e.message ?? "Login failed");
         process.exit(1);

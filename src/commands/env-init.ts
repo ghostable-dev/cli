@@ -7,11 +7,14 @@ import { Manifest } from "../support/Manifest.js";
 import { SessionService } from "../services/SessionService.js";
 import { GhostableClient } from "../services/GhostableClient.js";
 import { config } from "../config/index.js";
+import { log } from "../support/logger.js";
 
 export function registerEnvInitCommand(program: Command) {
   program
     .command("env:init")
-    .description("Initialize a new environment in the current organization and project context.")
+    .description(
+      "Initialize a new environment in the current organization and project context.",
+    )
     .option("--api <URL>", "Ghostable API base", config.apiBase)
     .option("--name <NAME>", "Environment name (slug)")
     .action(async (opts: { api?: string; name?: string }) => {
@@ -19,7 +22,7 @@ export function registerEnvInitCommand(program: Command) {
       const sessionSvc = new SessionService();
       const sess = await sessionSvc.load();
       if (!sess?.accessToken) {
-        console.error(chalk.red("❌ Not authenticated. Run `ghostable login`."));
+        log.error("❌ Not authenticated. Run `ghostable login`.");
         process.exit(1);
       }
 
@@ -27,14 +30,14 @@ export function registerEnvInitCommand(program: Command) {
       try {
         projectId = Manifest.id();
       } catch {
-        console.error(chalk.red("❌ No project selected. Run `ghostable init` first."));
+        log.error("❌ No project selected. Run `ghostable init` first.");
         process.exit(1);
         return;
       }
 
-      const client = GhostableClient
-        .unauthenticated(opts.api ?? config.apiBase)
-        .withToken(sess.accessToken);
+      const client = GhostableClient.unauthenticated(
+        opts.api ?? config.apiBase,
+      ).withToken(sess.accessToken);
 
       // 2) Fetch environment types
       const typesSpinner = ora("Loading environment types…").start();
@@ -44,7 +47,7 @@ export function registerEnvInitCommand(program: Command) {
         typesSpinner.succeed(`Loaded ${typeOptions.length} environment types.`);
       } catch (err: any) {
         typesSpinner.fail("Failed to load environment types.");
-        console.error(chalk.red(err?.message ?? err));
+        log.error(err?.message ?? err);
         process.exit(1);
       }
 
@@ -62,7 +65,7 @@ export function registerEnvInitCommand(program: Command) {
         envSpinner.succeed(`Loaded ${existingEnvs.length} environments.`);
       } catch (err: any) {
         envSpinner.fail("Failed to load environments.");
-        console.error(chalk.red(err?.message ?? err));
+        log.error(err?.message ?? err);
         process.exit(1);
       }
 
@@ -80,10 +83,15 @@ export function registerEnvInitCommand(program: Command) {
       // 4) Name (option > suggestions > custom)
       let name: string | undefined = opts.name;
       if (!name) {
-        const suggestSpinner = ora("Fetching suggested environment names…").start();
+        const suggestSpinner = ora(
+          "Fetching suggested environment names…",
+        ).start();
         let suggestions: Array<{ name: string }>;
         try {
-          suggestions = await client.suggestEnvironmentNames(projectId, selectedType);
+          suggestions = await client.suggestEnvironmentNames(
+            projectId,
+            selectedType,
+          );
           suggestSpinner.succeed();
         } catch {
           suggestions = [];
@@ -139,10 +147,10 @@ export function registerEnvInitCommand(program: Command) {
           type: env.type ?? selectedType,
         });
 
-        console.log(chalk.green(`✅ Environment ${chalk.bold(name)} added to ghostable.yml`));
+        log.ok(`✅ Environment ${chalk.bold(name)} added to ghostable.yml`);
       } catch (err: any) {
         createSpinner.fail("Failed creating environment.");
-        console.error(chalk.red(err?.message ?? err));
+        log.error(err?.message ?? err);
         process.exit(1);
       }
     });

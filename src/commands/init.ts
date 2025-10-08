@@ -1,19 +1,21 @@
 import { Command } from "commander";
 import { select, input } from "@inquirer/prompts";
 import ora from "ora";
-import chalk from "chalk";
 
 import { Manifest } from "../support/Manifest.js";
 import { SessionService } from "../services/SessionService.js";
 import { GhostableClient } from "../services/GhostableClient.js";
 import { config } from "../config/index.js";
+import { log } from "../support/logger.js";
 
 type Project = { id: string; name: string; environments?: any };
 
 export function registerOrganizationListCommand(program: Command) {
   program
     .command("init")
-    .description("Initialize a new project in the current directory within the current organization context.")
+    .description(
+      "Initialize a new project in the current directory within the current organization context.",
+    )
     .option("--api <URL>", "API base", config.apiBase)
     .action(async (opts) => {
       const apiBase = (opts.api as string) ?? config.apiBase;
@@ -22,29 +24,31 @@ export function registerOrganizationListCommand(program: Command) {
       const sessions = new SessionService();
       const sess = await sessions.load();
       if (!sess?.accessToken) {
-        console.error(chalk.red("❌ Not authenticated. Run `ghostable login` first."));
+        log.error("❌ Not authenticated. Run `ghostable login` first.");
         process.exit(1);
       }
       if (!sess.organizationId) {
-        console.error(
-          chalk.red(
-            "❌ No organization selected. Run `ghostable login` and pick an organization (or add an org switch command)."
-          )
+        log.error(
+          "❌ No organization selected. Run `ghostable login` and pick an organization (or add an org switch command).",
         );
         process.exit(1);
       }
 
-      const client = GhostableClient.unauthenticated(apiBase).withToken(sess.accessToken);
+      const client = GhostableClient.unauthenticated(apiBase).withToken(
+        sess.accessToken,
+      );
 
       // Fetch projects
       const spinner = ora("Loading projects…").start();
       let projects: Project[] = [];
       try {
         projects = await client.projects(sess.organizationId);
-        spinner.succeed(`Loaded ${projects.length} project${projects.length === 1 ? "" : "s"}.`);
+        spinner.succeed(
+          `Loaded ${projects.length} project${projects.length === 1 ? "" : "s"}.`,
+        );
       } catch (e: any) {
         spinner.fail("Failed loading projects.");
-        console.error(chalk.red(e?.message ?? e));
+        log.error(e?.message ?? e);
         process.exit(1);
       }
 
@@ -68,7 +72,8 @@ export function registerOrganizationListCommand(program: Command) {
       } else {
         const name = await input({
           message: "What is the name of this project?",
-          validate: (v) => (v && v.trim().length > 0) || "Project name is required",
+          validate: (v) =>
+            (v && v.trim().length > 0) || "Project name is required",
         });
 
         const createSpin = ora("Creating project…").start();
@@ -80,7 +85,7 @@ export function registerOrganizationListCommand(program: Command) {
           createSpin.succeed(`Project created: ${project.name}`);
         } catch (e: any) {
           createSpin.fail("Failed creating project.");
-          console.error(chalk.red(e?.message ?? e));
+          log.error(e?.message ?? e);
           process.exit(1);
         }
       }
@@ -92,9 +97,11 @@ export function registerOrganizationListCommand(program: Command) {
           name: project.name,
           environments: project.environments ?? {},
         });
-        console.log(chalk.green(`✅ ${project.name} initialized. ${Manifest.resolve()} created.`));
+        log.ok(
+          `✅ ${project.name} initialized. ${Manifest.resolve()} created.`,
+        );
       } catch (e: any) {
-        console.error(chalk.red(`❌ Failed writing manifest: ${e?.message ?? e}`));
+        log.error(`❌ Failed writing manifest: ${e?.message ?? e}`);
         process.exit(1);
       }
     });

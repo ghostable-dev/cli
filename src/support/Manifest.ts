@@ -6,9 +6,7 @@ export type EnvEntry = { type?: string } | undefined;
 export type ManifestEnvsLegacy =
   | string[]
   | Array<string | { name: string; type?: string }>;
-export type ManifestEnvs =
-  | Record<string, EnvEntry>
-  | ManifestEnvsLegacy;
+export type ManifestEnvs = Record<string, EnvEntry> | ManifestEnvsLegacy;
 
 export interface ManifestShape {
   id?: string;
@@ -47,7 +45,9 @@ function writeYaml(file: string, manifest: ManifestShape) {
 }
 
 /** Convert legacy list formats to the normalized map format */
-function normalizeEnvs(envs: ManifestEnvs | undefined): Record<string, EnvEntry> {
+function normalizeEnvs(
+  envs: ManifestEnvs | undefined,
+): Record<string, EnvEntry> {
   if (!envs) return {};
   // Already a map?
   if (typeof (envs as any) === "object" && !Array.isArray(envs)) {
@@ -72,7 +72,7 @@ export class Manifest {
   static current(file = resolveManifestPath()): ManifestShape {
     if (!fs.existsSync(file)) {
       fail(
-        `Unable to find a Ghostable manifest at [${file}].\n→ Run 'ghostable init' to generate a new manifest file.`
+        `Unable to find a Ghostable manifest at [${file}].\n→ Run 'ghostable init' to generate a new manifest file.`,
       );
     }
     const m = readYaml(file);
@@ -85,7 +85,9 @@ export class Manifest {
   static id(file = resolveManifestPath()): string {
     const m = this.current(file);
     if (!m.id) {
-      fail(`Invalid project ID. Please verify your Ghostable manifest at [${file}].`);
+      fail(
+        `Invalid project ID. Please verify your Ghostable manifest at [${file}].`,
+      );
     }
     return m.id!;
   }
@@ -94,36 +96,44 @@ export class Manifest {
   static name(file = resolveManifestPath()): string {
     const m = this.current(file);
     if (!m.name) {
-      fail(`Invalid project name. Please verify your Ghostable manifest at [${file}].`);
+      fail(
+        `Invalid project name. Please verify your Ghostable manifest at [${file}].`,
+      );
     }
     return m.name!;
   }
 
   /** Write a fresh manifest from an API project payload */
-  static fresh(project: {
-    id: string;
-    name?: string;
-    environments?: ManifestEnvs;
-  }, file = resolveManifestPath()): void {
+  static fresh(
+    project: {
+      id: string;
+      name?: string;
+      environments?: ManifestEnvs;
+    },
+    file = resolveManifestPath(),
+  ): void {
     const envs = normalizeEnvs(project.environments);
     const manifest: ManifestShape = {
       id: project.id,
       name: project.name,
       environments: Object.fromEntries(
-        Object.entries(envs).sort(([a], [b]) => a.localeCompare(b))
+        Object.entries(envs).sort(([a], [b]) => a.localeCompare(b)),
       ),
     };
     writeYaml(file, manifest);
   }
 
   /** Add or update a single environment */
-  static addEnvironment(environment: { name: string; type?: string }, file = resolveManifestPath()): void {
+  static addEnvironment(
+    environment: { name: string; type?: string },
+    file = resolveManifestPath(),
+  ): void {
     const m = this.current(file);
     const envs = normalizeEnvs(m.environments);
     envs[environment.name] = environment.type ? { type: environment.type } : {};
     // sort by key
     const sorted = Object.fromEntries(
-      Object.entries(envs).sort(([a], [b]) => a.localeCompare(b))
+      Object.entries(envs).sort(([a], [b]) => a.localeCompare(b)),
     );
     writeYaml(file, { ...m, environments: sorted });
   }
@@ -135,7 +145,10 @@ export class Manifest {
   }
 
   /** Get the 'type' for an environment (if any) */
-  static environmentType(name: string, file = resolveManifestPath()): string | null {
+  static environmentType(
+    name: string,
+    file = resolveManifestPath(),
+  ): string | null {
     const m = this.current(file);
     const envs = normalizeEnvs(m.environments);
     const entry = envs[name];
@@ -147,7 +160,7 @@ export class Manifest {
     // ensure environments normalized and sorted
     const envs = normalizeEnvs(manifest.environments);
     const sorted = Object.fromEntries(
-      Object.entries(envs).sort(([a], [b]) => a.localeCompare(b))
+      Object.entries(envs).sort(([a], [b]) => a.localeCompare(b)),
     );
     writeYaml(file, { ...manifest, environments: sorted });
   }

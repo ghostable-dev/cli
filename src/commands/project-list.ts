@@ -1,8 +1,8 @@
 import { Command } from "commander";
-import chalk from "chalk";
 import { config } from "../config/index.js";
 import { SessionService } from "../services/SessionService.js";
 import { GhostableClient } from "../services/GhostableClient.js";
+import { log } from "../support/logger.js";
 
 export function registerProjectListCommand(program: Command) {
   program
@@ -14,36 +14,46 @@ export function registerProjectListCommand(program: Command) {
       const sessionSvc = new SessionService();
       const sess = await sessionSvc.load();
       if (!sess?.accessToken) {
-        console.error(chalk.red("❌ Not authenticated. Run `ghostable login`."));
+        log.error("❌ Not authenticated. Run `ghostable login`.");
         process.exit(1);
       }
       const orgId = sess.organizationId;
       if (!orgId) {
-        console.error(chalk.red("❌ No organization selected. Run `ghostable org:switch`."));
+        log.error("❌ No organization selected. Run `ghostable org:switch`.");
         process.exit(1);
       }
 
       // 2) Fetch projects
-      const client = GhostableClient.unauthenticated(config.apiBase).withToken(sess.accessToken);
+      const client = GhostableClient.unauthenticated(config.apiBase).withToken(
+        sess.accessToken,
+      );
       const projects = (await client.projects(orgId)).sort((a, b) =>
-        (a.name ?? "").localeCompare(b.name ?? "")
+        (a.name ?? "").localeCompare(b.name ?? ""),
       );
 
       if (!projects.length) {
-        console.log(chalk.yellow("No projects found in this organization."));
+        log.warn("No projects found in this organization.");
         return;
       }
 
       // 3) Build display rows
       const rows = projects.map((p) => {
         const envs = Array.isArray(p.environments)
-          ? p.environments.map((e: any) => e?.name).filter(Boolean).join(", ")
+          ? p.environments
+              .map((e: any) => e?.name)
+              .filter(Boolean)
+              .join(", ")
           : "";
         return { ID: String(p.id), Name: p.name ?? "", Environments: envs };
       });
 
       // 4) Print without index column: key by project name
-      const keyed = Object.fromEntries(rows.map((r) => [r.Name || r.ID, { ID: r.ID, Environments: r.Environments }]));
+      const keyed = Object.fromEntries(
+        rows.map((r) => [
+          r.Name || r.ID,
+          { ID: r.ID, Environments: r.Environments },
+        ]),
+      );
       console.table(keyed);
     });
 }

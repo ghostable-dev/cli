@@ -15,13 +15,15 @@ export type AAD = { org: string; project: string; env: string; name: string };
 
 export type CipherBundle = {
   alg: "xchacha20-poly1305";
-  nonce: string;      // base64
+  nonce: string; // base64
   ciphertext: string; // base64
   aad: AAD;
 };
 
 // no-op with stablelib (kept for API parity)
-export async function initSodium() { return; }
+export async function initSodium() {
+  return;
+}
 
 export function randomBytes(n = 32): Uint8Array {
   return stableRandom(n);
@@ -37,7 +39,12 @@ export function ub64(s: string) {
 
 /** Canonicalize AAD JSON order so encrypt/decrypt bytes always match */
 function aadBytes(aad: AAD): Uint8Array {
-  const canonical = { org: aad.org, project: aad.project, env: aad.env, name: aad.name };
+  const canonical = {
+    org: aad.org,
+    project: aad.project,
+    env: aad.env,
+    name: aad.name,
+  };
   return new TextEncoder().encode(JSON.stringify(canonical));
 }
 
@@ -50,7 +57,7 @@ export function scopeFromAAD(aad: AAD): string {
 export function aeadEncrypt(
   key: Uint8Array,
   plaintext: Uint8Array,
-  aad: AAD
+  aad: AAD,
 ): CipherBundle {
   const aead = new XChaCha20Poly1305(key);
   const nonce = randomBytes(24);
@@ -65,10 +72,7 @@ export function aeadEncrypt(
 }
 
 /** Decrypt (fails if key/nonce/AAD mismatch). */
-export function aeadDecrypt(
-  key: Uint8Array,
-  bundle: CipherBundle
-): Uint8Array {
+export function aeadDecrypt(key: Uint8Array, bundle: CipherBundle): Uint8Array {
   const aead = new XChaCha20Poly1305(key);
   const ad = aadBytes(bundle.aad); // canonical order
   const nonce = ub64(bundle.nonce);
@@ -100,7 +104,7 @@ export async function edSign(priv: Uint8Array, bytes: Uint8Array) {
 export async function edVerify(
   pub: Uint8Array,
   bytes: Uint8Array,
-  sig: Uint8Array
+  sig: Uint8Array,
 ) {
   return await ed.verify(sig, bytes, pub);
 }
