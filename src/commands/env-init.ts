@@ -7,6 +7,7 @@ import { Manifest } from "../support/Manifest.js";
 import { SessionService } from "../services/SessionService.js";
 import { GhostableClient } from "../services/GhostableClient.js";
 import { config } from "../config/index.js";
+import { log } from "../support/logger.js";
 
 export function registerEnvInitCommand(program: Command) {
   program
@@ -19,7 +20,7 @@ export function registerEnvInitCommand(program: Command) {
       const sessionSvc = new SessionService();
       const sess = await sessionSvc.load();
       if (!sess?.accessToken) {
-        console.error(chalk.red("❌ Not authenticated. Run `ghostable login`."));
+        log.error("❌ Not authenticated. Run `ghostable login`.");
         process.exit(1);
       }
 
@@ -27,7 +28,7 @@ export function registerEnvInitCommand(program: Command) {
       try {
         projectId = Manifest.id();
       } catch {
-        console.error(chalk.red("❌ No project selected. Run `ghostable init` first."));
+        log.error("❌ No project selected. Run `ghostable init` first.");
         process.exit(1);
         return;
       }
@@ -44,7 +45,7 @@ export function registerEnvInitCommand(program: Command) {
         typesSpinner.succeed(`Loaded ${typeOptions.length} environment types.`);
       } catch (err: any) {
         typesSpinner.fail("Failed to load environment types.");
-        console.error(chalk.red(err?.message ?? err));
+        log.error(err?.message ?? err);
         process.exit(1);
       }
 
@@ -62,7 +63,7 @@ export function registerEnvInitCommand(program: Command) {
         envSpinner.succeed(`Loaded ${existingEnvs.length} environments.`);
       } catch (err: any) {
         envSpinner.fail("Failed to load environments.");
-        console.error(chalk.red(err?.message ?? err));
+        log.error(err?.message ?? err);
         process.exit(1);
       }
 
@@ -139,10 +140,10 @@ export function registerEnvInitCommand(program: Command) {
           type: env.type ?? selectedType,
         });
 
-        console.log(chalk.green(`✅ Environment ${chalk.bold(name)} added to ghostable.yml`));
+        log.ok(`✅ Environment ${chalk.bold(name)} added to ghostable.yml`);
       } catch (err: any) {
         createSpinner.fail("Failed creating environment.");
-        console.error(chalk.red(err?.message ?? err));
+        log.error(err?.message ?? err);
         process.exit(1);
       }
     });

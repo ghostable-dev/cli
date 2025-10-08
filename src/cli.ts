@@ -3,6 +3,7 @@ import "dotenv/config";
 import { Command } from "commander";
 import chalk from "chalk";
 import { registerAllCommands } from "./commands/_autoregister.js";
+import { log } from "./support/logger.js";
 
 const program = new Command();
 program.name("ghostable").description("Ghostable zero-knowledge CLI (experimental)").version("0.1.0");
@@ -21,6 +22,6 @@ if (process.argv.length <= 2) {
 
 program.parseAsync(process.argv).catch((err) => {
   // Catch any import-time or action-time errors so they don’t crash silently
-  console.error(chalk.red(err?.stack || String(err)));
+  log.error(err?.stack || String(err));
   process.exit(1);
 });

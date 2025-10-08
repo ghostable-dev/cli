@@ -1,5 +1,4 @@
 import { Command } from "commander";
-import chalk from "chalk";
 import ora from "ora";
 import path from "node:path";
 import fs from "node:fs";
@@ -14,6 +13,7 @@ import {
   resolveManifestContext,
   resolveToken,
 } from "../support/deploy-helpers.js";
+import { log } from "../support/logger.js";
 
 export function registerDeployCloudCommand(program: Command) {
   program
@@ -34,7 +34,7 @@ export function registerDeployCloudCommand(program: Command) {
       try {
         token = await resolveToken(opts.token);
       } catch (error: any) {
-        console.error(error?.message ?? error);
+        log.error(error?.message ?? error);
         process.exit(1);
       }
       const client = createGhostableClient(token);
@@ -47,19 +47,19 @@ export function registerDeployCloudCommand(program: Command) {
         deploySpin.succeed("Projection fetched.");
       } catch (err:any) {
         deploySpin.fail("Failed to fetch projection.");
-        console.error(chalk.red(err?.message ?? err));
+        log.error(err?.message ?? err);
         process.exit(1);
       }
 
       if (!bundle.secrets.length) {
-        console.log(chalk.yellow("No secrets returned; nothing to write."));
+        log.warn("No secrets returned; nothing to write.");
         return;
       }
 
       // 3) Decrypt + merge (child wins). We only have a single env in chain now.
       const { secrets, warnings } = await decryptProjection(bundle);
       for (const warning of warnings) {
-        console.warn(chalk.yellow(`⚠️ ${warning}`));
+        log.warn(`⚠️ ${warning}`);
       }
 
       const merged: Record<string, string> = {};
@@ -72,8 +72,8 @@ export function registerDeployCloudCommand(program: Command) {
       const previous = readEnvFileSafe(envPath);
       const combined = { ...previous, ...merged };
       writeEnvFile(envPath, combined);
-      console.log(chalk.green(`✅ Wrote ${Object.keys(merged).length} keys → ${envPath}`));
+      log.ok(`✅ Wrote ${Object.keys(merged).length} keys → ${envPath}`);
 
-      console.log(chalk.green("Ghostable 👻 deployed (local)."));
+      log.ok("Ghostable 👻 deployed (local).");
     });
 }

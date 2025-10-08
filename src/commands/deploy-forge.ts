@@ -1,5 +1,4 @@
 import { Command } from "commander";
-import chalk from "chalk";
 import ora from "ora";
 import path from "node:path";
 import fs from "node:fs";
@@ -14,6 +13,7 @@ import {
   resolveManifestContext,
   resolveToken,
 } from "../support/deploy-helpers.js";
+import { log } from "../support/logger.js";
 
 export function registerDeployForgeCommand(program: Command) {
   program
@@ -35,7 +35,7 @@ export function registerDeployForgeCommand(program: Command) {
       try {
         token = await resolveToken(opts.token);
       } catch (error: any) {
-        console.error(error?.message ?? error);
+        log.error(error?.message ?? error);
         process.exit(1);
       }
       const client = createGhostableClient(token);
@@ -48,19 +48,19 @@ export function registerDeployForgeCommand(program: Command) {
         deploySpin.succeed("Projection fetched.");
       } catch (err:any) {
         deploySpin.fail("Failed to fetch projection.");
-        console.error(chalk.red(err?.message ?? err));
+        log.error(err?.message ?? err);
         process.exit(1);
       }
 
       if (!bundle.secrets.length) {
-        console.log(chalk.yellow("No secrets returned; nothing to write."));
+        log.warn("No secrets returned; nothing to write.");
         return;
       }
 
       // 3) Decrypt + merge (child wins). We only have a single env in chain now.
       const { secrets, warnings } = await decryptProjection(bundle);
       for (const warning of warnings) {
-        console.warn(chalk.yellow(`⚠️ ${warning}`));
+        log.warn(`⚠️ ${warning}`);
       }
 
       const merged: Record<string, string> = {};
@@ -73,13 +73,13 @@ export function registerDeployForgeCommand(program: Command) {
       const previous = readEnvFileSafe(envPath);
       const combined = { ...previous, ...merged };
       writeEnvFile(envPath, combined);
-      console.log(chalk.green(`✅ Wrote ${Object.keys(merged).length} keys → ${envPath}`));
+      log.ok(`✅ Wrote ${Object.keys(merged).length} keys → ${envPath}`);
 
       // 5) If --encrypted, generate base64 key, run php artisan env:encrypt, and persist key in .env.<env>
       if (opts.encrypted) {
         const phpOk = havePhpAndArtisan();
         if (!phpOk) {
-          console.error(chalk.red("❌ Cannot find `php` or `artisan` in the current project. Run inside a Laravel app."));
+          log.error("❌ Cannot find `php` or `artisan` in the current project. Run inside a Laravel app.");
           process.exit(1);
         }
 
@@ -87,7 +87,7 @@ export function registerDeployForgeCommand(program: Command) {
         // ensure key is present in the plain .env file
         combined["LARAVEL_ENV_ENCRYPTION_KEY"] = envKeyB64;
         writeEnvFile(envPath, combined);
-        console.log(chalk.green(`🔑 Set LARAVEL_ENV_ENCRYPTION_KEY in ${path.basename(envPath)}`));
+        log.ok(`🔑 Set LARAVEL_ENV_ENCRYPTION_KEY in ${path.basename(envPath)}`);
 
         // Create encrypted blob using Laravel's own command to ensure format compatibility
         const encSpin = ora("Encrypting .env via php artisan env:encrypt…").start();
@@ -134,7 +134,7 @@ export function registerDeployForgeCommand(program: Command) {
         }
       }
 
-      console.log(chalk.green("Ghostable 👻 deployed (local)."));
+      log.ok("Ghostable 👻 deployed (local).");
     });
 }
 

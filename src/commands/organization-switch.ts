@@ -1,9 +1,9 @@
 import { Command } from "commander";
 import { select } from "@inquirer/prompts";
-import chalk from "chalk";
 import { config } from "../config/index.js";
 import { SessionService } from "../services/SessionService.js";
 import { GhostableClient } from "../services/GhostableClient.js";
+import { log } from "../support/logger.js";
 
 export function registerOrganizationSwitchCommand(program: Command) {
   program
@@ -15,7 +15,7 @@ export function registerOrganizationSwitchCommand(program: Command) {
       const sessionSvc = new SessionService();
       const sess = await sessionSvc.load();
       if (!sess?.accessToken) {
-        console.error(chalk.red("❌ Not authenticated. Run `ghostable login`."));
+        log.error("❌ Not authenticated. Run `ghostable login`.");
         process.exit(1);
       }
 
@@ -23,7 +23,7 @@ export function registerOrganizationSwitchCommand(program: Command) {
       const orgs = await client.organizations();
 
       if (!orgs.length) {
-        console.error(chalk.red("❌ No organizations available. Create one in the dashboard first."));
+        log.error("❌ No organizations available. Create one in the dashboard first.");
         process.exit(1);
       }
 
@@ -32,7 +32,7 @@ export function registerOrganizationSwitchCommand(program: Command) {
       if (targetId) {
         const match = orgs.find((o) => o.id === targetId);
         if (!match) {
-          console.error(chalk.red(`❌ Organization [${targetId}] not found.`));
+          log.error(`❌ Organization [${targetId}] not found.`);
           process.exit(1);
         }
       } else {
@@ -53,6 +53,6 @@ export function registerOrganizationSwitchCommand(program: Command) {
       });
 
       const name = orgs.find((o) => o.id === targetId)?.name ?? targetId;
-      console.log(chalk.green(`✅ Using organization: ${name}`));
+      log.ok(`✅ Using organization: ${name}`);
     });
 }

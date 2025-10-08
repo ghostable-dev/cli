@@ -1,8 +1,8 @@
 import { Command } from "commander";
-import chalk from "chalk";
 import { config } from "../config/index.js";
 import { SessionService } from "../services/SessionService.js";
 import { GhostableClient } from "../services/GhostableClient.js";
+import { log } from "../support/logger.js";
 
 export function registerOrganizationListCommand(program: Command) {
   program
@@ -14,7 +14,7 @@ export function registerOrganizationListCommand(program: Command) {
       const sessionSvc = new SessionService();
       const sess = await sessionSvc.load();
       if (!sess?.accessToken) {
-        console.error(chalk.red("❌ Not authenticated. Run `ghostable login`."));
+        log.error("❌ Not authenticated. Run `ghostable login`.");
         process.exit(1);
       }
       const currentOrgId = sess.organizationId;
@@ -26,7 +26,7 @@ export function registerOrganizationListCommand(program: Command) {
       );
 
       if (orgs.length === 0) {
-        console.log(chalk.yellow("No organizations found for this account."));
+        log.warn("No organizations found for this account.");
         return;
       }
 

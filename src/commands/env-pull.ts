@@ -2,7 +2,6 @@ import { Command } from "commander";
 import { select } from "@inquirer/prompts";
 import fs from "node:fs";
 import path from "node:path";
-import chalk from "chalk";
 
 import { Manifest } from "../support/Manifest.js";
 import { config } from "../config/index.js";
@@ -10,6 +9,7 @@ import { SessionService } from "../services/SessionService.js";
 import { GhostableClient, ProjectionBundle, ProjectionEntry } from "../services/GhostableClient.js";
 import { initSodium, deriveKeys, aeadDecrypt } from "../crypto.js";
 import { loadOrCreateKeys } from "../keys.js";
+import { log } from "../support/logger.js";
 
 type PullOptions = {
   api?: string;
@@ -51,12 +51,12 @@ export function registerEnvPullCommand(program: Command) {
         projectName = Manifest.name();
         envNames = Manifest.environmentNames();
       } catch (e: any) {
-        console.error(chalk.red(e?.message ?? String(e)));
+        log.error(e?.message ?? String(e));
         process.exit(1);
         return;
       }
       if (!envNames.length) {
-        console.error(chalk.red("❌ No environments defined in ghostable.yml."));
+        log.error("❌ No environments defined in ghostable.yml.");
         process.exit(1);
       }
 
@@ -78,7 +78,7 @@ export function registerEnvPullCommand(program: Command) {
         const sessionSvc = new SessionService();
         const sess = await sessionSvc.load();
         if (!sess?.accessToken) {
-          console.error(chalk.red("❌ No API token. Run `ghostable login` or pass --token / set GHOSTABLE_TOKEN."));
+          log.error("❌ No API token. Run `ghostable login` or pass --token / set GHOSTABLE_TOKEN.");
           process.exit(1);
         }
         token = sess.accessToken;
@@ -146,16 +146,14 @@ export function registerEnvPullCommand(program: Command) {
       const content = lines.join("\n") + "\n";
 
       if (opts.dryRun) {
-        console.log(chalk.cyan(`Dry run: would write ${Object.keys(merged).length} keys to ${outputPath}`));
+        log.info(`Dry run: would write ${Object.keys(merged).length} keys to ${outputPath}`);
         process.exit(0);
       }
 
       fs.writeFileSync(outputPath, content, "utf8");
 
-      console.log(
-        chalk.green(
-          `✅ Wrote ${Object.keys(merged).length} keys to ${outputPath} (decrypted & merged locally for ${projectName}:${envName}).`
-        )
+      log.ok(
+        `✅ Wrote ${Object.keys(merged).length} keys to ${outputPath} (decrypted & merged locally for ${projectName}:${envName}).`
       );
     });
 }

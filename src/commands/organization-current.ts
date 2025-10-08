@@ -1,8 +1,8 @@
 import { Command } from "commander";
-import chalk from "chalk";
 import { config } from "../config/index.js";
 import { SessionService } from "../services/SessionService.js";
 import { GhostableClient } from "../services/GhostableClient.js";
+import { log } from "../support/logger.js";
 
 export function registerOrganizationCurrentCommand(program: Command) {
   program
@@ -14,13 +14,13 @@ export function registerOrganizationCurrentCommand(program: Command) {
       const sessionSvc = new SessionService();
       const sess = await sessionSvc.load();
       if (!sess?.accessToken) {
-        console.error(chalk.red("❌ Not authenticated. Run `ghostable login`."));
+        log.error("❌ Not authenticated. Run `ghostable login`.");
         process.exit(1);
       }
 
       const currentOrgId = sess.organizationId;
       if (!currentOrgId) {
-        console.error(chalk.red("❌ No organization selected. Run `ghostable org:switch` to select one."));
+        log.error("❌ No organization selected. Run `ghostable org:switch` to select one.");
         process.exit(1);
       }
 
@@ -31,10 +31,10 @@ export function registerOrganizationCurrentCommand(program: Command) {
 
       // 3. Display result
       if (!org) {
-        console.error(chalk.red("❌ Unable to determine current organization (not found in API list)."));
+        log.error("❌ Unable to determine current organization (not found in API list).");
         process.exit(1);
       }
 
-      console.log(chalk.green(`✅ Current organization: ${org.name ?? currentOrgId}`));
+      log.ok(`✅ Current organization: ${org.name ?? currentOrgId}`);
     });
 }

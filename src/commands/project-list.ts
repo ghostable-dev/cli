@@ -1,8 +1,8 @@
 import { Command } from "commander";
-import chalk from "chalk";
 import { config } from "../config/index.js";
 import { SessionService } from "../services/SessionService.js";
 import { GhostableClient } from "../services/GhostableClient.js";
+import { log } from "../support/logger.js";
 
 export function registerProjectListCommand(program: Command) {
   program
@@ -14,12 +14,12 @@ export function registerProjectListCommand(program: Command) {
       const sessionSvc = new SessionService();
       const sess = await sessionSvc.load();
       if (!sess?.accessToken) {
-        console.error(chalk.red("❌ Not authenticated. Run `ghostable login`."));
+        log.error("❌ Not authenticated. Run `ghostable login`.");
         process.exit(1);
       }
       const orgId = sess.organizationId;
       if (!orgId) {
-        console.error(chalk.red("❌ No organization selected. Run `ghostable org:switch`."));
+        log.error("❌ No organization selected. Run `ghostable org:switch`.");
         process.exit(1);
       }
 
@@ -30,7 +30,7 @@ export function registerProjectListCommand(program: Command) {
       );
 
       if (!projects.length) {
-        console.log(chalk.yellow("No projects found in this organization."));
+        log.warn("No projects found in this organization.");
         return;
       }
 

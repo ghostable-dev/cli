@@ -14,6 +14,7 @@ import { config } from "../config/index.js";
 import { SessionService } from "../services/SessionService.js";
 import { GhostableClient } from "../services/GhostableClient.js";
 import { Manifest } from "../support/Manifest.js";
+import { log } from "../support/logger.js";
 
 type PushOptions = {
   api?: string;
@@ -52,12 +53,12 @@ export function registerEnvPushCommand(program: Command) {
         projectName = Manifest.name();
         manifestEnvs = Manifest.environmentNames();
       } catch (e: any) {
-        console.error(chalk.red(e?.message ?? String(e)));
+        log.error(e?.message ?? String(e));
         process.exit(1);
         return;
       }
       if (!manifestEnvs.length) {
-        console.error(chalk.red("❌ No environments defined in ghostable.yml."));
+        log.error("❌ No environments defined in ghostable.yml.");
         process.exit(1);
       }
 
@@ -74,7 +75,7 @@ export function registerEnvPushCommand(program: Command) {
       const sessionSvc = new SessionService();
       const sess = await sessionSvc.load();
       if (!sess?.accessToken) {
-        console.error(chalk.red("❌ No API token. Run `ghostable login`."));
+        log.error("❌ No API token. Run `ghostable login`.");
         process.exit(1);
       }
       let token = sess.accessToken;
@@ -83,7 +84,7 @@ export function registerEnvPushCommand(program: Command) {
       // 4) Resolve .env file path
       const filePath = resolveEnvFile(envName!, opts.file);
       if (!fs.existsSync(filePath)) {
-        console.error(chalk.red(`❌ .env file not found at ${filePath}`));
+        log.error(`❌ .env file not found at ${filePath}`);
         process.exit(1);
       }
 
@@ -91,17 +92,15 @@ export function registerEnvPushCommand(program: Command) {
       const envMap = readEnvFile(filePath);
       const entries = Object.entries(envMap);
       if (!entries.length) {
-        console.log(chalk.yellow("⚠️  No variables found in the .env file."));
+        log.warn("⚠️  No variables found in the .env file.");
         return;
       }
 
       if (!opts.assumeYes) {
-        console.log(
-          chalk.cyan(
-            `About to push ${entries.length} variables from ${chalk.bold(filePath)}\n` +
+        log.info(
+          `About to push ${entries.length} variables from ${chalk.bold(filePath)}\n` +
             `→ project ${chalk.bold(projectName)} (${projectId})\n` +
             (orgId ? `→ org ${chalk.bold(orgId)}\n` : "")
-          )
         );
       }
 
@@ -145,12 +144,10 @@ export function registerEnvPushCommand(program: Command) {
 
       try {
         await tasks.run();
-        console.log(
-          chalk.green(`\n✅ Pushed ${entries.length} variables to ${projectId}:${envName} (encrypted locally).`)
-        );
+        log.ok(`\n✅ Pushed ${entries.length} variables to ${projectId}:${envName} (encrypted locally).`);
       } catch (err: any) {
-        console.log(err);
-        console.error(chalk.red(`\n❌ env:push failed: ${err?.message ?? err}`));
+        log.error(err);
+        log.error(`\n❌ env:push failed: ${err?.message ?? err}`);
         process.exit(1);
       }
     });

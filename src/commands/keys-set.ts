@@ -3,6 +3,7 @@ import { select, input } from "@inquirer/prompts";
 import chalk from "chalk";
 import { Manifest } from "../support/Manifest.js";
 import keytar from "keytar";
+import { log } from "../support/logger.js";
 
 export function registerKeysSetCommand(program: Command) {
   program
@@ -15,11 +16,11 @@ export function registerKeysSetCommand(program: Command) {
         projectId = Manifest.id();
         envNames = Manifest.environmentNames();
       } catch (e: any) {
-        console.error(chalk.red(e?.message ?? "Missing ghostable.yml manifest."));
+        log.error(e?.message ?? "Missing ghostable.yml manifest.");
         process.exit(1);
       }
       if (!envNames.length) {
-        console.error(chalk.red("❌ No environments found in ghostable.yml."));
+        log.error("❌ No environments found in ghostable.yml.");
         process.exit(1);
       }
 
@@ -41,8 +42,8 @@ export function registerKeysSetCommand(program: Command) {
       const ACCOUNT = `${projectId}:${envName}`;
       await keytar.setPassword(SERVICE, ACCOUNT, key);
 
-      console.log();
-      console.log(chalk.green(`✅ Stored key for ${envName}`));
-      console.log(chalk.dim(`Keychain service: ${SERVICE}`));
+      log.line();
+      log.ok(`✅ Stored key for ${envName}`);
+      log.text(chalk.dim(`Keychain service: ${SERVICE}`));
     });
 }
