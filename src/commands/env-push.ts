@@ -43,8 +43,6 @@ export function registerEnvPushCommand(program: Command) {
     .description("Encrypt and push a local .env file to Ghostable (uses ghostable.yml)")
     .option("--file <PATH>", "Path to .env file (default: .env.<env> or .env)")
     .option("--env <ENV>", "Environment name (if omitted, select from manifest)")
-    .option("--api <URL>", "Ghostable API base", config.apiBase)
-    .option("--token <TOKEN>", "API token (or stored session / GHOSTABLE_TOKEN)")
     .option("-y, --assume-yes", "Skip confirmation prompts", false)
     .action(async (opts: PushOptions) => {
       // 1) Load manifest
@@ -72,25 +70,15 @@ export function registerEnvPushCommand(program: Command) {
         });
       }
 
-      // 3) Resolve API base, token, and org from session if needed
-      const apiBase = opts.api ?? config.apiBase;
-      let token = opts.token || process.env.GHOSTABLE_TOKEN || "";
-      let orgId: string | undefined;
-
-      if (!token) {
-        const sessionSvc = new SessionService();
-        const sess = await sessionSvc.load();
-        if (!sess?.accessToken) {
-          console.error(chalk.red("❌ No API token. Run `ghostable login` or pass --token / set GHOSTABLE_TOKEN."));
-          process.exit(1);
-        }
-        token = sess.accessToken;
-        orgId = sess.organizationId;
-      } else {
-        // if token is provided but no org in session, we’ll still proceed; server derives org from token
-        const sess = await new SessionService().load();
-        orgId = sess?.organizationId;
+      // 3) Resolve token, and org from session if needed
+      const sessionSvc = new SessionService();
+      const sess = await sessionSvc.load();
+      if (!sess?.accessToken) {
+        console.error(chalk.red("❌ No API token. Run `ghostable login`."));
+        process.exit(1);
       }
+      let token = sess.accessToken;
+      let orgId = sess.organizationId;
 
       // 4) Resolve .env file path
       const filePath = resolveEnvFile(envName!, opts.file);
@@ -123,7 +111,7 @@ export function registerEnvPushCommand(program: Command) {
       const masterSeed = Buffer.from(keyBundle.masterSeedB64.replace(/^b64:/, ""), "base64");
       const edPriv     = Buffer.from(keyBundle.ed25519PrivB64.replace(/^b64:/, ""), "base64");
 
-      const client = GhostableClient.unauthenticated(apiBase).withToken(token);
+      const client = GhostableClient.unauthenticated(config.apiBase).withToken(token);
 
       // 7) Encrypt + push per variable
       const tasks = new Listr(
