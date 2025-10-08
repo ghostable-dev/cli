@@ -5,34 +5,15 @@ import path from "node:path";
 import fs from "node:fs";
 import { spawnSync } from "node:child_process";
 
-import { Manifest } from "../support/Manifest.js";
-import { SessionService } from "../services/SessionService.js";
-import { GhostableClient } from "../services/GhostableClient.js";
 import { config } from "../config/index.js";
-
-import { initSodium, deriveKeys, aeadDecrypt, scopeFromAAD, b64, randomBytes, hmacSHA256 } from "../crypto.js";
-import { loadOrCreateKeys } from "../keys.js";
-
-// tiny dotenv io
-function writeEnvFile(filePath: string, vars: Record<string,string>) {
-  const content = Object.keys(vars)
-    .sort((a,b)=>a.localeCompare(b))
-    .map(k => `${k}=${vars[k]}`)
-    .join("\n") + "\n";
-  fs.writeFileSync(filePath, content, "utf8");
-}
-function readEnvFile(filePath: string): Record<string,string> {
-  if (!fs.existsSync(filePath)) return {};
-  const raw = fs.readFileSync(filePath, "utf8");
-  const out: Record<string,string> = {};
-  for (const line of raw.split(/\r?\n/)) {
-    if (!line || line.trim().startsWith("#")) continue;
-    const i = line.indexOf("=");
-    if (i < 0) continue;
-    out[line.slice(0,i)] = line.slice(i+1);
-  }
-  return out;
-}
+import { b64, randomBytes } from "../crypto.js";
+import { writeEnvFile, readEnvFileSafe } from "../support/env-files.js";
+import {
+  createGhostableClient,
+  decryptProjection,
+  resolveManifestContext,
+  resolveToken,
+} from "../support/deploy-helpers.js";
 
 export function registerDeployForgeCommand(program: Command) {
   program
@@ -53,28 +34,24 @@ export function registerDeployForgeCommand(program: Command) {
       only?: string[];
     }) => {
       // 1) Resolve project/env context
-      let projectId: string, projectName: string, envNames: string[];
+      let context;
       try {
-        projectId = Manifest.id();
-        projectName = Manifest.name();
-        envNames = Manifest.environmentNames();
-      } catch (e:any) {
-        console.error(chalk.red(e?.message ?? "Missing ghostable.yml manifest"));
+        context = resolveManifestContext(opts.env);
+      } catch (error: any) {
+        console.error(error?.message ?? error);
         process.exit(1);
       }
-      if (!envNames.length) {
-        console.error(chalk.red("❌ No environments defined in ghostable.yml"));
-        process.exit(1);
-      }
-      const envName = opts.env ?? envNames[0];
+      const { projectId, projectName, envName } = context;
 
       // 2) Token + client
-      const token = opts.token || process.env.GHOSTABLE_CI_TOKEN || (await new SessionService().load())?.accessToken;
-      if (!token) {
-        console.error(chalk.red("❌ No API token. Use --token or set GHOSTABLE_CI_TOKEN or run `ghostable login`."));
+      let token: string;
+      try {
+        token = await resolveToken(opts.token);
+      } catch (error: any) {
+        console.error(error?.message ?? error);
         process.exit(1);
       }
-      const client = GhostableClient.unauthenticated(opts.api ?? config.apiBase).withToken(token);
+      const client = createGhostableClient(token, opts.api ?? config.apiBase);
 
       // 3) Pull projection for this env
       const pullSpin = ora(`Pulling encrypted projection for ${projectName}:${envName}…`).start();
@@ -93,35 +70,14 @@ export function registerDeployForgeCommand(program: Command) {
       }
 
       // 4) Decrypt + merge (child wins). We only have a single env in chain now.
-      await initSodium();
-      const { masterSeedB64 } = await loadOrCreateKeys();
-      const masterSeed = Buffer.from(masterSeedB64.replace(/^b64:/, ""), "base64");
+      const { secrets, warnings } = await decryptProjection(bundle);
+      for (const warning of warnings) {
+        console.warn(chalk.yellow(`⚠️ ${warning}`));
+      }
 
-      const merged: Record<string,string> = {};
-      for (const entry of bundle.secrets) {
-        const scope = scopeFromAAD(entry.aad as any); // org/project/env used at push time
-        const { encKey, hmacKey } = deriveKeys(masterSeed, scope);
-        try {
-          const pt = aeadDecrypt(encKey, {
-            alg: entry.alg,
-            nonce: entry.nonce,
-            ciphertext: entry.ciphertext,
-            aad: entry.aad as any,
-          });
-          const value = new TextDecoder().decode(pt);
-
-          // Optional integrity check (matches server claims)
-          const digest = hmacSHA256(hmacKey, new TextEncoder().encode(value));
-          if (entry.claims?.hmac && digest !== entry.claims.hmac) {
-            console.warn(chalk.yellow(`⚠️ HMAC mismatch for ${entry.name}; skipping`));
-            continue;
-          }
-
-          merged[entry.name] = value;
-        } catch {
-          console.warn(chalk.yellow(`⚠️ Could not decrypt ${entry.name}; skipping`));
-          continue;
-        }
+      const merged: Record<string, string> = {};
+      for (const secret of secrets) {
+        merged[secret.entry.name] = secret.value;
       }
 
       // 5) Write .env.<env>
@@ -201,7 +157,4 @@ function havePhpAndArtisan(): boolean {
   if (php.status !== 0) return false;
   // artisan file in cwd?
   return fs.existsSync(path.join(process.cwd(), "artisan"));
-}
-function readEnvFileSafe(p: string) {
-  try { return readEnvFile(p); } catch { return {}; }
 }
