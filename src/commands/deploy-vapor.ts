@@ -19,7 +19,7 @@ import {
 export function registerDeployVaporCommand(program: Command) {
   program
     .command("deploy:vapor")
-    .description("Deploy Ghostable environment variables and secrets to a Laravel Vapor environment.")
+    .description("Deploy Ghostable managed environment variables for Laravel Vapor.")
     .option("--token <TOKEN>", "Ghostable CI token (or env GHOSTABLE_CI_TOKEN)")
     .option("--vapor-env <ENV>", "Target Vapor environment")
     .option("--only <KEY...>", "Limit to specific keys")

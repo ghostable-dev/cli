@@ -18,7 +18,7 @@ import {
 export function registerDeployForgeCommand(program: Command) {
   program
     .command("deploy:forge")
-    .description("Pull, decrypt, write .env; optionally re-encrypt via Laravel's env:encrypt and store key in .env")
+    .description("Deploy Ghostable managed environment variables for Laravel Forge.")
     .option("--token <TOKEN>", "Ghostable CI token (or env GHOSTABLE_CI_TOKEN)")
     .option("--encrypted", "Also produce an encrypted blob via php artisan env:encrypt", false)
     .option("--out <PATH>", "Where to write the encrypted blob (default: .env.<env>.encrypted)")
