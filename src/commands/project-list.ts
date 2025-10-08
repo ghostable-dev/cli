@@ -1,7 +1,10 @@
 import { Command } from "commander";
 import { config } from "../config/index.js";
 import { SessionService } from "../services/SessionService.js";
-import { GhostableClient } from "../services/GhostableClient.js";
+import {
+  GhostableClient,
+  type ProjectSummary,
+} from "../services/GhostableClient.js";
 import { log } from "../support/logger.js";
 
 export function registerProjectListCommand(program: Command) {
@@ -9,7 +12,7 @@ export function registerProjectListCommand(program: Command) {
     .command("project:list")
     .alias("projects:list")
     .description("List the projects within the current organization context.")
-    .action(async (opts) => {
+    .action(async () => {
       // 1) Session & org
       const sessionSvc = new SessionService();
       const sess = await sessionSvc.load();
@@ -28,7 +31,7 @@ export function registerProjectListCommand(program: Command) {
         sess.accessToken,
       );
       const projects = (await client.projects(orgId)).sort((a, b) =>
-        (a.name ?? "").localeCompare(b.name ?? ""),
+        a.name.localeCompare(b.name),
       );
 
       if (!projects.length) {
@@ -37,14 +40,12 @@ export function registerProjectListCommand(program: Command) {
       }
 
       // 3) Build display rows
-      const rows = projects.map((p) => {
-        const envs = Array.isArray(p.environments)
-          ? p.environments
-              .map((e: any) => e?.name)
-              .filter(Boolean)
-              .join(", ")
-          : "";
-        return { ID: String(p.id), Name: p.name ?? "", Environments: envs };
+      const rows = projects.map((p: ProjectSummary) => {
+        const envs = (p.environments ?? [])
+          .map((env) => env.name)
+          .filter((name): name is string => Boolean(name))
+          .join(", ");
+        return { ID: String(p.id), Name: p.name, Environments: envs };
       });
 
       // 4) Print without index column: key by project name

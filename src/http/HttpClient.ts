@@ -27,7 +27,7 @@ export class HttpClient {
 
   async post<T>(
     path: string,
-    body: any,
+    body: unknown,
     headers: HeadersInit = {},
   ): Promise<T> {
     const res = await fetch(`${this.baseUrl}${path}`, {

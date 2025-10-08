@@ -9,7 +9,7 @@ export function registerOrganizationListCommand(program: Command) {
     .command("org:list")
     .aliases(["orgs:list", "organizations:list", "organization:list"])
     .description("List the organizations that you belong to.")
-    .action(async (opts) => {
+    .action(async () => {
       // Load session / token
       const sessionSvc = new SessionService();
       const sess = await sessionSvc.load();

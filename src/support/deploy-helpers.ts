@@ -16,6 +16,7 @@ import {
   hmacSHA256,
 } from "../crypto.js";
 import { loadOrCreateKeys } from "../keys.js";
+import { toErrorMessage } from "./errors.js";
 
 type ManifestContext = {
   projectId: string;
@@ -45,8 +46,8 @@ export async function resolveManifestContext(
     projectId = Manifest.id();
     projectName = Manifest.name();
     envNames = Manifest.environmentNames();
-  } catch (error: any) {
-    const message = error?.message ?? "Missing ghostable.yml manifest";
+  } catch (error) {
+    const message = toErrorMessage(error) || "Missing ghostable.yml manifest";
     throw new Error(chalk.red(message));
   }
 
@@ -117,7 +118,7 @@ export async function decryptProjection(
   const warnings: string[] = [];
 
   for (const entry of bundle.secrets) {
-    const scope = scopeFromAAD(entry.aad as any);
+    const scope = scopeFromAAD(entry.aad);
     const { encKey, hmacKey } = deriveKeys(masterSeed, scope);
 
     try {
@@ -125,7 +126,7 @@ export async function decryptProjection(
         alg: entry.alg,
         nonce: entry.nonce,
         ciphertext: entry.ciphertext,
-        aad: entry.aad as any,
+        aad: entry.aad,
       });
 
       const value = new TextDecoder().decode(plaintext);

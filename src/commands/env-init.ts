@@ -8,6 +8,7 @@ import { SessionService } from "../services/SessionService.js";
 import { GhostableClient } from "../services/GhostableClient.js";
 import { config } from "../config/index.js";
 import { log } from "../support/logger.js";
+import { toErrorMessage } from "../support/errors.js";
 
 export function registerEnvInitCommand(program: Command) {
   program
@@ -45,9 +46,9 @@ export function registerEnvInitCommand(program: Command) {
       try {
         typeOptions = await client.getEnvironmentTypes();
         typesSpinner.succeed(`Loaded ${typeOptions.length} environment types.`);
-      } catch (err: any) {
+      } catch (error) {
         typesSpinner.fail("Failed to load environment types.");
-        log.error(err?.message ?? err);
+        log.error(toErrorMessage(error));
         process.exit(1);
       }
 
@@ -63,9 +64,9 @@ export function registerEnvInitCommand(program: Command) {
       try {
         existingEnvs = await client.getEnvironments(projectId);
         envSpinner.succeed(`Loaded ${existingEnvs.length} environments.`);
-      } catch (err: any) {
+      } catch (error) {
         envSpinner.fail("Failed to load environments.");
-        log.error(err?.message ?? err);
+        log.error(toErrorMessage(error));
         process.exit(1);
       }
 
@@ -148,9 +149,9 @@ export function registerEnvInitCommand(program: Command) {
         });
 
         log.ok(`✅ Environment ${chalk.bold(name)} added to ghostable.yml`);
-      } catch (err: any) {
+      } catch (error) {
         createSpinner.fail("Failed creating environment.");
-        log.error(err?.message ?? err);
+        log.error(toErrorMessage(error));
         process.exit(1);
       }
     });

@@ -14,6 +14,7 @@ import {
 import { initSodium, deriveKeys, aeadDecrypt } from "../crypto.js";
 import { loadOrCreateKeys } from "../keys.js";
 import { log } from "../support/logger.js";
+import { toErrorMessage } from "../support/errors.js";
 
 type PullOptions = {
   api?: string;
@@ -43,7 +44,7 @@ export function registerEnvPullCommand(program: Command) {
   program
     .command("env:pull")
     .description(
-      "Pull, decrypt, merge, and write a local .env for the selected environment (zero-knowledge)",
+      "Pull and decrypt environment variables into a local .env file.",
     )
     .option(
       "--env <ENV>",
@@ -65,8 +66,8 @@ export function registerEnvPullCommand(program: Command) {
         projectId = Manifest.id();
         projectName = Manifest.name();
         envNames = Manifest.environmentNames();
-      } catch (e: any) {
-        log.error(e?.message ?? String(e));
+      } catch (error) {
+        log.error(toErrorMessage(error));
         process.exit(1);
         return;
       }
@@ -143,7 +144,7 @@ export function registerEnvPullCommand(program: Command) {
             alg: entry.alg,
             nonce: entry.nonce,
             ciphertext: entry.ciphertext,
-            aad: entry.aad as any,
+            aad: entry.aad,
           });
           const value = new TextDecoder().decode(plaintext);
 
@@ -151,7 +152,7 @@ export function registerEnvPullCommand(program: Command) {
           merged[entry.name] = value;
 
           // Track comment flag if meta is included
-          const isCommented = (entry.meta?.is_commented ?? false) as boolean;
+          const isCommented = Boolean(entry.meta?.is_commented);
           commentFlags[entry.name] = isCommented;
         }
       }

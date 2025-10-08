@@ -4,16 +4,16 @@ import path from "node:path";
 import fs from "node:fs";
 import { spawnSync } from "node:child_process";
 
-import { config } from "../config/index.js";
 import { b64, randomBytes } from "../crypto.js";
 import { writeEnvFile, readEnvFileSafe } from "../support/env-files.js";
 import {
   createGhostableClient,
   decryptProjection,
-  resolveManifestContext,
   resolveToken,
 } from "../support/deploy-helpers.js";
 import { log } from "../support/logger.js";
+import { toErrorMessage } from "../support/errors.js";
+import type { ProjectionBundle } from "../services/GhostableClient.js";
 
 export function registerDeployForgeCommand(program: Command) {
   program
@@ -43,15 +43,15 @@ export function registerDeployForgeCommand(program: Command) {
         let token: string;
         try {
           token = await resolveToken(opts.token);
-        } catch (error: any) {
-          log.error(error?.message ?? error);
+        } catch (error) {
+          log.error(toErrorMessage(error));
           process.exit(1);
         }
         const client = createGhostableClient(token);
 
         // 2) Fetch projection for this env (derived from token)
         const deploySpin = ora(`Fetching encrypted projection…`).start();
-        let bundle: Awaited<ReturnType<typeof client.deploy>>;
+        let bundle: ProjectionBundle;
         try {
           bundle = await client.deploy({
             includeMeta: true,
@@ -59,9 +59,9 @@ export function registerDeployForgeCommand(program: Command) {
             only: opts.only,
           });
           deploySpin.succeed("Projection fetched.");
-        } catch (err: any) {
+        } catch (error) {
           deploySpin.fail("Failed to fetch projection.");
-          log.error(err?.message ?? err);
+          log.error(toErrorMessage(error));
           process.exit(1);
         }
 
@@ -117,9 +117,9 @@ export function registerDeployForgeCommand(program: Command) {
           const backup = path.join(cwd, ".env.__ghostable_backup__");
           const targetOut = path.resolve(cwd, opts.out ?? `.env.encrypted`);
 
+          let hadOriginal = false;
           try {
             // backup any existing .env
-            let hadOriginal = false;
             if (fs.existsSync(dotEnv)) {
               fs.renameSync(dotEnv, backup);
               hadOriginal = true;
@@ -152,10 +152,11 @@ export function registerDeployForgeCommand(program: Command) {
             );
           } finally {
             // restore original .env if it existed
-            const existsBackup = fs.existsSync(backup);
             // remove temp .env
             if (fs.existsSync(dotEnv)) fs.unlinkSync(dotEnv);
-            if (existsBackup) fs.renameSync(backup, dotEnv);
+            if (hadOriginal && fs.existsSync(backup)) {
+              fs.renameSync(backup, dotEnv);
+            }
           }
         }
 

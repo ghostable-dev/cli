@@ -4,11 +4,13 @@ import ora from "ora";
 
 import { Manifest } from "../support/Manifest.js";
 import { SessionService } from "../services/SessionService.js";
-import { GhostableClient } from "../services/GhostableClient.js";
+import {
+  GhostableClient,
+  type ProjectSummary,
+} from "../services/GhostableClient.js";
 import { config } from "../config/index.js";
 import { log } from "../support/logger.js";
-
-type Project = { id: string; name: string; environments?: any };
+import { toErrorMessage } from "../support/errors.js";
 
 export function registerOrganizationListCommand(program: Command) {
   program
@@ -40,15 +42,15 @@ export function registerOrganizationListCommand(program: Command) {
 
       // Fetch projects
       const spinner = ora("Loading projects…").start();
-      let projects: Project[] = [];
+      let projects: ProjectSummary[] = [];
       try {
         projects = await client.projects(sess.organizationId);
         spinner.succeed(
           `Loaded ${projects.length} project${projects.length === 1 ? "" : "s"}.`,
         );
-      } catch (e: any) {
+      } catch (error) {
         spinner.fail("Failed loading projects.");
-        log.error(e?.message ?? e);
+        log.error(toErrorMessage(error));
         process.exit(1);
       }
 
@@ -65,7 +67,7 @@ export function registerOrganizationListCommand(program: Command) {
         default: "__new__",
       });
 
-      let project: Project;
+      let project: ProjectSummary;
 
       if (selection !== "__new__") {
         project = projects.find((p) => p.id === selection)!;
@@ -83,25 +85,29 @@ export function registerOrganizationListCommand(program: Command) {
             name: name.trim(),
           });
           createSpin.succeed(`Project created: ${project.name}`);
-        } catch (e: any) {
+        } catch (error) {
           createSpin.fail("Failed creating project.");
-          log.error(e?.message ?? e);
+          log.error(toErrorMessage(error));
           process.exit(1);
         }
       }
 
       // Write manifest
       try {
+        const manifestEnvs = project.environments?.map((env) => ({
+          name: env.name,
+          type: env.type ?? undefined,
+        }));
         Manifest.fresh({
           id: project.id,
           name: project.name,
-          environments: project.environments ?? {},
+          environments: manifestEnvs,
         });
         log.ok(
           `✅ ${project.name} initialized. ${Manifest.resolve()} created.`,
         );
-      } catch (e: any) {
-        log.error(`❌ Failed writing manifest: ${e?.message ?? e}`);
+      } catch (error) {
+        log.error(`❌ Failed writing manifest: ${toErrorMessage(error)}`);
         process.exit(1);
       }
     });

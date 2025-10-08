@@ -4,6 +4,7 @@ import chalk from "chalk";
 import { Manifest } from "../support/Manifest.js";
 import keytar from "keytar";
 import { log } from "../support/logger.js";
+import { toErrorMessage } from "../support/errors.js";
 
 export function registerKeysSetCommand(program: Command) {
   program
@@ -15,8 +16,8 @@ export function registerKeysSetCommand(program: Command) {
       try {
         projectId = Manifest.id();
         envNames = Manifest.environmentNames();
-      } catch (e: any) {
-        log.error(e?.message ?? "Missing ghostable.yml manifest.");
+      } catch (error) {
+        log.error(toErrorMessage(error) || "Missing ghostable.yml manifest.");
         process.exit(1);
       }
       if (!envNames.length) {

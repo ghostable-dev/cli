@@ -5,6 +5,7 @@ import { config } from "../config/index.js";
 import { SessionService } from "../services/SessionService.js";
 import { GhostableClient } from "../services/GhostableClient.js";
 import { log } from "../support/logger.js";
+import { toErrorMessage } from "../support/errors.js";
 
 export function registerLoginCommand(program: Command) {
   program
@@ -56,8 +57,8 @@ export function registerLoginCommand(program: Command) {
 
         await session.save({ accessToken: token, organizationId });
         log.ok("✅ Session stored in OS keychain.");
-      } catch (e: any) {
-        spinner.fail(e.message ?? "Login failed");
+      } catch (error) {
+        spinner.fail(toErrorMessage(error) || "Login failed");
         process.exit(1);
       }
     });
