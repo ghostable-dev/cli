@@ -33,9 +33,9 @@ export function registerDeployVaporCommand(program: Command) {
       only?: string[];
     }) => {
       // Resolve manifest context
-      let context;
+      let context: Awaited<ReturnType<typeof resolveManifestContext>>;
       try {
-        context = resolveManifestContext(opts.env);
+        context = await resolveManifestContext(opts.env);
       } catch (error: any) {
         console.error(error?.message ?? error);
         process.exit(1);

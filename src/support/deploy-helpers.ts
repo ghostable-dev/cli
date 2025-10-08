@@ -1,4 +1,5 @@
 import chalk from "chalk";
+import { select } from "@inquirer/prompts";
 import { Manifest } from "./Manifest.js";
 import { SessionService } from "../services/SessionService.js";
 import { GhostableClient, type ProjectionBundle, type ProjectionEntry } from "../services/GhostableClient.js";
@@ -23,7 +24,7 @@ type DecryptionResult = {
   warnings: string[];
 };
 
-export function resolveManifestContext(requestedEnv?: string): ManifestContext {
+export async function resolveManifestContext(requestedEnv?: string): Promise<ManifestContext> {
   let projectId: string;
   let projectName: string;
   let envNames: string[];
@@ -41,7 +42,28 @@ export function resolveManifestContext(requestedEnv?: string): ManifestContext {
     throw new Error(chalk.red("❌ No environments defined in ghostable.yml"));
   }
 
-  const envName = requestedEnv ?? envNames[0];
+  let envName = requestedEnv?.trim();
+
+  if (envName) {
+    if (!envNames.includes(envName)) {
+      throw new Error(
+        chalk.red(
+          `❌ Environment "${envName}" not found in ghostable.yml. Available: ${envNames
+            .slice()
+            .sort()
+            .join(", ")}`
+        )
+      );
+    }
+  } else {
+    envName = await select({
+      message: "Which environment would you like to deploy?",
+      choices: envNames
+        .slice()
+        .sort()
+        .map((name) => ({ name, value: name })),
+    });
+  }
 
   return { projectId, projectName, envName, envNames };
 }

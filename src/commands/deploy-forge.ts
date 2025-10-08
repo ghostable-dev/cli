@@ -34,9 +34,9 @@ export function registerDeployForgeCommand(program: Command) {
       only?: string[];
     }) => {
       // 1) Resolve project/env context
-      let context;
+      let context: Awaited<ReturnType<typeof resolveManifestContext>>;
       try {
-        context = resolveManifestContext(opts.env);
+        context = await resolveManifestContext(opts.env);
       } catch (error: any) {
         console.error(error?.message ?? error);
         process.exit(1);
