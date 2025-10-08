@@ -19,31 +19,18 @@ export function registerDeployForgeCommand(program: Command) {
   program
     .command("deploy:forge")
     .description("Pull, decrypt, write .env; optionally re-encrypt via Laravel's env:encrypt and store key in .env")
-    .option("--api <URL>", "Ghostable API base", config.apiBase)
-    .option("--env <ENV>", "Environment to deploy (default: pick from manifest)")
     .option("--token <TOKEN>", "Ghostable CI token (or env GHOSTABLE_CI_TOKEN)")
     .option("--encrypted", "Also produce an encrypted blob via php artisan env:encrypt", false)
     .option("--out <PATH>", "Where to write the encrypted blob (default: .env.<env>.encrypted)")
     .option("--only <KEY...>", "Limit to specific keys")
     .action(async (opts: {
-      api?: string;
-      env?: string;
       token?: string;
       encrypted?: boolean;
       out?: string;
       only?: string[];
     }) => {
-      // 1) Resolve project/env context
-      let context: Awaited<ReturnType<typeof resolveManifestContext>>;
-      try {
-        context = await resolveManifestContext(opts.env);
-      } catch (error: any) {
-        console.error(error?.message ?? error);
-        process.exit(1);
-      }
-      const { projectId, projectName, envName } = context;
-
-      // 2) Token + client
+      
+      // 1) Token + client
       let token: string;
       try {
         token = await resolveToken(opts.token);
@@ -51,25 +38,26 @@ export function registerDeployForgeCommand(program: Command) {
         console.error(error?.message ?? error);
         process.exit(1);
       }
-      const client = createGhostableClient(token, opts.api ?? config.apiBase);
+      const client = createGhostableClient(token);
 
-      // 3) Pull projection for this env
-      const pullSpin = ora(`Pulling encrypted projection for ${projectName}:${envName}…`).start();
-      let bundle: Awaited<ReturnType<typeof client.pull>>;
+      // 2) Fetch projection for this env (derived from token)
+      const deploySpin = ora(`Fetching encrypted projection…`).start();
+      let bundle: Awaited<ReturnType<typeof client.deploy>>;
       try {
-        bundle = await client.pull(projectId, envName, { includeMeta: true, includeVersions: true, only: opts.only });
-        pullSpin.succeed("Projection fetched.");
+        bundle = await client.deploy({ includeMeta: true, includeVersions: true, only: opts.only });
+        deploySpin.succeed("Projection fetched.");
       } catch (err:any) {
-        pullSpin.fail("Failed to pull projection.");
+        deploySpin.fail("Failed to fetch projection.");
         console.error(chalk.red(err?.message ?? err));
         process.exit(1);
       }
+
       if (!bundle.secrets.length) {
         console.log(chalk.yellow("No secrets returned; nothing to write."));
         return;
       }
 
-      // 4) Decrypt + merge (child wins). We only have a single env in chain now.
+      // 3) Decrypt + merge (child wins). We only have a single env in chain now.
       const { secrets, warnings } = await decryptProjection(bundle);
       for (const warning of warnings) {
         console.warn(chalk.yellow(`⚠️ ${warning}`));
@@ -80,14 +68,14 @@ export function registerDeployForgeCommand(program: Command) {
         merged[secret.entry.name] = secret.value;
       }
 
-      // 5) Write .env.<env>
-      const envPath = path.resolve(process.cwd(), `.env.${envName}`);
+      // 4) Write .env.<env>
+      const envPath = path.resolve(process.cwd(), `.env`);
       const previous = readEnvFileSafe(envPath);
       const combined = { ...previous, ...merged };
       writeEnvFile(envPath, combined);
       console.log(chalk.green(`✅ Wrote ${Object.keys(merged).length} keys → ${envPath}`));
 
-      // 6) If --encrypted, generate base64 key, run php artisan env:encrypt, and persist key in .env.<env>
+      // 5) If --encrypted, generate base64 key, run php artisan env:encrypt, and persist key in .env.<env>
       if (opts.encrypted) {
         const phpOk = havePhpAndArtisan();
         if (!phpOk) {
@@ -108,7 +96,7 @@ export function registerDeployForgeCommand(program: Command) {
         const cwd = process.cwd();
         const dotEnv = path.join(cwd, ".env");
         const backup = path.join(cwd, ".env.__ghostable_backup__");
-        const targetOut = path.resolve(cwd, opts.out ?? `.env.${envName}.encrypted`);
+        const targetOut = path.resolve(cwd, opts.out ?? `.env.encrypted`);
 
         try {
           // backup any existing .env

@@ -20,29 +20,16 @@ export function registerDeployVaporCommand(program: Command) {
   program
     .command("deploy:vapor")
     .description("Deploy Ghostable environment variables and secrets to a Laravel Vapor environment.")
-    .option("--api <URL>", "Ghostable API base", config.apiBase)
-    .option("--env <ENV>", "Environment to deploy (default: pick from manifest)")
     .option("--token <TOKEN>", "Ghostable CI token (or env GHOSTABLE_CI_TOKEN)")
     .option("--vapor-env <ENV>", "Target Vapor environment")
     .option("--only <KEY...>", "Limit to specific keys")
     .action(async (opts: {
-      api?: string;
-      env?: string;
       token?: string;
       vaporEnv?: string;
       only?: string[];
     }) => {
-      // Resolve manifest context
-      let context: Awaited<ReturnType<typeof resolveManifestContext>>;
-      try {
-        context = await resolveManifestContext(opts.env);
-      } catch (error: any) {
-        console.error(error?.message ?? error);
-        process.exit(1);
-      }
-      const { projectId, projectName, envName } = context;
-
-      // Resolve API token
+      
+      // 1) Token + client
       let token: string;
       try {
         token = await resolveToken(opts.token);
@@ -50,21 +37,17 @@ export function registerDeployVaporCommand(program: Command) {
         console.error(error?.message ?? error);
         process.exit(1);
       }
-      const client = createGhostableClient(token, opts.api ?? config.apiBase);
+      const client = createGhostableClient(token);
 
-      // Pull projection from Ghostable
-      const pullSpin = ora(`Pulling encrypted projection for ${projectName}:${envName}…`).start();
-      let bundle: Awaited<ReturnType<typeof client.pull>>;
+      // 2) Fetch projection for this env (derived from token)
+      const deploySpin = ora(`Fetching encrypted projection…`).start();
+      let bundle: Awaited<ReturnType<typeof client.deploy>>;
       try {
-        bundle = await client.pull(projectId, envName, {
-          includeMeta: true,
-          includeVersions: true,
-          only: opts.only,
-        });
-        pullSpin.succeed("Projection fetched.");
-      } catch (error: any) {
-        pullSpin.fail("Failed to pull projection.");
-        console.error(chalk.red(error?.message ?? error));
+        bundle = await client.deploy({ includeMeta: true, includeVersions: true, only: opts.only });
+        deploySpin.succeed("Projection fetched.");
+      } catch (err:any) {
+        deploySpin.fail("Failed to fetch projection.");
+        console.error(chalk.red(err?.message ?? err));
         process.exit(1);
       }
 
