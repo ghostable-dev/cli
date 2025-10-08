@@ -15,6 +15,7 @@ import { initSodium, deriveKeys, aeadDecrypt } from "../crypto.js";
 import { loadOrCreateKeys } from "../keys.js";
 import { log } from "../support/logger.js";
 import { toErrorMessage } from "../support/errors.js";
+import { resolveWorkDir } from "../support/workdir.js";
 
 type PullOptions = {
   api?: string;
@@ -30,9 +31,10 @@ function resolveOutputPath(
   envName: string | undefined,
   explicit?: string,
 ): string {
-  if (explicit) return path.resolve(process.cwd(), explicit);
-  if (envName) return path.resolve(process.cwd(), `.env.${envName}`);
-  return path.resolve(process.cwd(), ".env");
+  const workDir = resolveWorkDir();
+  if (explicit) return path.resolve(workDir, explicit);
+  if (envName) return path.resolve(workDir, `.env.${envName}`);
+  return path.resolve(workDir, ".env");
 }
 
 function lineForDotenv(name: string, value: string, commented = false): string {

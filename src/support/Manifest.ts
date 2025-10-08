@@ -2,6 +2,8 @@ import fs from "node:fs";
 import path from "node:path";
 import yaml from "js-yaml";
 
+import { resolveWorkDir } from "./workdir.js";
+
 export type EnvEntry = { type?: string } | undefined;
 export type ManifestEnvsLegacy =
   | string[]
@@ -15,7 +17,7 @@ export interface ManifestShape {
 }
 
 function defaultPath(): string {
-  return path.resolve(process.cwd(), "ghostable.yml");
+  return path.resolve(resolveWorkDir(), "ghostable.yml");
 }
 
 /** Resolve manifest path: env var wins, else cwd/ghostable.yml */

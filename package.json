@@ -1,10 +1,17 @@
 {
   "name": "@ghostable/cli",
-  "version": "0.1.0-beta",
+  "version": "0.1.1-beta",
   "type": "module",
   "bin": {
     "ghostable": "dist/cli.js"
   },
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE.md",
+    "SECURITY.md",
+    "example.env"
+  ],
   "scripts": {
     "build": "tsc -p tsconfig.json",
     "dev": "tsx src/cli.ts",

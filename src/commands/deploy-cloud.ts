@@ -11,6 +11,7 @@ import {
 import { log } from "../support/logger.js";
 import { toErrorMessage } from "../support/errors.js";
 import type { ProjectionBundle } from "../services/GhostableClient.js";
+import { resolveWorkDir } from "../support/workdir.js";
 
 export function registerDeployCloudCommand(program: Command) {
   program
@@ -74,7 +75,7 @@ export function registerDeployCloudCommand(program: Command) {
         }
 
         // 4) Write .env.<env>
-        const envPath = path.resolve(process.cwd(), `.env`);
+        const envPath = path.resolve(resolveWorkDir(), `.env`);
         const previous = readEnvFileSafe(envPath);
         const combined = { ...previous, ...merged };
         writeEnvFile(envPath, combined);
