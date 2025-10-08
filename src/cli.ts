@@ -9,7 +9,7 @@ const program = new Command();
 program
   .name("ghostable")
   .description("Ghostable zero-knowledge CLI (experimental)")
-  .version("0.1.0");
+  .version("0.1.2");
 await registerAllCommands(program);
 
 // Helpful defaults
