@@ -8,8 +8,9 @@
   "scripts": {
     "build": "tsc -p tsconfig.json",
     "dev": "tsx src/cli.ts",
-    "lint": "eslint .",
-    "test": "vitest"
+    "test": "vitest",
+    "lint": "eslint 'src/**/*.ts'",
+    "lint:fix": "eslint 'src/**/*.ts' --fix"
   },
   "dependencies": {
     "@inquirer/prompts": "^7.8.6",
@@ -33,7 +34,12 @@
     "@types/js-yaml": "^4.0.9",
     "@types/libsodium-wrappers": "^0.7.14",
     "@types/node": "^22.0.0",
-    "eslint": "^9.9.0",
+    "@typescript-eslint/eslint-plugin": "^8.46.0",
+    "@typescript-eslint/parser": "^8.46.0",
+    "eslint": "^9.37.0",
+    "eslint-config-prettier": "^10.1.8",
+    "eslint-plugin-prettier": "^5.5.4",
+    "prettier": "^3.6.2",
     "tsx": "^4.19.0",
     "typescript": "^5.5.4",
     "vitest": "^3.2.4"
