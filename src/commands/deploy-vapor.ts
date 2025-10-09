@@ -12,8 +12,7 @@ import { log } from '../support/logger.js';
 import { toErrorMessage } from '../support/errors.js';
 import { resolveWorkDir } from '../support/workdir.js';
 
-import type { EnvironmentSecretBundle } from '@/domain';
-import type { EnvironmentSecret } from '@/domain/EnvironmentSecret';
+import type { EnvironmentSecret, EnvironmentSecretBundle } from '@/domain';
 
 export function registerDeployVaporCommand(program: Command) {
 	program

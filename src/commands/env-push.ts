@@ -4,18 +4,18 @@ import { Listr } from 'listr2';
 import fs from 'node:fs';
 import chalk from 'chalk';
 
-import { initSodium } from '../crypto';
-import { loadOrCreateKeys } from '../keys';
+import { initSodium } from '../crypto.js';
+import { loadOrCreateKeys } from '../keys.js';
 
-import { config } from '../config/index';
-import { SessionService } from '../services/SessionService';
-import { GhostableClient } from '../services/GhostableClient';
-import { Manifest } from '../support/Manifest';
-import { log } from '../support/logger';
-import { toErrorMessage } from '../support/errors';
+import { config } from '../config/index.js';
+import { SessionService } from '../services/SessionService.js';
+import { GhostableClient } from '../services/GhostableClient.js';
+import { Manifest } from '../support/Manifest.js';
+import { log } from '../support/logger.js';
+import { toErrorMessage } from '../support/errors.js';
 
-import { resolveEnvFile, readEnvFileSafe } from '../support/env-files';
-import { buildSecretPayload } from '../support/secret-payload';
+import { resolveEnvFile, readEnvFileSafe } from '../support/env-files.js';
+import { buildSecretPayload } from '../support/secret-payload.js';
 
 import type { ValidatorRecord } from '@/types';
 
