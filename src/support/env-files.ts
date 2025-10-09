@@ -1,44 +1,85 @@
-import fs from "node:fs";
+import fs from 'node:fs';
+import path from 'node:path';
+import dotenv from 'dotenv';
+import { resolveWorkDir } from './workdir.js';
 
-export function writeEnvFile(
-  filePath: string,
-  vars: Record<string, string>,
-): void {
-  const content =
-    Object.keys(vars)
-      .sort((a, b) => a.localeCompare(b))
-      .map((key) => `${key}=${vars[key]}`)
-      .join("\n") + "\n";
+/**
+ * Write a .env-style file from a vars map.
+ */
+export function writeEnvFile(filePath: string, vars: Record<string, string>): void {
+	const content =
+		Object.keys(vars)
+			.sort((a, b) => a.localeCompare(b))
+			.map((key) => `${key}=${vars[key]}`)
+			.join('\n') + '\n';
 
-  fs.writeFileSync(filePath, content, "utf8");
+	fs.writeFileSync(filePath, content, 'utf8');
 }
 
+/**
+ * Read a .env-style file into a vars map.
+ */
 export function readEnvFile(filePath: string): Record<string, string> {
-  if (!fs.existsSync(filePath)) {
-    return {};
-  }
-
-  const raw = fs.readFileSync(filePath, "utf8");
-  const result: Record<string, string> = {};
-
-  for (const line of raw.split(/\r?\n/)) {
-    if (!line || line.trim().startsWith("#")) continue;
-
-    const separatorIndex = line.indexOf("=");
-    if (separatorIndex < 0) continue;
-
-    const key = line.slice(0, separatorIndex);
-    const value = line.slice(separatorIndex + 1);
-    result[key] = value;
-  }
-
-  return result;
+	if (!fs.existsSync(filePath)) return {};
+	// strip BOM if present
+	let raw = fs.readFileSync(filePath, 'utf8');
+	if (raw.charCodeAt(0) === 0xfeff) raw = raw.slice(1);
+	return dotenv.parse(raw);
 }
 
 export function readEnvFileSafe(filePath: string): Record<string, string> {
-  try {
-    return readEnvFile(filePath);
-  } catch {
-    return {};
-  }
+	try {
+		return readEnvFile(filePath);
+	} catch {
+		return {};
+	}
+}
+
+/**
+ * Resolve which .env file to use.
+ * Resolution order:
+ *   1) explicit path (if provided)
+ *   2) .env.<envName> in work dir (if envName provided)
+ *   3) .env in work dir
+ *
+ * @param envName Optional environment name, e.g., "production"
+ * @param explicitPath Optional path passed via flag
+ * @param mustExist Throw if a resolved file does not exist
+ */
+export function resolveEnvFile(envName?: string, explicitPath?: string, mustExist = false): string {
+	const workDir = resolveWorkDir();
+
+	// 1) explicit path wins (relative to workDir)
+	if (explicitPath) {
+		const p = path.resolve(workDir, explicitPath);
+		if (fs.existsSync(p)) return p;
+		if (mustExist) {
+			throw new Error(`.env file not found at explicit path: ${p}`);
+		}
+		// fall through to candidates if not required to exist
+	}
+
+	// 2) .env.<envName>
+	if (envName) {
+		const byEnv = path.resolve(workDir, `.env.${envName}`);
+		if (fs.existsSync(byEnv)) return byEnv;
+	}
+
+	// 3) default .env
+	const fallback = path.resolve(workDir, '.env');
+	if (fs.existsSync(fallback)) return fallback;
+
+	if (mustExist) {
+		const tried = [
+			explicitPath && path.resolve(workDir, explicitPath),
+			envName && path.resolve(workDir, `.env.${envName}`),
+			fallback,
+		]
+			.filter(Boolean)
+			.join(', ');
+		throw new Error(`.env file not found. Tried: ${tried}`);
+	}
+
+	// If nothing exists and not required, return the default location so callers can create it.
+	return fallback;
 }

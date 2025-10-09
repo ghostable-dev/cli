@@ -1,5 +1,5 @@
-import fs from "node:fs";
-import path from "node:path";
+import fs from 'node:fs';
+import path from 'node:path';
 
 /**
  * Determine the on-disk directory the CLI should treat as the current project.
@@ -10,35 +10,35 @@ import path from "node:path";
  * variables exposed by the package managers and fall back to process.cwd().
  */
 export function resolveWorkDir(): string {
-  const fallback = process.cwd();
-  const candidates = [
-    process.env.GHOSTABLE_WORKDIR,
-    process.env.INIT_CWD,
-    process.env.PWD,
-    fallback,
-  ];
+	const fallback = process.cwd();
+	const candidates = [
+		process.env.GHOSTABLE_WORKDIR,
+		process.env.INIT_CWD,
+		process.env.PWD,
+		fallback,
+	];
 
-  const seen = new Set<string>();
+	const seen = new Set<string>();
 
-  for (const candidate of candidates) {
-    if (!candidate) continue;
+	for (const candidate of candidates) {
+		if (!candidate) continue;
 
-    const resolved = path.isAbsolute(candidate)
-      ? path.normalize(candidate)
-      : path.resolve(fallback, candidate);
+		const resolved = path.isAbsolute(candidate)
+			? path.normalize(candidate)
+			: path.resolve(fallback, candidate);
 
-    if (seen.has(resolved)) continue;
-    seen.add(resolved);
+		if (seen.has(resolved)) continue;
+		seen.add(resolved);
 
-    try {
-      const stat = fs.statSync(resolved);
-      if (stat.isDirectory()) {
-        return resolved;
-      }
-    } catch {
-      // Ignore invalid paths – keep checking other candidates.
-    }
-  }
+		try {
+			const stat = fs.statSync(resolved);
+			if (stat.isDirectory()) {
+				return resolved;
+			}
+		} catch {
+			// Ignore invalid paths – keep checking other candidates.
+		}
+	}
 
-  return fallback;
+	return fallback;
 }
