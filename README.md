@@ -7,3 +7,4 @@ Ghostable stores and organizes your `.env` variables, validates them, and integr
 Read the [official documentation](https://docs.ghostable.dev) or try it out at [Ghostable.dev](https://ghostable.dev).
 
 See [SECURITY.md](./SECURITY.md) for our security policy.
+
