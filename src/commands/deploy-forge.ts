@@ -10,6 +10,7 @@ import { createGhostableClient, decryptBundle, resolveToken } from '../support/d
 import { log } from '../support/logger.js';
 import { toErrorMessage } from '../support/errors.js';
 import { resolveWorkDir } from '../support/workdir.js';
+import { setMasterSeed } from '../keys.js';
 import type { EnvironmentSecretBundle } from '@/domain';
 
 export function registerDeployForgeCommand(program: Command) {
@@ -27,6 +28,15 @@ export function registerDeployForgeCommand(program: Command) {
 				out?: string;
 				only?: string[];
 			}) => {
+				const seedFromEnv = process.env.GHOSTABLE_MASTER_SEED?.trim();
+				if (seedFromEnv) {
+					try {
+						await setMasterSeed(seedFromEnv);
+					} catch {
+						log.warn('⚠️ Failed to import master seed from GHOSTABLE_MASTER_SEED.');
+					}
+				}
+
 				// 1) Token + client
 				let token: string;
 				try {
@@ -58,7 +68,7 @@ export function registerDeployForgeCommand(program: Command) {
 					return;
 				}
 
-				// 3) Decrypt + merge (child wins). (Server currently returns a single layer.)
+				// 3) Decrypt + merge (child wins)
 				const { secrets, warnings } = await decryptBundle(bundle);
 				for (const warning of warnings) log.warn(`⚠️ ${warning}`);
 
@@ -90,7 +100,7 @@ export function registerDeployForgeCommand(program: Command) {
 					writeEnvFile(envPath, combined);
 					log.ok(`🔑 Set LARAVEL_ENV_ENCRYPTION_KEY in ${path.basename(envPath)}`);
 
-					// Create encrypted blob using Laravel's own command to ensure format compatibility
+					// Create encrypted blob using Laravel's own command
 					const encSpin = ora('Encrypting .env via php artisan env:encrypt…').start();
 					try {
 						artisan.run(['env:encrypt', `--key=${envKeyB64}`]);

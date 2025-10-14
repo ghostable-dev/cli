@@ -11,6 +11,7 @@ import { vapor } from '../support/vapor.js';
 import { log } from '../support/logger.js';
 import { toErrorMessage } from '../support/errors.js';
 import { resolveWorkDir } from '../support/workdir.js';
+import { setMasterSeed } from '../keys.js';
 
 import type { EnvironmentSecret, EnvironmentSecretBundle } from '@/domain';
 
@@ -22,6 +23,15 @@ export function registerDeployVaporCommand(program: Command) {
 		.option('--vapor-env <ENV>', 'Target Vapor environment')
 		.option('--only <KEY...>', 'Limit to specific keys')
 		.action(async (opts: { token?: string; vaporEnv?: string; only?: string[] }) => {
+			const seedFromEnv = process.env.GHOSTABLE_MASTER_SEED?.trim();
+			if (seedFromEnv) {
+				try {
+					await setMasterSeed(seedFromEnv);
+				} catch {
+					log.warn('⚠️ Failed to import master seed from GHOSTABLE_MASTER_SEED.');
+				}
+			}
+
 			// 1) Token + client
 			let token: string;
 			try {

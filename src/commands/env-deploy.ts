@@ -7,23 +7,32 @@ import { createGhostableClient, decryptBundle, resolveToken } from '../support/d
 import { log } from '../support/logger.js';
 import { toErrorMessage } from '../support/errors.js';
 import { resolveWorkDir } from '../support/workdir.js';
-
 import { setMasterSeed } from '../keys.js';
+import { config } from '../config/index.js';
+
 import type { EnvironmentSecretBundle } from '@/domain';
 
-export function registerDeployCloudCommand(program: Command) {
+type EnvDeployOptions = {
+	token?: string;
+	file?: string; // default: .env
+	only?: string[]; // limit to specific keys
+	api?: string; // optional override of API base
+};
+
+export function registerEnvDeployCommand(program: Command) {
 	program
-		.command('deploy:cloud')
-		.description('Deploy Ghostable managed environment variables for Laravel Cloud.')
+		.command('env:deploy')
+		.description('Fetch Ghostable env vars and write a local .env file (provider-agnostic).')
 		.option('--token <TOKEN>', 'Ghostable CI token (or env GHOSTABLE_CI_TOKEN)')
-		.option('--out <PATH>', 'Where to write the encrypted blob (default: .env.encrypted)')
-		.option('--only <KEY...>', 'Limit to specific keys')
-		.action(async (opts: { token?: string; out?: string; only?: string[] }) => {
+		.option('--file <PATH>', 'Output file (default: .env)')
+		.option('--only <KEY...>', 'Only include these keys')
+		.option('--api <URL>', 'Ghostable API base', config.apiBase)
+		.action(async (opts: EnvDeployOptions) => {
 			const seedFromEnv = process.env.GHOSTABLE_MASTER_SEED?.trim();
 			if (seedFromEnv) {
 				try {
 					await setMasterSeed(seedFromEnv);
-				} catch (e) {
+				} catch {
 					log.warn('⚠️ Failed to import master seed from GHOSTABLE_MASTER_SEED.');
 				}
 			}
@@ -36,9 +45,9 @@ export function registerDeployCloudCommand(program: Command) {
 				log.error(toErrorMessage(error));
 				process.exit(1);
 			}
-			const client = createGhostableClient(token);
+			const client = createGhostableClient(token, opts.api);
 
-			// 2) Fetch bundle for this env (derived from token)
+			// 2) Fetch bundle (environment is implied by the CI token context)
 			const spin = ora('Fetching environment secret bundle…').start();
 			let bundle: EnvironmentSecretBundle;
 			try {
@@ -59,20 +68,21 @@ export function registerDeployCloudCommand(program: Command) {
 				return;
 			}
 
-			// 3) Decrypt + merge (child wins). (Server currently returns a single layer.)
+			// 3) Decrypt and merge (child wins if multiple layers are ever present)
 			const { secrets, warnings } = await decryptBundle(bundle);
 			for (const w of warnings) log.warn(`⚠️ ${w}`);
 
 			const merged: Record<string, string> = {};
 			for (const s of secrets) merged[s.entry.name] = s.value;
 
-			// 4) Write .env in working directory (Cloud flow expects plain .env here)
-			const envPath = path.resolve(resolveWorkDir(), '.env');
-			const previous = readEnvFileSafe(envPath);
+			// 4) Write .env (default) or a custom path
+			const workDir = resolveWorkDir();
+			const outPath = path.resolve(workDir, opts.file ?? '.env');
+			const previous = readEnvFileSafe(outPath);
 			const combined = { ...previous, ...merged };
-			writeEnvFile(envPath, combined);
-			log.ok(`✅ Wrote ${Object.keys(merged).length} keys → ${envPath}`);
 
+			writeEnvFile(outPath, combined);
+			log.ok(`✅ Wrote ${Object.keys(merged).length} keys → ${outPath}`);
 			log.ok('Ghostable 👻 deployed (local).');
 		});
 }
