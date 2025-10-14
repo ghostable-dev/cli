@@ -143,7 +143,7 @@ export function registerEnvInitCommand(program: Command) {
 					env && existingEnvs
 						? [...existingEnvs, env].map((e: Environment) => ({
 								name: e.name,
-								type: e.type, // your manifest accepts optional type; no transform needed
+								type: e.type,
 							}))
 						: [{ name: env.name, type: env.type }];
 

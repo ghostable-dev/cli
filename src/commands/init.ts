@@ -98,7 +98,6 @@ export function registerOrganizationListCommand(program: Command) {
 				const manifestEnvs =
 					project.environments?.map((env: { name: string; type: string }) => ({
 						name: env.name,
-						// your manifest accepts optional type; keep same shape
 						type: env.type ?? undefined,
 					})) ?? [];
 
