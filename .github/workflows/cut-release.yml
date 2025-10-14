@@ -1,0 +1,70 @@
+name: Cut Release
+
+on:
+  workflow_dispatch:
+    inputs:
+      bump:
+        description: "Version bump to apply"
+        required: false
+        default: patch
+        type: choice
+        options:
+          - patch
+          - minor
+          - major
+      version:
+        description: "Explicit version (overrides bump)"
+        required: false
+        type: string
+      notes:
+        description: "Release notes (optional)"
+        required: false
+        type: string
+
+permissions:
+  contents: write
+
+jobs:
+  cut-release:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Configure git author
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+      - name: Bump version
+        id: version
+        run: |
+          if [ -n "${{ inputs.version }}" ]; then
+            npm version "${{ inputs.version }}" -m "chore(release): v%s"
+          else
+            npm version "${{ inputs.bump }}" -m "chore(release): v%s"
+          fi
+          echo "tag=$(git describe --tags --abbrev=0)" >> "$GITHUB_OUTPUT"
+
+      - name: Push changes and tags
+        run: |
+          git push origin HEAD
+          git push origin --tags
+
+      - name: Commit release notes
+        if: ${{ inputs.notes != '' }}
+        env:
+          NOTES: ${{ inputs.notes }}
+          TAG: ${{ steps.version.outputs.tag }}
+        run: |
+          printf '%s\n' "$NOTES" > RELEASE_NOTES.txt
+          git add RELEASE_NOTES.txt
+          git commit -m "chore: add release notes for ${TAG}"
+          git push origin HEAD

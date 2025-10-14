@@ -12,6 +12,9 @@
         "SECURITY.md",
         "example.env"
     ],
+    "publishConfig": {
+        "access": "public"
+    },
     "scripts": {
         "build": "tsc -p tsconfig.json && tsc-alias -p tsconfig.json",
         "dev": "tsx src/cli.ts",

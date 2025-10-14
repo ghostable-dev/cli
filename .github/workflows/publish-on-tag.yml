@@ -1,0 +1,70 @@
+name: Publish on Tag
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: write
+  id-token: write
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          registry-url: https://registry.npmjs.org
+
+      - name: Enable npm provenance
+        run: |
+          echo 'provenance=true' >> ~/.npmrc
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run tests
+        run: npm test --if-present
+
+      - name: Build
+        run: npm run build --if-present
+
+      - name: Publish to npm
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+        run: npm publish
+
+      - name: Load release notes
+        id: notes
+        env:
+          DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
+          TAG: ${{ github.ref_name }}
+        run: |
+          git fetch origin "$DEFAULT_BRANCH" --depth=50
+          COMMIT=$(git log "origin/$DEFAULT_BRANCH" --grep="chore: add release notes for ${TAG}" --format=%H -n 1)
+          if [ -n "$COMMIT" ]; then
+            git show "$COMMIT:RELEASE_NOTES.txt" > RELEASE_NOTES.txt
+            echo "found=true" >> "$GITHUB_OUTPUT"
+            {
+              echo "body<<'EOF'"
+              cat RELEASE_NOTES.txt
+              echo "EOF"
+            } >> "$GITHUB_OUTPUT"
+          else
+            echo "found=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Create GitHub release
+        uses: ncipollo/release-action@v1
+        with:
+          tag: ${{ github.ref_name }}
+          body: ${{ steps.notes.outputs.body }}
+          generateReleaseNotes: ${{ steps.notes.outputs.found != 'true' }}
