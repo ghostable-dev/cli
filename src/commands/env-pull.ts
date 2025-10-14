@@ -16,7 +16,6 @@ import { resolveWorkDir } from '../support/workdir.js';
 import type { EnvironmentSecret, EnvironmentSecretBundle } from '@/domain';
 
 type PullOptions = {
-	api?: string;
 	token?: string;
 	env?: string;
 	file?: string; // output path; default .env.<env> or .env
@@ -43,7 +42,6 @@ export function registerEnvPullCommand(program: Command) {
 		.description('Pull and decrypt environment variables into a local .env file.')
 		.option('--env <ENV>', 'Environment name (if omitted, select from manifest)')
 		.option('--file <PATH>', 'Output file (default: .env.<env> or .env)')
-		.option('--api <URL>', 'Ghostable API base', config.apiBase)
 		.option('--token <TOKEN>', 'API token (or stored session / GHOSTABLE_TOKEN)')
 		.option('--only <KEY...>', 'Only include these keys')
 		.option('--include-meta', 'Include meta flags in bundle', false)
@@ -75,7 +73,6 @@ export function registerEnvPullCommand(program: Command) {
 			}
 
 			// 3) Resolve token (org context only affects server-side; decrypt uses AAD)
-			const apiBase = opts.api ?? config.apiBase;
 			let token = opts.token || process.env.GHOSTABLE_TOKEN || '';
 			if (!token) {
 				const sessionSvc = new SessionService();
@@ -90,7 +87,7 @@ export function registerEnvPullCommand(program: Command) {
 			}
 
 			// 4) Fetch secret bundle
-			const client = GhostableClient.unauthenticated(apiBase).withToken(token);
+			const client = GhostableClient.unauthenticated(config.apiBase).withToken(token);
 			let bundle: EnvironmentSecretBundle;
 			try {
 				bundle = await client.pull(projectId, envName!, {

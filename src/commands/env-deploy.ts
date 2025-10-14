@@ -8,7 +8,6 @@ import { log } from '../support/logger.js';
 import { toErrorMessage } from '../support/errors.js';
 import { resolveWorkDir } from '../support/workdir.js';
 import { setMasterSeed } from '../keys.js';
-import { config } from '../config/index.js';
 
 import type { EnvironmentSecretBundle } from '@/domain';
 
@@ -16,7 +15,6 @@ type EnvDeployOptions = {
 	token?: string;
 	file?: string; // default: .env
 	only?: string[]; // limit to specific keys
-	api?: string; // optional override of API base
 };
 
 export function registerEnvDeployCommand(program: Command) {
@@ -26,7 +24,6 @@ export function registerEnvDeployCommand(program: Command) {
 		.option('--token <TOKEN>', 'Ghostable CI token (or env GHOSTABLE_CI_TOKEN)')
 		.option('--file <PATH>', 'Output file (default: .env)')
 		.option('--only <KEY...>', 'Only include these keys')
-		.option('--api <URL>', 'Ghostable API base', config.apiBase)
 		.action(async (opts: EnvDeployOptions) => {
 			const seedFromEnv = process.env.GHOSTABLE_MASTER_SEED?.trim();
 			if (seedFromEnv) {
@@ -45,7 +42,7 @@ export function registerEnvDeployCommand(program: Command) {
 				log.error(toErrorMessage(error));
 				process.exit(1);
 			}
-			const client = createGhostableClient(token, opts.api);
+			const client = createGhostableClient(token);
 
 			// 2) Fetch bundle (environment is implied by the CI token context)
 			const spin = ora('Fetching environment secret bundle…').start();

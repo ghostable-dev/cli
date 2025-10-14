@@ -11,9 +11,8 @@ export function registerLoginCommand(program: Command) {
 	program
 		.command('login')
 		.description('Authenticate with Ghostable')
-		.option('--api <URL>', 'API base', config.apiBase)
-		.action(async (opts) => {
-			const apiBase = opts.api as string;
+		.action(async () => {
+			const apiBase = config.apiBase;
 			const session = new SessionService();
 			const client = GhostableClient.unauthenticated(apiBase);
 
