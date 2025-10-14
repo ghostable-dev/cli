@@ -17,9 +17,8 @@ export function registerOrganizationListCommand(program: Command) {
 		.description(
 			'Initialize a new project in the current directory within the current organization context.',
 		)
-		.option('--api <URL>', 'API base', config.apiBase)
-		.action(async (opts) => {
-			const apiBase = (opts.api as string) ?? config.apiBase;
+		.action(async () => {
+			const apiBase = config.apiBase;
 
 			// Ensure we have a session & org
 			const sessions = new SessionService();

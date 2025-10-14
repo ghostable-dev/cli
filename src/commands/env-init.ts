@@ -18,9 +18,8 @@ export function registerEnvInitCommand(program: Command) {
 		.description(
 			'Initialize a new environment in the current organization and project context.',
 		)
-		.option('--api <URL>', 'Ghostable API base', config.apiBase)
 		.option('--name <NAME>', 'Environment name (slug)')
-		.action(async (opts: { api?: string; name?: string }) => {
+		.action(async (opts: { name?: string }) => {
 			// 1) Ensure session and project context
 			const sessionSvc = new SessionService();
 			const sess = await sessionSvc.load();
@@ -38,7 +37,7 @@ export function registerEnvInitCommand(program: Command) {
 				return;
 			}
 
-			const client = GhostableClient.unauthenticated(opts.api ?? config.apiBase).withToken(
+			const client = GhostableClient.unauthenticated(config.apiBase).withToken(
 				sess.accessToken,
 			);
 
