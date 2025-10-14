@@ -12,7 +12,6 @@ import { toErrorMessage } from '../support/errors.js';
 import { resolveWorkDir } from '../support/workdir.js';
 
 import { initSodium } from '../crypto.js';
-import { loadOrCreateKeys } from '../keys.js';
 import { decryptBundle } from '../support/deploy-helpers.js';
 import { readEnvFileSafe, resolveEnvFile } from '../support/env-files.js';
 

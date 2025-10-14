@@ -23,7 +23,7 @@ export function registerDeployCloudCommand(program: Command) {
 			if (seedFromEnv) {
 				try {
 					await setMasterSeed(seedFromEnv);
-				} catch (e) {
+				} catch {
 					log.warn('⚠️ Failed to import master seed from GHOSTABLE_MASTER_SEED.');
 				}
 			}
