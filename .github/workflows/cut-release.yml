@@ -85,7 +85,7 @@ jobs:
           echo "tag=$TAG" >> "$GITHUB_OUTPUT"
 
       - name: Commit release notes
-        if: ${{ inputs.notes }}
+        if: ${{ inputs.notes != '' }}
         env:
           NOTES: ${{ inputs.notes }}
           TAG: ${{ steps.version.outputs.tag }}
@@ -104,4 +104,5 @@ jobs:
           git push origin --tags
 
       - name: Show created tag
-        run: echo "Created tag: ${{ steps.version.outputs.tag }}"
+        run: |
+          echo "Created tag: ${{ steps.version.outputs.tag }}"
