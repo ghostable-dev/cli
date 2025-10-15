@@ -6,9 +6,7 @@ import { registerAllCommands } from './commands/_autoregister.js';
 import { log } from './support/logger.js';
 
 const program = new Command();
-program
-	.name('ghostable')
-	.description('Ghostable zero-knowledge CLI (experimental)');
+program.name('ghostable').description('Ghostable zero-knowledge CLI (experimental)');
 await registerAllCommands(program);
 
 // Helpful defaults

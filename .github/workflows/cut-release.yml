@@ -4,12 +4,12 @@ on:
   workflow_dispatch:
     inputs:
       branch:
-        description: "Branch to release from (defaults to default branch)"
+        description: Branch to release from (defaults to default branch)
         required: false
-        default: "main"
+        default: main
         type: string
       bump:
-        description: "Version bump to apply"
+        description: Version bump to apply
         required: false
         default: patch
         type: choice
@@ -22,16 +22,16 @@ on:
           - preminor
           - premajor
       preid:
-        description: "Pre-release identifier (used with pre* bumps)"
+        description: Pre-release identifier (used with pre* bumps)
         required: false
         default: beta
         type: string
       explicit:
-        description: "Explicit version (overrides bump/preid)"
+        description: Explicit version (overrides bump/preid)
         required: false
         type: string
       notes:
-        description: "Release notes (optional)"
+        description: Release notes (optional)
         required: false
         default: ""
         type: string
@@ -56,7 +56,7 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: 20
-          cache: 'npm'
+          cache: npm
 
       - name: Install deps
         run: npm ci
@@ -73,14 +73,16 @@ jobs:
           INPUT_PREID: ${{ inputs.preid }}
         run: |
           set -euo pipefail
-          if [[ -n "${INPUT_EXPLICIT}" ]]; then
+          if [ -n "${INPUT_EXPLICIT}" ]; then
             NEXT="${INPUT_EXPLICIT}"
           else
-            if [[ "${INPUT_BUMP}" =~ ^pre(major|minor|patch)$ || "${INPUT_BUMP}" == "prerelease" ]]; then
-              NEXT="$(npm version "${INPUT_BUMP}" --preid "${INPUT_PREID}" --no-git-tag-version | sed 's/^v//')"
-            else
-              NEXT="$(npm version "${INPUT_BUMP}" --no-git-tag-version | sed 's/^v//')"
-            fi
+            case "${INPUT_BUMP}" in
+              prepatch|preminor|premajor|prerelease)
+                NEXT="$(npm version "${INPUT_BUMP}" --preid "${INPUT_PREID}" --no-git-tag-version)";;
+              *)
+                NEXT="$(npm version "${INPUT_BUMP}" --no-git-tag-version)";;
+            esac
+            NEXT="${NEXT#v}"
           fi
           echo "NEXT=${NEXT}" >> "$GITHUB_ENV"
           echo "value=${NEXT}" >> "$GITHUB_OUTPUT"
@@ -93,11 +95,7 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add package.json package-lock.json || true
-          if git diff --cached --quiet; then
-            echo "No version changes to commit."
-          else
-            git commit -m "chore(release): v${NEXT}"
-          fi
+          git commit -m "chore(release): v${NEXT}" || echo "No changes to commit"
 
       - name: Commit release notes (optional)
         if: ${{ inputs.notes != '' }}
@@ -108,15 +106,15 @@ jobs:
           set -euo pipefail
           printf '%s\n' "$NOTES" > RELEASE_NOTES.txt
           git add RELEASE_NOTES.txt
-          git commit -m "chore: add release notes for v${NEXT}"
+          git commit -m "chore: add release notes for v${NEXT}" || echo "No notes to commit"
 
       - name: Create tag & push
         shell: bash
         run: |
           set -euo pipefail
-          git tag "v${NEXT}"
+          git tag "v${NEXT}" || echo "Tag exists"
           git push origin "HEAD:${TARGET_BRANCH}"
-          git push origin "v${NEXT}"
+          git push origin "v${NEXT}" || echo "Tag already pushed"
 
       - name: Create GitHub Release
         uses: ncipollo/release-action@v1
