@@ -2,7 +2,7 @@ import { Command } from 'commander';
 import ora from 'ora';
 import path from 'node:path';
 
-import { writeEnvFile, readEnvFileSafe } from '../support/env-files.js';
+import { writeEnvFile, readEnvFileSafeWithMetadata, buildPreservedSnapshot } from '../support/env-files.js';
 import {
 	createGhostableClient,
 	decryptBundle,
@@ -71,9 +71,11 @@ export function registerDeployCloudCommand(program: Command) {
 
 			// 4) Write .env in working directory (Cloud flow expects plain .env here)
 			const envPath = path.resolve(resolveWorkDir(), '.env');
-			const previous = readEnvFileSafe(envPath);
-			const combined = { ...previous, ...merged };
-			writeEnvFile(envPath, combined);
+                        const previousMeta = readEnvFileSafeWithMetadata(envPath);
+                        const previous = previousMeta.vars;
+                        const combined = { ...previous, ...merged };
+                        const preserved = buildPreservedSnapshot(previousMeta, merged);
+                        writeEnvFile(envPath, combined, { preserve: preserved });
 			log.ok(`✅ Wrote ${Object.keys(merged).length} keys → ${envPath}`);
 
 			log.ok('Ghostable 👻 deployed (local).');

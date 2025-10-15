@@ -2,7 +2,7 @@ import { Command } from 'commander';
 import ora from 'ora';
 import path from 'node:path';
 
-import { writeEnvFile, readEnvFileSafe } from '../support/env-files.js';
+import { writeEnvFile, readEnvFileSafeWithMetadata, buildPreservedSnapshot } from '../support/env-files.js';
 import {
 	createGhostableClient,
 	decryptBundle,
@@ -78,10 +78,12 @@ export function registerEnvDeployCommand(program: Command) {
 			// 4) Write .env (default) or a custom path
 			const workDir = resolveWorkDir();
 			const outPath = path.resolve(workDir, opts.file ?? '.env');
-			const previous = readEnvFileSafe(outPath);
-			const combined = { ...previous, ...merged };
+                        const previousMeta = readEnvFileSafeWithMetadata(outPath);
+                        const previous = previousMeta.vars;
+                        const combined = { ...previous, ...merged };
+                        const preserved = buildPreservedSnapshot(previousMeta, merged);
 
-			writeEnvFile(outPath, combined);
+                        writeEnvFile(outPath, combined, { preserve: preserved });
 			log.ok(`✅ Wrote ${Object.keys(merged).length} keys → ${outPath}`);
 			log.ok('Ghostable 👻 deployed (local).');
 		});
