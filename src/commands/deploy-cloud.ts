@@ -3,12 +3,16 @@ import ora from 'ora';
 import path from 'node:path';
 
 import { writeEnvFile, readEnvFileSafe } from '../support/env-files.js';
-import { createGhostableClient, decryptBundle, resolveToken } from '../support/deploy-helpers.js';
+import {
+	createGhostableClient,
+	decryptBundle,
+	resolveDeployMasterSeed,
+	resolveToken,
+} from '../support/deploy-helpers.js';
 import { log } from '../support/logger.js';
 import { toErrorMessage } from '../support/errors.js';
 import { resolveWorkDir } from '../support/workdir.js';
 
-import { setMasterSeed } from '../keys.js';
 import type { EnvironmentSecretBundle } from '@/domain';
 
 export function registerDeployCloudCommand(program: Command) {
@@ -19,19 +23,18 @@ export function registerDeployCloudCommand(program: Command) {
 		.option('--out <PATH>', 'Where to write the encrypted blob (default: .env.encrypted)')
 		.option('--only <KEY...>', 'Limit to specific keys')
 		.action(async (opts: { token?: string; out?: string; only?: string[] }) => {
-			const seedFromEnv = process.env.GHOSTABLE_MASTER_SEED?.trim();
-			if (seedFromEnv) {
-				try {
-					await setMasterSeed(seedFromEnv);
-				} catch {
-					log.warn('⚠️ Failed to import master seed from GHOSTABLE_MASTER_SEED.');
-				}
+			let masterSeedB64: string;
+			try {
+				masterSeedB64 = resolveDeployMasterSeed();
+			} catch (error) {
+				log.error(toErrorMessage(error));
+				process.exit(1);
 			}
 
 			// 1) Token + client
 			let token: string;
 			try {
-				token = await resolveToken(opts.token);
+				token = await resolveToken(opts.token, { allowSession: false });
 			} catch (error) {
 				log.error(toErrorMessage(error));
 				process.exit(1);
@@ -60,7 +63,7 @@ export function registerDeployCloudCommand(program: Command) {
 			}
 
 			// 3) Decrypt + merge (child wins). (Server currently returns a single layer.)
-			const { secrets, warnings } = await decryptBundle(bundle);
+			const { secrets, warnings } = await decryptBundle(bundle, { masterSeedB64 });
 			for (const w of warnings) log.warn(`⚠️ ${w}`);
 
 			const merged: Record<string, string> = {};

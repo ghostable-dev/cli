@@ -72,11 +72,20 @@ export async function resolveManifestContext(requestedEnv?: string): Promise<Man
 	return { projectId, projectName, envName, envNames };
 }
 
-export async function resolveToken(explicitToken?: string): Promise<string> {
+type ResolveTokenOptions = {
+	allowSession?: boolean;
+};
+
+export async function resolveToken(
+	explicitToken?: string,
+	options?: ResolveTokenOptions,
+): Promise<string> {
+	const allowSession = options?.allowSession ?? true;
+
 	const token =
 		explicitToken ||
 		process.env.GHOSTABLE_CI_TOKEN ||
-		(await new SessionService().load())?.accessToken;
+		(allowSession ? (await new SessionService().load())?.accessToken : undefined);
 
 	if (!token) {
 		throw new Error(
@@ -97,10 +106,17 @@ export function createGhostableClient(token: string, apiBase?: string): Ghostabl
  * Decrypt an EnvironmentSecretBundle into plaintext values.
  * (child wins on merge is handled by the caller’s ordering/source)
  */
-export async function decryptBundle(bundle: EnvironmentSecretBundle): Promise<DecryptionResult> {
+type DecryptOptions = {
+	masterSeedB64?: string;
+};
+
+export async function decryptBundle(
+	bundle: EnvironmentSecretBundle,
+	options?: DecryptOptions,
+): Promise<DecryptionResult> {
 	await initSodium();
 
-	const { masterSeedB64 } = await loadOrCreateKeys();
+	const masterSeedB64 = await resolveMasterSeed(options?.masterSeedB64);
 	const masterSeed = Buffer.from(masterSeedB64.replace(/^b64:/, ''), 'base64');
 
 	const secrets: DecryptedSecret[] = [];
@@ -141,4 +157,35 @@ export async function decryptBundle(bundle: EnvironmentSecretBundle): Promise<De
 	return { secrets, warnings };
 }
 
+export function resolveDeployMasterSeed(): string {
+	const envValue = process.env.GHOSTABLE_MASTER_SEED?.trim();
+
+	if (!envValue) {
+		throw new Error(
+			chalk.red(
+				'❌ Missing master seed. Set GHOSTABLE_MASTER_SEED when running this command.',
+			),
+		);
+	}
+
+	return normalizeSeed(envValue);
+}
+
 export type { ManifestContext, DecryptedSecret, DecryptionResult };
+
+async function resolveMasterSeed(provided?: string): Promise<string> {
+	if (provided && provided.trim()) {
+		return normalizeSeed(provided.trim());
+	}
+
+	const { masterSeedB64 } = await loadOrCreateKeys();
+	return normalizeSeed(masterSeedB64);
+}
+
+function normalizeSeed(seed: string): string {
+	if (seed.startsWith('b64:') || seed.startsWith('base64:')) {
+		return seed.replace(/^base64:/, 'b64:');
+	}
+
+	return `b64:${seed}`;
+}

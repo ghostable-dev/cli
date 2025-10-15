@@ -6,12 +6,16 @@ import path from 'node:path';
 import crypto from 'node:crypto';
 
 import { writeEnvFile, readEnvFileSafe } from '../support/env-files.js';
-import { createGhostableClient, decryptBundle, resolveToken } from '../support/deploy-helpers.js';
+import {
+	createGhostableClient,
+	decryptBundle,
+	resolveDeployMasterSeed,
+	resolveToken,
+} from '../support/deploy-helpers.js';
 import { vapor } from '../support/vapor.js';
 import { log } from '../support/logger.js';
 import { toErrorMessage } from '../support/errors.js';
 import { resolveWorkDir } from '../support/workdir.js';
-import { setMasterSeed } from '../keys.js';
 
 import type { EnvironmentSecret, EnvironmentSecretBundle } from '@/domain';
 
@@ -23,19 +27,18 @@ export function registerDeployVaporCommand(program: Command) {
 		.option('--vapor-env <ENV>', 'Target Vapor environment')
 		.option('--only <KEY...>', 'Limit to specific keys')
 		.action(async (opts: { token?: string; vaporEnv?: string; only?: string[] }) => {
-			const seedFromEnv = process.env.GHOSTABLE_MASTER_SEED?.trim();
-			if (seedFromEnv) {
-				try {
-					await setMasterSeed(seedFromEnv);
-				} catch {
-					log.warn('⚠️ Failed to import master seed from GHOSTABLE_MASTER_SEED.');
-				}
+			let masterSeedB64: string;
+			try {
+				masterSeedB64 = resolveDeployMasterSeed();
+			} catch (error) {
+				log.error(toErrorMessage(error));
+				process.exit(1);
 			}
 
 			// 1) Token + client
 			let token: string;
 			try {
-				token = await resolveToken(opts.token);
+				token = await resolveToken(opts.token, { allowSession: false });
 			} catch (error) {
 				log.error(toErrorMessage(error));
 				process.exit(1);
@@ -64,7 +67,7 @@ export function registerDeployVaporCommand(program: Command) {
 			}
 
 			// 3) Decrypt and split into standard vs secret (Vapor)
-			const { secrets, warnings } = await decryptBundle(bundle);
+			const { secrets, warnings } = await decryptBundle(bundle, { masterSeedB64 });
 			for (const w of warnings) log.warn(`⚠️ ${w}`);
 
 			if (!secrets.length) {
