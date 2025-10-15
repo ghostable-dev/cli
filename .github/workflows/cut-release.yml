@@ -6,7 +6,7 @@ on:
       branch:
         description: "Branch to release from (defaults to repository default branch)"
         required: false
-        default: ""
+        default: "main"
         type: string
       bump:
         description: "Version bump to apply"
@@ -14,19 +14,19 @@ on:
         default: patch
         type: choice
         options:
+          - prepatch
+          - prerelease
+          - preminor
+          - premajor
           - patch
           - minor
           - major
-          - prepatch
-          - preminor
-          - premajor
-          - prerelease
       preid:
         description: "Pre-release identifier (used with pre* bumps)"
         required: false
         default: beta
         type: string
-      version:
+      explicit:
         description: "Explicit version (overrides bump/preid)"
         required: false
         type: string
@@ -62,15 +62,15 @@ jobs:
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
 
       - name: Bump version
-        id: version
+        id: bump
         env:
-          INPUT_VERSION: ${{ inputs.version }}
+          INPUT_EXPLICIT: ${{ inputs.explicit }}
           INPUT_BUMP: ${{ inputs.bump }}
           INPUT_PREID: ${{ inputs.preid }}
         run: |
           set -euo pipefail
-          if [ -n "$INPUT_VERSION" ]; then
-            npm version "$INPUT_VERSION" -m "chore(release): v%s"
+          if [ -n "$INPUT_EXPLICIT" ]; then
+            npm version "$INPUT_EXPLICIT" -m "chore(release): v%s"
           else
             case "$INPUT_BUMP" in
               prepatch|preminor|premajor|prerelease)
@@ -81,14 +81,16 @@ jobs:
                 ;;
             esac
           fi
+          VERSION=$(node -p "require('./package.json').version")
           TAG=$(git describe --tags --abbrev=0)
-          echo "tag=$TAG" >> "$GITHUB_OUTPUT"
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          echo "tag=v$VERSION" >> "$GITHUB_OUTPUT"
 
       - name: Commit release notes
         if: ${{ inputs.notes != '' }}
         env:
           NOTES: ${{ inputs.notes }}
-          TAG: ${{ steps.version.outputs.tag }}
+          TAG: ${{ steps.bump.outputs.tag }}
         run: |
           set -euo pipefail
           printf '%s\n' "$NOTES" > RELEASE_NOTES.txt
@@ -103,6 +105,45 @@ jobs:
           git push origin "HEAD:${TARGET_BRANCH}"
           git push origin --tags
 
+      - name: Create GitHub Release
+        uses: ncipollo/release-action@v1
+        with:
+          tag: ${{ steps.bump.outputs.tag }}
+          name: ${{ steps.bump.outputs.tag }}
+          body: ${{ github.event.inputs.notes }}
+          generateReleaseNotes: true
+          draft: false
+          prerelease: ${{ contains(steps.bump.outputs.version, '-') }}
+
+      - name: Setup Node
+        if: ${{ always() }}
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          registry-url: 'https://registry.npmjs.org'
+
+      - name: Configure npm auth
+        run: echo "//registry.npmjs.org/:_authToken=${NPM_TOKEN}" > ~/.npmrc
+        env:
+          NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
+
+      - name: Install deps
+        run: npm ci
+
+      - name: Publish to npm
+        env:
+          VERSION: ${{ steps.bump.outputs.version }}
+        run: |
+          # If the package is scoped and first publish, include --access public
+          ACCESS_FLAG=""; NAME=$(node -p "require('./package.json').name"); [[ "$NAME" == @*/* ]] && ACCESS_FLAG="--access public"
+
+          # Pre-releases (have a hyphen) go to dist-tag "beta" by default.
+          if [[ "$VERSION" == *"-"* ]]; then
+            npm publish $ACCESS_FLAG --tag beta
+          else
+            npm publish $ACCESS_FLAG
+          fi
+
       - name: Show created tag
         run: |
-          echo "Created tag: ${{ steps.version.outputs.tag }}"
+          echo "Created tag: ${{ steps.bump.outputs.tag }}"
