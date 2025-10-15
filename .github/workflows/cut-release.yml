@@ -137,8 +137,17 @@ jobs:
         env:
           VERSION: ${{ steps.bump.outputs.version }}
         run: |
+          set -euo pipefail
+
+          NAME=$(node -p "require('./package.json').name")
+
           # If the package is scoped and first publish, include --access public
-          ACCESS_FLAG=""; NAME=$(node -p "require('./package.json').name"); [[ "$NAME" == @*/* ]] && ACCESS_FLAG="--access public"
+          ACCESS_FLAG=""; [[ "$NAME" == @*/* ]] && ACCESS_FLAG="--access public"
+
+          if npm view "${NAME}@${VERSION}" version >/dev/null 2>&1; then
+            echo "npm package ${NAME}@${VERSION} already exists, skipping publish."
+            exit 0
+          fi
 
           # Pre-releases (have a hyphen) go to dist-tag "beta" by default.
           if [[ "$VERSION" == *"-"* ]]; then
