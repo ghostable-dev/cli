@@ -13,7 +13,14 @@ on:
         required: false
         default: patch
         type: choice
-        options: [patch, minor, major, prerelease, prepatch, preminor, premajor]
+        options:
+          - patch
+          - minor
+          - major
+          - prerelease
+          - prepatch
+          - preminor
+          - premajor
       preid:
         description: "Pre-release identifier (used with pre* bumps)"
         required: false
@@ -38,6 +45,7 @@ jobs:
     runs-on: ubuntu-latest
     env:
       TARGET_BRANCH: ${{ inputs.branch || github.event.repository.default_branch }}
+
     steps:
       - name: Check out repository
         uses: actions/checkout@v4
@@ -49,7 +57,7 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: 20
-          cache: 'npm'
+          cache: npm
 
       - name: Install deps
         run: npm ci
@@ -57,7 +65,6 @@ jobs:
       - name: Build (must pass before we tag)
         run: npm run build
 
-      # Compute next version string WITHOUT creating a tag or pushing yet
       - name: Plan version
         id: plan
         env:
@@ -69,17 +76,14 @@ jobs:
           if [ -n "${INPUT_EXPLICIT}" ]; then
             NEXT="${INPUT_EXPLICIT}"
           else
-            # apply bump locally w/o creating a tag
             if [[ "${INPUT_BUMP}" =~ ^pre(major|minor|patch)$ || "${INPUT_BUMP}" == "prerelease" ]]; then
               NEXT=$(npm version "${INPUT_BUMP}" --preid "${INPUT_PREID}" --no-git-tag-version | sed 's/^v//')
             else
               NEXT=$(npm version "${INPUT_BUMP}" --no-git-tag-version | sed 's/^v//')
             fi
           fi
-
           echo "value=${NEXT}" >> "$GITHUB_OUTPUT"
           echo "Planned version: ${NEXT}"
-          # leave package.json/package-lock.json modified for commit in next step
 
       - name: Commit version (no tag yet)
         run: |
@@ -118,4 +122,3 @@ jobs:
 
       - name: Show created tag
         run: echo "Created tag: v${{ steps.plan.outputs.value }}"
-        
