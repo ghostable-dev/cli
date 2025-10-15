@@ -3,11 +3,15 @@ import ora from 'ora';
 import path from 'node:path';
 
 import { writeEnvFile, readEnvFileSafe } from '../support/env-files.js';
-import { createGhostableClient, decryptBundle, resolveToken } from '../support/deploy-helpers.js';
+import {
+	createGhostableClient,
+	decryptBundle,
+	resolveDeployMasterSeed,
+	resolveToken,
+} from '../support/deploy-helpers.js';
 import { log } from '../support/logger.js';
 import { toErrorMessage } from '../support/errors.js';
 import { resolveWorkDir } from '../support/workdir.js';
-import { setMasterSeed } from '../keys.js';
 
 import type { EnvironmentSecretBundle } from '@/domain';
 
@@ -25,19 +29,18 @@ export function registerEnvDeployCommand(program: Command) {
 		.option('--file <PATH>', 'Output file (default: .env)')
 		.option('--only <KEY...>', 'Only include these keys')
 		.action(async (opts: EnvDeployOptions) => {
-			const seedFromEnv = process.env.GHOSTABLE_MASTER_SEED?.trim();
-			if (seedFromEnv) {
-				try {
-					await setMasterSeed(seedFromEnv);
-				} catch {
-					log.warn('⚠️ Failed to import master seed from GHOSTABLE_MASTER_SEED.');
-				}
+			let masterSeedB64: string;
+			try {
+				masterSeedB64 = resolveDeployMasterSeed();
+			} catch (error) {
+				log.error(toErrorMessage(error));
+				process.exit(1);
 			}
 
 			// 1) Token + client
 			let token: string;
 			try {
-				token = await resolveToken(opts.token);
+				token = await resolveToken(opts.token, { allowSession: false });
 			} catch (error) {
 				log.error(toErrorMessage(error));
 				process.exit(1);
@@ -66,7 +69,7 @@ export function registerEnvDeployCommand(program: Command) {
 			}
 
 			// 3) Decrypt and merge (child wins if multiple layers are ever present)
-			const { secrets, warnings } = await decryptBundle(bundle);
+			const { secrets, warnings } = await decryptBundle(bundle, { masterSeedB64 });
 			for (const w of warnings) log.warn(`⚠️ ${w}`);
 
 			const merged: Record<string, string> = {};
