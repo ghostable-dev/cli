@@ -127,4 +127,4 @@ jobs:
           prerelease: ${{ contains(env.NEXT, '-') }}
 
       - name: Show created tag
-        run: echo "Created tag: v${{ env.NEXT }}"
+        run: echo "Created tag: v${{ env.NEXT }}
