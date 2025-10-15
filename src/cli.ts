@@ -8,8 +8,7 @@ import { log } from './support/logger.js';
 const program = new Command();
 program
 	.name('ghostable')
-	.description('Ghostable zero-knowledge CLI (experimental)')
-	.version('0.1.5-beta');
+	.description('Ghostable zero-knowledge CLI (experimental)');
 await registerAllCommands(program);
 
 // Helpful defaults
