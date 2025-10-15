@@ -38,7 +38,6 @@ on:
 
 permissions:
   contents: write
-  id-token: write
 
 jobs:
   cut-release:
@@ -65,7 +64,7 @@ jobs:
       - name: Build (must pass before we tag)
         run: npm run build
 
-      - name: Plan version
+      - name: Plan & apply version (no tag yet)
         id: plan
         shell: bash
         env:
@@ -83,6 +82,7 @@ jobs:
               NEXT="$(npm version "${INPUT_BUMP}" --no-git-tag-version | sed 's/^v//')"
             fi
           fi
+          echo "NEXT=${NEXT}" >> "$GITHUB_ENV"
           echo "value=${NEXT}" >> "$GITHUB_OUTPUT"
           echo "Planned version: ${NEXT}"
 
@@ -93,36 +93,40 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add package.json package-lock.json || true
-          git commit -m "chore(release): v${{ steps.plan.outputs.value }}"
+          if git diff --cached --quiet; then
+            echo "No version changes to commit."
+          else
+            git commit -m "chore(release): v${NEXT}"
+          fi
 
       - name: Commit release notes (optional)
         if: ${{ inputs.notes != '' }}
+        shell: bash
         env:
           NOTES: ${{ inputs.notes }}
-        shell: bash
         run: |
           set -euo pipefail
           printf '%s\n' "$NOTES" > RELEASE_NOTES.txt
           git add RELEASE_NOTES.txt
-          git commit -m "chore: add release notes for v${{ steps.plan.outputs.value }}"
+          git commit -m "chore: add release notes for v${NEXT}"
 
       - name: Create tag & push
         shell: bash
         run: |
           set -euo pipefail
-          git tag "v${{ steps.plan.outputs.value }}"
-          git push origin "HEAD:${{ env.TARGET_BRANCH }}"
-          git push origin "v${{ steps.plan.outputs.value }}"
+          git tag "v${NEXT}"
+          git push origin "HEAD:${TARGET_BRANCH}"
+          git push origin "v${NEXT}"
 
       - name: Create GitHub Release
         uses: ncipollo/release-action@v1
         with:
-          tag: v${{ steps.plan.outputs.value }}
-          name: v${{ steps.plan.outputs.value }}
-          body: ${{ github.event.inputs.notes }}
+          tag: v${{ env.NEXT }}
+          name: v${{ env.NEXT }}
+          body: ${{ inputs.notes }}
           generateReleaseNotes: true
           draft: false
-          prerelease: ${{ contains(steps.plan.outputs.value, '-') }}
+          prerelease: ${{ contains(env.NEXT, '-') }}
 
       - name: Show created tag
-        run: echo "Created tag: v${{ steps.plan.outputs.value }}"
+        run: echo "Created tag: v${{ env.NEXT }}"
