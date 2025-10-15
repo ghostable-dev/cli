@@ -13,14 +13,7 @@ on:
         required: false
         default: patch
         type: choice
-        options:
-          - prepatch
-          - prerelease
-          - preminor
-          - premajor
-          - patch
-          - minor
-          - major
+        options: [patch, minor, major, prerelease, prepatch, preminor, premajor]
       preid:
         description: "Pre-release identifier (used with pre* bumps)"
         required: false
@@ -56,69 +49,72 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: 20
+          cache: 'npm'
 
-      - name: Configure git author
-        run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+      - name: Install deps
+        run: npm ci
 
-      - name: Bump version
-        id: bump
+      - name: Build (must pass before we tag)
+        run: npm run build
+
+      # Compute next version string WITHOUT creating a tag or pushing yet
+      - name: Plan version
+        id: plan
         env:
           INPUT_EXPLICIT: ${{ inputs.explicit }}
           INPUT_BUMP: ${{ inputs.bump }}
           INPUT_PREID: ${{ inputs.preid }}
         run: |
           set -euo pipefail
-          if [ -n "$INPUT_EXPLICIT" ]; then
-            npm version "$INPUT_EXPLICIT" -m "chore(release): v%s"
+          if [ -n "${INPUT_EXPLICIT}" ]; then
+            NEXT="${INPUT_EXPLICIT}"
           else
-            case "$INPUT_BUMP" in
-              prepatch|preminor|premajor|prerelease)
-                npm version "$INPUT_BUMP" --preid "$INPUT_PREID" -m "chore(release): v%s"
-                ;;
-              *)
-                npm version "$INPUT_BUMP" -m "chore(release): v%s"
-                ;;
-            esac
+            # apply bump locally w/o creating a tag
+            if [[ "${INPUT_BUMP}" =~ ^pre(major|minor|patch)$ || "${INPUT_BUMP}" == "prerelease" ]]; then
+              NEXT=$(npm version "${INPUT_BUMP}" --preid "${INPUT_PREID}" --no-git-tag-version | sed 's/^v//')
+            else
+              NEXT=$(npm version "${INPUT_BUMP}" --no-git-tag-version | sed 's/^v//')
+            fi
           fi
-          VERSION=$(node -p "require('./package.json').version")
-          TAG=$(git describe --tags --abbrev=0)
-          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
-          echo "tag=v$VERSION" >> "$GITHUB_OUTPUT"
 
-      - name: Commit release notes
+          echo "value=${NEXT}" >> "$GITHUB_OUTPUT"
+          echo "Planned version: ${NEXT}"
+          # leave package.json/package-lock.json modified for commit in next step
+
+      - name: Commit version (no tag yet)
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add package.json package-lock.json || true
+          git commit -m "chore(release): v${{ steps.plan.outputs.value }}"
+
+      - name: Commit release notes (optional)
         if: ${{ inputs.notes != '' }}
         env:
           NOTES: ${{ inputs.notes }}
-          TAG: ${{ steps.bump.outputs.tag }}
         run: |
           set -euo pipefail
           printf '%s\n' "$NOTES" > RELEASE_NOTES.txt
           git add RELEASE_NOTES.txt
-          git commit -m "chore: add release notes for ${TAG}"
+          git commit -m "chore: add release notes for v${{ steps.plan.outputs.value }}"
 
-      - name: Push changes and tags
-        env:
-          TARGET_BRANCH: ${{ env.TARGET_BRANCH }}
+      - name: Create tag & push
         run: |
           set -euo pipefail
-          git push origin "HEAD:${TARGET_BRANCH}"
-          git push origin --tags
+          git tag "v${{ steps.plan.outputs.value }}"
+          git push origin "HEAD:${{ env.TARGET_BRANCH }}"
+          git push origin "v${{ steps.plan.outputs.value }}"
 
       - name: Create GitHub Release
         uses: ncipollo/release-action@v1
         with:
-          tag: ${{ steps.bump.outputs.tag }}
-          name: ${{ steps.bump.outputs.tag }}
+          tag: v${{ steps.plan.outputs.value }}
+          name: v${{ steps.plan.outputs.value }}
           body: ${{ github.event.inputs.notes }}
           generateReleaseNotes: true
           draft: false
-          prerelease: ${{ contains(steps.bump.outputs.version, '-') }}
-
-      - name: Build package
-        run: npm run build
+          prerelease: ${{ contains(steps.plan.outputs.value, '-') }}
 
       - name: Show created tag
-        run: |
-          echo "Created tag: ${{ steps.bump.outputs.tag }}"
+        run: echo "Created tag: v${{ steps.plan.outputs.value }}"
