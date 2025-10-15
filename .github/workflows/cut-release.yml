@@ -43,14 +43,14 @@ jobs:
   cut-release:
     runs-on: ubuntu-latest
     env:
-      TARGET_BRANCH: ${{ inputs.branch || github.event.repository.default_branch }}
+      TARGET_BRANCH: "${{ inputs.branch || github.event.repository.default_branch }}"
 
     steps:
       - name: Check out repository
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
-          ref: ${{ env.TARGET_BRANCH }}
+          ref: "${{ env.TARGET_BRANCH }}"
 
       - name: Set up Node.js
         uses: actions/setup-node@v4
@@ -68,9 +68,9 @@ jobs:
         id: plan
         shell: bash
         env:
-          INPUT_EXPLICIT: ${{ inputs.explicit }}
-          INPUT_BUMP: ${{ inputs.bump }}
-          INPUT_PREID: ${{ inputs.preid }}
+          INPUT_EXPLICIT: "${{ inputs.explicit }}"
+          INPUT_BUMP: "${{ inputs.bump }}"
+          INPUT_PREID: "${{ inputs.preid }}"
         run: |
           set -euo pipefail
           if [ -n "${INPUT_EXPLICIT}" ]; then
@@ -98,10 +98,10 @@ jobs:
           git commit -m "chore(release): v${NEXT}" || echo "No changes to commit"
 
       - name: Commit release notes (optional)
-        if: ${{ inputs.notes != '' }}
+        if: "${{ inputs.notes != '' }}"
         shell: bash
         env:
-          NOTES: ${{ inputs.notes }}
+          NOTES: "${{ inputs.notes }}"
         run: |
           set -euo pipefail
           printf '%s\n' "$NOTES" > RELEASE_NOTES.txt
@@ -119,12 +119,12 @@ jobs:
       - name: Create GitHub Release
         uses: ncipollo/release-action@v1
         with:
-          tag: v${{ env.NEXT }}
-          name: v${{ env.NEXT }}
-          body: ${{ inputs.notes }}
+          tag: "v${{ env.NEXT }}"
+          name: "v${{ env.NEXT }}"
+          body: "${{ inputs.notes }}"
           generateReleaseNotes: true
           draft: false
-          prerelease: ${{ contains(env.NEXT, '-') }}
+          prerelease: "${{ contains(env.NEXT, '-') }}"
 
       - name: Show created tag
         run: echo "Created tag: v${{ env.NEXT }}"
