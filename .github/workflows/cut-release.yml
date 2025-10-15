@@ -57,7 +57,7 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: 20
-          cache: npm
+          cache: 'npm'
 
       - name: Install deps
         run: npm ci
@@ -67,25 +67,27 @@ jobs:
 
       - name: Plan version
         id: plan
+        shell: bash
         env:
           INPUT_EXPLICIT: ${{ inputs.explicit }}
           INPUT_BUMP: ${{ inputs.bump }}
           INPUT_PREID: ${{ inputs.preid }}
         run: |
           set -euo pipefail
-          if [ -n "${INPUT_EXPLICIT}" ]; then
+          if [[ -n "${INPUT_EXPLICIT}" ]]; then
             NEXT="${INPUT_EXPLICIT}"
           else
             if [[ "${INPUT_BUMP}" =~ ^pre(major|minor|patch)$ || "${INPUT_BUMP}" == "prerelease" ]]; then
-              NEXT=$(npm version "${INPUT_BUMP}" --preid "${INPUT_PREID}" --no-git-tag-version | sed 's/^v//')
+              NEXT="$(npm version "${INPUT_BUMP}" --preid "${INPUT_PREID}" --no-git-tag-version | sed 's/^v//')"
             else
-              NEXT=$(npm version "${INPUT_BUMP}" --no-git-tag-version | sed 's/^v//')
+              NEXT="$(npm version "${INPUT_BUMP}" --no-git-tag-version | sed 's/^v//')"
             fi
           fi
           echo "value=${NEXT}" >> "$GITHUB_OUTPUT"
           echo "Planned version: ${NEXT}"
 
       - name: Commit version (no tag yet)
+        shell: bash
         run: |
           set -euo pipefail
           git config user.name "github-actions[bot]"
@@ -97,6 +99,7 @@ jobs:
         if: ${{ inputs.notes != '' }}
         env:
           NOTES: ${{ inputs.notes }}
+        shell: bash
         run: |
           set -euo pipefail
           printf '%s\n' "$NOTES" > RELEASE_NOTES.txt
@@ -104,6 +107,7 @@ jobs:
           git commit -m "chore: add release notes for v${{ steps.plan.outputs.value }}"
 
       - name: Create tag & push
+        shell: bash
         run: |
           set -euo pipefail
           git tag "v${{ steps.plan.outputs.value }}"
