@@ -25,8 +25,7 @@ jobs:
           registry-url: https://registry.npmjs.org
 
       - name: Enable npm provenance
-        run: |
-          echo 'provenance=true' >> ~/.npmrc
+        run: echo 'provenance=true' >> ~/.npmrc
 
       - name: Install dependencies
         run: npm ci
@@ -37,21 +36,45 @@ jobs:
       - name: Build
         run: npm run build --if-present
 
+      - name: Determine release metadata
+        id: meta
+        run: |
+          set -euo pipefail
+          VERSION=$(node -p "require('./package.json').version")
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          if [[ "$VERSION" == *-* ]]; then
+            PRE_PART=${VERSION#*-}
+            PREID=${PRE_PART%%.*}
+            echo "dist_tag=$PREID" >> "$GITHUB_OUTPUT"
+            echo "prerelease=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "dist_tag=latest" >> "$GITHUB_OUTPUT"
+            echo "prerelease=false" >> "$GITHUB_OUTPUT"
+          fi
+
       - name: Publish to npm
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
-        run: npm publish
+          DIST_TAG: ${{ steps.meta.outputs.dist_tag }}
+        run: npm publish --tag "$DIST_TAG"
 
       - name: Load release notes
         id: notes
         env:
-          DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
           TAG: ${{ github.ref_name }}
         run: |
-          git fetch origin "$DEFAULT_BRANCH" --depth=50
-          COMMIT=$(git log "origin/$DEFAULT_BRANCH" --grep="chore: add release notes for ${TAG}" --format=%H -n 1)
-          if [ -n "$COMMIT" ]; then
-            git show "$COMMIT:RELEASE_NOTES.txt" > RELEASE_NOTES.txt
+          set -euo pipefail
+          git fetch --all --tags --prune
+          NOTES_COMMIT=$(git log --all --grep="chore: add release notes for ${TAG}" --format=%H -n 1)
+          FOUND=false
+          if [ -n "$NOTES_COMMIT" ]; then
+            git show "${NOTES_COMMIT}:RELEASE_NOTES.txt" > RELEASE_NOTES.txt
+            FOUND=true
+          elif [ -f RELEASE_NOTES.txt ]; then
+            FOUND=true
+          fi
+
+          if [ "$FOUND" = true ] && [ -s RELEASE_NOTES.txt ]; then
             echo "found=true" >> "$GITHUB_OUTPUT"
             {
               echo "body<<'EOF'"
@@ -68,3 +91,4 @@ jobs:
           tag: ${{ github.ref_name }}
           body: ${{ steps.notes.outputs.body }}
           generateReleaseNotes: ${{ steps.notes.outputs.found != 'true' }}
+          prerelease: ${{ steps.meta.outputs.prerelease == 'true' }}

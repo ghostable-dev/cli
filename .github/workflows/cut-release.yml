@@ -3,6 +3,10 @@ name: Cut Release
 on:
   workflow_dispatch:
     inputs:
+      branch:
+        description: "Branch to release from (defaults to repository default branch)"
+        required: false
+        type: string
       bump:
         description: "Version bump to apply"
         required: false
@@ -12,8 +16,17 @@ on:
           - patch
           - minor
           - major
+          - prepatch
+          - preminor
+          - premajor
+          - prerelease
+      preid:
+        description: "Pre-release identifier (used with pre* bumps)"
+        required: false
+        default: beta
+        type: string
       version:
-        description: "Explicit version (overrides bump)"
+        description: "Explicit version (overrides bump/preid)"
         required: false
         type: string
       notes:
@@ -27,11 +40,14 @@ permissions:
 jobs:
   cut-release:
     runs-on: ubuntu-latest
+    env:
+      TARGET_BRANCH: ${{ inputs.branch != '' && inputs.branch || github.event.repository.default_branch }}
     steps:
       - name: Check out repository
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
+          ref: ${{ env.TARGET_BRANCH }}
 
       - name: Set up Node.js
         uses: actions/setup-node@v4
@@ -45,18 +61,26 @@ jobs:
 
       - name: Bump version
         id: version
+        env:
+          INPUT_VERSION: ${{ inputs.version }}
+          INPUT_BUMP: ${{ inputs.bump }}
+          INPUT_PREID: ${{ inputs.preid }}
         run: |
-          if [ -n "${{ inputs.version }}" ]; then
-            npm version "${{ inputs.version }}" -m "chore(release): v%s"
+          set -euo pipefail
+          if [ -n "$INPUT_VERSION" ]; then
+            npm version "$INPUT_VERSION" -m "chore(release): v%s"
           else
-            npm version "${{ inputs.bump }}" -m "chore(release): v%s"
+            case "$INPUT_BUMP" in
+              prepatch|preminor|premajor|prerelease)
+                npm version "$INPUT_BUMP" --preid "$INPUT_PREID" -m "chore(release): v%s"
+                ;;
+              *)
+                npm version "$INPUT_BUMP" -m "chore(release): v%s"
+                ;;
+            esac
           fi
-          echo "tag=$(git describe --tags --abbrev=0)" >> "$GITHUB_OUTPUT"
-
-      - name: Push changes and tags
-        run: |
-          git push origin HEAD
-          git push origin --tags
+          TAG=$(git describe --tags --abbrev=0)
+          echo "tag=$TAG" >> "$GITHUB_OUTPUT"
 
       - name: Commit release notes
         if: ${{ inputs.notes != '' }}
@@ -64,7 +88,18 @@ jobs:
           NOTES: ${{ inputs.notes }}
           TAG: ${{ steps.version.outputs.tag }}
         run: |
+          set -euo pipefail
           printf '%s\n' "$NOTES" > RELEASE_NOTES.txt
           git add RELEASE_NOTES.txt
           git commit -m "chore: add release notes for ${TAG}"
-          git push origin HEAD
+
+      - name: Push changes and tags
+        env:
+          TARGET_BRANCH: ${{ env.TARGET_BRANCH }}
+        run: |
+          set -euo pipefail
+          git push origin "HEAD:${TARGET_BRANCH}"
+          git push origin --tags
+
+      - name: Show created tag
+        run: echo "Created tag: ${{ steps.version.outputs.tag }}"
