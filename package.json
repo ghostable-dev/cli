@@ -1,6 +1,6 @@
 {
     "name": "@ghostable/cli",
-    "version": "0.1.7-beta",
+    "version": "0.1.7-beta.0",
     "type": "module",
     "bin": {
         "ghostable": "dist/cli.js"
