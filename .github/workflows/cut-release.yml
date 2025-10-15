@@ -6,6 +6,7 @@ on:
       branch:
         description: "Branch to release from (defaults to repository default branch)"
         required: false
+        default: ""
         type: string
       bump:
         description: "Version bump to apply"
@@ -32,6 +33,7 @@ on:
       notes:
         description: "Release notes (optional)"
         required: false
+        default: ""
         type: string
 
 permissions:
@@ -41,7 +43,7 @@ jobs:
   cut-release:
     runs-on: ubuntu-latest
     env:
-      TARGET_BRANCH: ${{ inputs.branch != '' && inputs.branch || github.event.repository.default_branch }}
+      TARGET_BRANCH: ${{ inputs.branch || github.event.repository.default_branch }}
     steps:
       - name: Check out repository
         uses: actions/checkout@v4
@@ -83,7 +85,7 @@ jobs:
           echo "tag=$TAG" >> "$GITHUB_OUTPUT"
 
       - name: Commit release notes
-        if: ${{ inputs.notes != '' }}
+        if: ${{ inputs.notes }}
         env:
           NOTES: ${{ inputs.notes }}
           TAG: ${{ steps.version.outputs.tag }}
