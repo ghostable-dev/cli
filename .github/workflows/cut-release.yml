@@ -4,7 +4,7 @@ on:
   workflow_dispatch:
     inputs:
       branch:
-        description: "Branch to release from (defaults to repository default branch)"
+        description: "Branch to release from (defaults to default branch)"
         required: false
         default: "main"
         type: string
@@ -38,6 +38,7 @@ on:
 
 permissions:
   contents: write
+  id-token: write
 
 jobs:
   cut-release:
@@ -115,61 +116,8 @@ jobs:
           draft: false
           prerelease: ${{ contains(steps.bump.outputs.version, '-') }}
 
-      - name: Setup Node
-        if: ${{ always() }}
-        uses: actions/setup-node@v4
-        with:
-          node-version: '20'
-          registry-url: 'https://registry.npmjs.org'
-
-      - name: Configure npm auth
-        run: echo "//registry.npmjs.org/:_authToken=${NPM_TOKEN}" > ~/.npmrc
-        env:
-          NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
-
-      - name: Install deps
-        run: npm ci
-
       - name: Build package
         run: npm run build
-
-      - name: Publish to npm
-        env:
-          VERSION: ${{ steps.bump.outputs.version }}
-        run: |
-          set -euo pipefail
-
-          NAME=$(node -p "require('./package.json').name")
-
-          # If the package is scoped and first publish, include --access public
-          ACCESS_ARGS=()
-          if [[ "$NAME" == @*/* ]]; then
-            ACCESS_ARGS=(--access public)
-          fi
-
-          if npm view "${NAME}@${VERSION}" version >/dev/null 2>&1; then
-            echo "npm package ${NAME}@${VERSION} already exists, skipping publish."
-            exit 0
-          fi
-
-          # Pre-releases (have a hyphen) go to dist-tag "beta" by default.
-          PUBLISH_ARGS=(${ACCESS_ARGS[@]})
-          if [[ "$VERSION" == *"-"* ]]; then
-            PUBLISH_ARGS+=(--tag beta)
-          fi
-
-          if ! PUBLISH_OUTPUT=$(npm publish "${PUBLISH_ARGS[@]}" 2>&1); then
-            printf '%s\n' "$PUBLISH_OUTPUT"
-
-            if grep -qiE "EPUBLISHCONFLICT|previously published version" <<<"$PUBLISH_OUTPUT"; then
-              echo "npm package ${NAME}@${VERSION} already exists, skipping publish."
-              exit 0
-            fi
-
-            exit 1
-          fi
-
-          printf '%s\n' "$PUBLISH_OUTPUT"
 
       - name: Show created tag
         run: |
