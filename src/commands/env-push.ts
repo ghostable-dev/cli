@@ -30,6 +30,9 @@ type PushOptions = {
 	file?: string; // optional override; else .env.<env> or .env
 	env?: string; // optional; prompt if missing
 	assumeYes?: boolean;
+	sync?: boolean;
+	replace?: boolean;
+	pruneServer?: boolean;
 };
 
 function resolvePlaintext(parsed: string, snapshot?: EnvVarSnapshot): string {
@@ -52,6 +55,9 @@ export function registerEnvPushCommand(program: Command) {
 		.option('--file <PATH>', 'Path to .env file (default: .env.<env> or .env)')
 		.option('--env <ENV>', 'Environment name (if omitted, select from manifest)')
 		.option('-y, --assume-yes', 'Skip confirmation prompts', false)
+		.option('--sync', 'Prune server variables not present locally', false)
+		.option('--replace', 'Alias for --sync', false)
+		.option('--prune-server', 'Alias for --sync', false)
 		.action(async (opts: PushOptions) => {
 			// 1) Load manifest
 			let projectId: string, projectName: string, manifestEnvs: string[];
@@ -99,6 +105,8 @@ export function registerEnvPushCommand(program: Command) {
 			const { vars: envMap, snapshots } = readEnvFileSafeWithMetadata(filePath);
 			const ignored = getIgnoredKeys(envName);
 			const filteredVars = filterIgnoredKeys(envMap, ignored);
+			const sync = Boolean(opts.sync || opts.replace || opts.pruneServer);
+
 			const entries = Object.entries(filteredVars).map(([name, parsedValue]) => ({
 				name,
 				parsedValue,
@@ -153,7 +161,12 @@ export function registerEnvPushCommand(program: Command) {
 							// ifVersion?: number  // add later for optimistic concurrency
 						});
 
-						await client.uploadSecret(projectId, envName, payload);
+						await client.uploadSecret(
+							projectId,
+							envName,
+							payload,
+							sync ? { sync: true } : undefined,
+						);
 						task.title = `${name}  ${chalk.green('✓')}`;
 					},
 				})),
