@@ -5,20 +5,22 @@ import yaml from 'js-yaml';
 import { resolveWorkDir } from './workdir.js';
 
 export interface EnvConfig {
-        type?: string;
-        ignore?: string[];
-        [key: string]: unknown;
+	type?: string;
+	ignore?: string[];
+	[key: string]: unknown;
 }
 
 export type EnvEntry = EnvConfig | undefined;
-export type ManifestEnvsLegacy = string[] | Array<string | { name: string; type?: string; ignore?: string[] }>;
+export type ManifestEnvsLegacy =
+	| string[]
+	| Array<string | { name: string; type?: string; ignore?: string[] }>;
 export type ManifestEnvs = Record<string, EnvEntry> | ManifestEnvsLegacy;
 
 export interface ManifestShape {
-        id?: string;
-        name?: string;
-        environments?: ManifestEnvs;
-        [key: string]: unknown;
+	id?: string;
+	name?: string;
+	environments?: ManifestEnvs;
+	[key: string]: unknown;
 }
 
 function defaultPath(): string {
@@ -58,34 +60,36 @@ function writeYaml(file: string, manifest: ManifestShape) {
 
 /** Convert legacy list formats to the normalized map format */
 function normalizeEnvs(envs: ManifestEnvs | undefined): Record<string, EnvEntry> {
-        if (!envs) return {};
+	if (!envs) return {};
 
-        if (!Array.isArray(envs)) {
-                return { ...envs };
-        }
+	if (!Array.isArray(envs)) {
+		return { ...envs };
+	}
 
-        const out: Record<string, EnvEntry> = {};
-        for (const item of envs) {
-                if (typeof item === 'string') {
-                        out[item] = {};
-                } else if (item && typeof item === 'object') {
-                        const name = 'name' in item && typeof item.name === 'string' ? item.name : undefined;
-                        if (!name) continue;
+	const out: Record<string, EnvEntry> = {};
+	for (const item of envs) {
+		if (typeof item === 'string') {
+			out[item] = {};
+		} else if (item && typeof item === 'object') {
+			const name = 'name' in item && typeof item.name === 'string' ? item.name : undefined;
+			if (!name) continue;
 
-                        const type = 'type' in item && typeof item.type === 'string' ? item.type : undefined;
-                        const ignore =
-                                'ignore' in item && Array.isArray(item.ignore)
-                                        ? (item.ignore as string[]).filter((value): value is string => typeof value === 'string')
-                                        : undefined;
+			const type = 'type' in item && typeof item.type === 'string' ? item.type : undefined;
+			const ignore =
+				'ignore' in item && Array.isArray(item.ignore)
+					? (item.ignore as string[]).filter(
+							(value): value is string => typeof value === 'string',
+						)
+					: undefined;
 
-                        const entry: EnvConfig = {};
-                        if (type) entry.type = type;
-                        if (ignore) entry.ignore = [...ignore];
+			const entry: EnvConfig = {};
+			if (type) entry.type = type;
+			if (ignore) entry.ignore = [...ignore];
 
-                        out[name] = entry;
-                }
-        }
-        return out;
+			out[name] = entry;
+		}
+	}
+	return out;
 }
 
 export class Manifest {
@@ -112,22 +116,22 @@ export class Manifest {
 	}
 
 	/** Project name (required) */
-        static name(file = resolveManifestPath()): string {
-                const m = this.current(file);
-                if (!m.name) {
-                        fail(`Invalid project name. Please verify your Ghostable manifest at [${file}].`);
-                }
-                return m.name!;
-        }
+	static name(file = resolveManifestPath()): string {
+		const m = this.current(file);
+		if (!m.name) {
+			fail(`Invalid project name. Please verify your Ghostable manifest at [${file}].`);
+		}
+		return m.name!;
+	}
 
-        /** Return manifest data if available, or undefined when missing */
-        static data(file = resolveManifestPath()): ManifestShape | undefined {
-                try {
-                        return this.current(file);
-                } catch {
-                        return undefined;
-                }
-        }
+	/** Return manifest data if available, or undefined when missing */
+	static data(file = resolveManifestPath()): ManifestShape | undefined {
+		try {
+			return this.current(file);
+		} catch {
+			return undefined;
+		}
+	}
 
 	/** Write a fresh manifest from an API project payload */
 	static fresh(

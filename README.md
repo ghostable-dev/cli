@@ -14,11 +14,11 @@ You can specify keys per environment in `ghostable.yml → environments.<env>.ig
 
 ```yaml
 environments:
-  production:
-    type: production
-    ignore:
-      - LOCAL_DB_URL
-      - APP_DEBUG
+    production:
+        type: production
+        ignore:
+            - LOCAL_DB_URL
+            - APP_DEBUG
 ```
 
 The defaults `GHOSTABLE_CI_TOKEN` and `GHOSTABLE_MASTER_SEED` are always ignored across every environment, and any per-environment list extends that fixed set.

@@ -96,14 +96,14 @@ export function registerEnvPushCommand(program: Command) {
 			}
 
 			// 5) Read variables
-                        const { vars: envMap, snapshots } = readEnvFileSafeWithMetadata(filePath);
-                        const ignored = getIgnoredKeys(envName);
-                        const filteredVars = filterIgnoredKeys(envMap, ignored);
-                        const entries = Object.entries(filteredVars).map(([name, parsedValue]) => ({
-                                name,
-                                parsedValue,
-                                plaintext: resolvePlaintext(parsedValue, snapshots[name]),
-                        }));
+			const { vars: envMap, snapshots } = readEnvFileSafeWithMetadata(filePath);
+			const ignored = getIgnoredKeys(envName);
+			const filteredVars = filterIgnoredKeys(envMap, ignored);
+			const entries = Object.entries(filteredVars).map(([name, parsedValue]) => ({
+				name,
+				parsedValue,
+				plaintext: resolvePlaintext(parsedValue, snapshots[name]),
+			}));
 			if (!entries.length) {
 				log.warn('⚠️  No variables found in the .env file.');
 				return;

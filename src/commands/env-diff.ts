@@ -19,12 +19,12 @@ import { readEnvFileSafe, resolveEnvFile } from '../support/env-files.js';
 import type { EnvironmentSecretBundle } from '@/domain';
 
 type DiffOptions = {
-        token?: string;
-        env?: string;
-        file?: string; // optional override; else .env.<env> or .env
-        only?: string[]; // optional; diff just these keys
-        includeMeta?: boolean;
-        showIgnored?: boolean;
+	token?: string;
+	env?: string;
+	file?: string; // optional override; else .env.<env> or .env
+	only?: string[]; // optional; diff just these keys
+	includeMeta?: boolean;
+	showIgnored?: boolean;
 };
 
 export function registerEnvDiffCommand(program: Command) {
@@ -33,11 +33,11 @@ export function registerEnvDiffCommand(program: Command) {
 		.description('Show differences between your local .env and Ghostable (zero-knowledge).')
 		.option('--env <ENV>', 'Environment name (if omitted, select from manifest)')
 		.option('--file <PATH>', 'Local .env path (default: .env.<env> or .env)')
-                .option('--token <TOKEN>', 'API token (or stored session / GHOSTABLE_TOKEN)')
-                .option('--only <KEY...>', 'Only diff these keys')
-                .option('--include-meta', 'Include meta flags in bundle', false)
-                .option('--show-ignored', 'Display ignored keys', false)
-                .action(async (opts: DiffOptions) => {
+		.option('--token <TOKEN>', 'API token (or stored session / GHOSTABLE_TOKEN)')
+		.option('--only <KEY...>', 'Only diff these keys')
+		.option('--include-meta', 'Include meta flags in bundle', false)
+		.option('--show-ignored', 'Display ignored keys', false)
+		.action(async (opts: DiffOptions) => {
 			// 1) Resolve project + environment from manifest
 			let projectId: string, projectName: string, envNames: string[];
 			try {
@@ -108,93 +108,93 @@ export function registerEnvDiffCommand(program: Command) {
 			// 5) Load local .env for this env (or explicit path)
 			const workDir = resolveWorkDir();
 			const envPath = resolveEnvFile(envName!, opts.file, /* mustExist */ false);
-                        const localVars = readEnvFileSafe(envPath);
-                        // Local map assumes “not commented” for keys present in file; commented state is unknown locally.
-                        const localMap: Record<string, { value: string; commented: boolean }> = {};
-                        for (const [k, v] of Object.entries(localVars)) {
-                                localMap[k] = { value: v, commented: false };
-                        }
+			const localVars = readEnvFileSafe(envPath);
+			// Local map assumes “not commented” for keys present in file; commented state is unknown locally.
+			const localMap: Record<string, { value: string; commented: boolean }> = {};
+			for (const [k, v] of Object.entries(localVars)) {
+				localMap[k] = { value: v, commented: false };
+			}
 
-                        // 6) Apply ignore list (unless overridden by --only)
-                        const ignored = getIgnoredKeys(envName);
-                        const localFiltered = filterIgnoredKeys(localMap, ignored, opts.only);
-                        const remoteFiltered = filterIgnoredKeys(remoteMap, ignored, opts.only);
-                        const ignoredKeysUsed =
-                                opts.only && opts.only.length
-                                        ? []
-                                        : ignored.filter((key) => key in localMap || key in remoteMap);
+			// 6) Apply ignore list (unless overridden by --only)
+			const ignored = getIgnoredKeys(envName);
+			const localFiltered = filterIgnoredKeys(localMap, ignored, opts.only);
+			const remoteFiltered = filterIgnoredKeys(remoteMap, ignored, opts.only);
+			const ignoredKeysUsed =
+				opts.only && opts.only.length
+					? []
+					: ignored.filter((key) => key in localMap || key in remoteMap);
 
-                        if (opts.showIgnored) {
-                                const message = ignoredKeysUsed.length
-                                        ? `Ignored keys (${ignoredKeysUsed.length}): ${ignoredKeysUsed.join(', ')}`
-                                        : 'Ignored keys (0): none';
-                                log.info(message);
-                        }
+			if (opts.showIgnored) {
+				const message = ignoredKeysUsed.length
+					? `Ignored keys (${ignoredKeysUsed.length}): ${ignoredKeysUsed.join(', ')}`
+					: 'Ignored keys (0): none';
+				log.info(message);
+			}
 
-                        // 7) Optionally restrict to `only`
-                        const restrict = (keys: string[]) =>
-                                opts.only && opts.only.length ? keys.filter((k) => opts.only!.includes(k)) : keys;
+			// 7) Optionally restrict to `only`
+			const restrict = (keys: string[]) =>
+				opts.only && opts.only.length ? keys.filter((k) => opts.only!.includes(k)) : keys;
 
-                        // 8) Compute diff
-                        const added: string[] = [];
-                        const updated: string[] = [];
-                        const removed: string[] = [];
+			// 8) Compute diff
+			const added: string[] = [];
+			const updated: string[] = [];
+			const removed: string[] = [];
 
-                        // added/updated (present locally)
-                        for (const key of restrict(Object.keys(localFiltered))) {
-                                if (!(key in remoteFiltered)) {
-                                        added.push(key);
-                                } else {
-                                        const lv = localFiltered[key].value;
-                                        const rv = remoteFiltered[key].value;
-                                        const localCommented = localFiltered[key].commented;
-                                        const remoteCommented = remoteFiltered[key].commented;
-                                        if (lv !== rv || localCommented !== remoteCommented) {
-                                                updated.push(key);
-                                        }
-                                }
-                        }
+			// added/updated (present locally)
+			for (const key of restrict(Object.keys(localFiltered))) {
+				if (!(key in remoteFiltered)) {
+					added.push(key);
+				} else {
+					const lv = localFiltered[key].value;
+					const rv = remoteFiltered[key].value;
+					const localCommented = localFiltered[key].commented;
+					const remoteCommented = remoteFiltered[key].commented;
+					if (lv !== rv || localCommented !== remoteCommented) {
+						updated.push(key);
+					}
+				}
+			}
 
-                        // removed (present remotely, not locally)
-                        for (const key of restrict(Object.keys(remoteFiltered))) {
-                                if (!(key in localFiltered)) {
-                                        removed.push(key);
-                                }
-                        }
+			// removed (present remotely, not locally)
+			for (const key of restrict(Object.keys(remoteFiltered))) {
+				if (!(key in localFiltered)) {
+					removed.push(key);
+				}
+			}
 
-                        // 9) Render
-                        if (!added.length && !updated.length && !removed.length) {
-                                log.info('No differences detected.');
-                                return;
+			// 9) Render
+			if (!added.length && !updated.length && !removed.length) {
+				log.info('No differences detected.');
+				return;
 			}
 
 			log.info(chalk.bold(`Diff for ${projectName}:${envName}`));
-                        if (added.length) {
-                                console.log(chalk.green('\nAdded variables:'));
-                                for (const k of added) {
-                                        const v = localFiltered[k]?.value ?? '';
-                                        console.log(`  ${chalk.green('+')} ${k}=${v}`);
-                                }
-                        }
-                        if (updated.length) {
-                                console.log(chalk.yellow('\nUpdated variables:'));
-                                for (const k of updated) {
-                                        const cur = remoteFiltered[k]?.value ?? '';
-                                        const inc = localFiltered[k]?.value ?? '';
-                                        const commentChanged =
-                                                (remoteFiltered[k]?.commented ?? false) !==
-                                                (localFiltered[k]?.commented ?? false);
-                                        const note = commentChanged ? ' (commented state changed)' : '';
-                                        console.log(`  ${chalk.yellow('~')} ${k}: ${cur} -> ${inc}${note}`);
-                                }
-                        }
-                        if (removed.length) {
-                                console.log(chalk.red('\nRemoved variables:'));
-                                for (const k of removed) {
-                                        const v = remoteFiltered[k]?.value ?? '';
-                                        const comment = (remoteFiltered[k]?.commented ?? false) ? ' (commented)' : '';
-                                        console.log(`  ${chalk.red('-')} ${k}=${v}${comment}`);
-                                }
+			if (added.length) {
+				console.log(chalk.green('\nAdded variables:'));
+				for (const k of added) {
+					const v = localFiltered[k]?.value ?? '';
+					console.log(`  ${chalk.green('+')} ${k}=${v}`);
+				}
+			}
+			if (updated.length) {
+				console.log(chalk.yellow('\nUpdated variables:'));
+				for (const k of updated) {
+					const cur = remoteFiltered[k]?.value ?? '';
+					const inc = localFiltered[k]?.value ?? '';
+					const commentChanged =
+						(remoteFiltered[k]?.commented ?? false) !==
+						(localFiltered[k]?.commented ?? false);
+					const note = commentChanged ? ' (commented state changed)' : '';
+					console.log(`  ${chalk.yellow('~')} ${k}: ${cur} -> ${inc}${note}`);
+				}
+			}
+			if (removed.length) {
+				console.log(chalk.red('\nRemoved variables:'));
+				for (const k of removed) {
+					const v = remoteFiltered[k]?.value ?? '';
+					const comment = (remoteFiltered[k]?.commented ?? false) ? ' (commented)' : '';
+					console.log(`  ${chalk.red('-')} ${k}=${v}${comment}`);
+				}
 			}
 
 			console.log(''); // trailing newline
