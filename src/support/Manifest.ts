@@ -4,14 +4,23 @@ import yaml from 'js-yaml';
 
 import { resolveWorkDir } from './workdir.js';
 
-export type EnvEntry = { type?: string } | undefined;
-export type ManifestEnvsLegacy = string[] | Array<string | { name: string; type?: string }>;
+export interface EnvConfig {
+	type?: string;
+	ignore?: string[];
+	[key: string]: unknown;
+}
+
+export type EnvEntry = EnvConfig | undefined;
+export type ManifestEnvsLegacy =
+	| string[]
+	| Array<string | { name: string; type?: string; ignore?: string[] }>;
 export type ManifestEnvs = Record<string, EnvEntry> | ManifestEnvsLegacy;
 
 export interface ManifestShape {
 	id?: string;
 	name?: string;
 	environments?: ManifestEnvs;
+	[key: string]: unknown;
 }
 
 function defaultPath(): string {
@@ -66,7 +75,18 @@ function normalizeEnvs(envs: ManifestEnvs | undefined): Record<string, EnvEntry>
 			if (!name) continue;
 
 			const type = 'type' in item && typeof item.type === 'string' ? item.type : undefined;
-			out[name] = type ? { type } : {};
+			const ignore =
+				'ignore' in item && Array.isArray(item.ignore)
+					? (item.ignore as string[]).filter(
+							(value): value is string => typeof value === 'string',
+						)
+					: undefined;
+
+			const entry: EnvConfig = {};
+			if (type) entry.type = type;
+			if (ignore) entry.ignore = [...ignore];
+
+			out[name] = entry;
 		}
 	}
 	return out;
@@ -102,6 +122,15 @@ export class Manifest {
 			fail(`Invalid project name. Please verify your Ghostable manifest at [${file}].`);
 		}
 		return m.name!;
+	}
+
+	/** Return manifest data if available, or undefined when missing */
+	static data(file = resolveManifestPath()): ManifestShape | undefined {
+		try {
+			return this.current(file);
+		} catch {
+			return undefined;
+		}
 	}
 
 	/** Write a fresh manifest from an API project payload */

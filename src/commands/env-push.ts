@@ -13,6 +13,7 @@ import { GhostableClient } from '../services/GhostableClient.js';
 import { Manifest } from '../support/Manifest.js';
 import { log } from '../support/logger.js';
 import { toErrorMessage } from '../support/errors.js';
+import { getIgnoredKeys, filterIgnoredKeys } from '../support/ignore.js';
 
 import {
 	EnvVarSnapshot,
@@ -96,7 +97,9 @@ export function registerEnvPushCommand(program: Command) {
 
 			// 5) Read variables
 			const { vars: envMap, snapshots } = readEnvFileSafeWithMetadata(filePath);
-			const entries = Object.entries(envMap).map(([name, parsedValue]) => ({
+			const ignored = getIgnoredKeys(envName);
+			const filteredVars = filterIgnoredKeys(envMap, ignored);
+			const entries = Object.entries(filteredVars).map(([name, parsedValue]) => ({
 				name,
 				parsedValue,
 				plaintext: resolvePlaintext(parsedValue, snapshots[name]),

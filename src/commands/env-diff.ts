@@ -10,6 +10,7 @@ import { GhostableClient } from '../services/GhostableClient.js';
 import { log } from '../support/logger.js';
 import { toErrorMessage } from '../support/errors.js';
 import { resolveWorkDir } from '../support/workdir.js';
+import { getIgnoredKeys, filterIgnoredKeys } from '../support/ignore.js';
 
 import { initSodium } from '../crypto.js';
 import { decryptBundle } from '../support/deploy-helpers.js';
@@ -23,6 +24,7 @@ type DiffOptions = {
 	file?: string; // optional override; else .env.<env> or .env
 	only?: string[]; // optional; diff just these keys
 	includeMeta?: boolean;
+	showIgnored?: boolean;
 };
 
 export function registerEnvDiffCommand(program: Command) {
@@ -34,6 +36,7 @@ export function registerEnvDiffCommand(program: Command) {
 		.option('--token <TOKEN>', 'API token (or stored session / GHOSTABLE_TOKEN)')
 		.option('--only <KEY...>', 'Only diff these keys')
 		.option('--include-meta', 'Include meta flags in bundle', false)
+		.option('--show-ignored', 'Display ignored keys', false)
 		.action(async (opts: DiffOptions) => {
 			// 1) Resolve project + environment from manifest
 			let projectId: string, projectName: string, envNames: string[];
@@ -112,24 +115,40 @@ export function registerEnvDiffCommand(program: Command) {
 				localMap[k] = { value: v, commented: false };
 			}
 
-			// 6) Optionally restrict to `only`
+			// 6) Apply ignore list (unless overridden by --only)
+			const ignored = getIgnoredKeys(envName);
+			const localFiltered = filterIgnoredKeys(localMap, ignored, opts.only);
+			const remoteFiltered = filterIgnoredKeys(remoteMap, ignored, opts.only);
+			const ignoredKeysUsed =
+				opts.only && opts.only.length
+					? []
+					: ignored.filter((key) => key in localMap || key in remoteMap);
+
+			if (opts.showIgnored) {
+				const message = ignoredKeysUsed.length
+					? `Ignored keys (${ignoredKeysUsed.length}): ${ignoredKeysUsed.join(', ')}`
+					: 'Ignored keys (0): none';
+				log.info(message);
+			}
+
+			// 7) Optionally restrict to `only`
 			const restrict = (keys: string[]) =>
 				opts.only && opts.only.length ? keys.filter((k) => opts.only!.includes(k)) : keys;
 
-			// 7) Compute diff
+			// 8) Compute diff
 			const added: string[] = [];
 			const updated: string[] = [];
 			const removed: string[] = [];
 
 			// added/updated (present locally)
-			for (const key of restrict(Object.keys(localMap))) {
-				if (!(key in remoteMap)) {
+			for (const key of restrict(Object.keys(localFiltered))) {
+				if (!(key in remoteFiltered)) {
 					added.push(key);
 				} else {
-					const lv = localMap[key].value;
-					const rv = remoteMap[key].value;
-					const localCommented = localMap[key].commented;
-					const remoteCommented = remoteMap[key].commented;
+					const lv = localFiltered[key].value;
+					const rv = remoteFiltered[key].value;
+					const localCommented = localFiltered[key].commented;
+					const remoteCommented = remoteFiltered[key].commented;
 					if (lv !== rv || localCommented !== remoteCommented) {
 						updated.push(key);
 					}
@@ -137,13 +156,13 @@ export function registerEnvDiffCommand(program: Command) {
 			}
 
 			// removed (present remotely, not locally)
-			for (const key of restrict(Object.keys(remoteMap))) {
-				if (!(key in localMap)) {
+			for (const key of restrict(Object.keys(remoteFiltered))) {
+				if (!(key in localFiltered)) {
 					removed.push(key);
 				}
 			}
 
-			// 8) Render
+			// 9) Render
 			if (!added.length && !updated.length && !removed.length) {
 				log.info('No differences detected.');
 				return;
@@ -153,17 +172,18 @@ export function registerEnvDiffCommand(program: Command) {
 			if (added.length) {
 				console.log(chalk.green('\nAdded variables:'));
 				for (const k of added) {
-					const v = localMap[k]?.value ?? '';
+					const v = localFiltered[k]?.value ?? '';
 					console.log(`  ${chalk.green('+')} ${k}=${v}`);
 				}
 			}
 			if (updated.length) {
 				console.log(chalk.yellow('\nUpdated variables:'));
 				for (const k of updated) {
-					const cur = remoteMap[k]?.value ?? '';
-					const inc = localMap[k]?.value ?? '';
+					const cur = remoteFiltered[k]?.value ?? '';
+					const inc = localFiltered[k]?.value ?? '';
 					const commentChanged =
-						(remoteMap[k]?.commented ?? false) !== (localMap[k]?.commented ?? false);
+						(remoteFiltered[k]?.commented ?? false) !==
+						(localFiltered[k]?.commented ?? false);
 					const note = commentChanged ? ' (commented state changed)' : '';
 					console.log(`  ${chalk.yellow('~')} ${k}: ${cur} -> ${inc}${note}`);
 				}
@@ -171,8 +191,8 @@ export function registerEnvDiffCommand(program: Command) {
 			if (removed.length) {
 				console.log(chalk.red('\nRemoved variables:'));
 				for (const k of removed) {
-					const v = remoteMap[k]?.value ?? '';
-					const comment = (remoteMap[k]?.commented ?? false) ? ' (commented)' : '';
+					const v = remoteFiltered[k]?.value ?? '';
+					const comment = (remoteFiltered[k]?.commented ?? false) ? ' (commented)' : '';
 					console.log(`  ${chalk.red('-')} ${k}=${v}${comment}`);
 				}
 			}
