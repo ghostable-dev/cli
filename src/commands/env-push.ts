@@ -24,7 +24,7 @@ import { buildSecretPayload } from '../support/secret-payload.js';
 
 import type { ValidatorRecord } from '@/types';
 
-type PushOptions = {
+export type PushOptions = {
 	api?: string;
 	token?: string;
 	file?: string; // optional override; else .env.<env> or .env
@@ -57,131 +57,133 @@ export function registerEnvPushCommand(program: Command) {
 		.option('-y, --assume-yes', 'Skip confirmation prompts', false)
 		.option('--sync', 'Prune server variables not present locally', false)
 		.option('--replace', 'Alias for --sync', false)
-		.option('--prune-server', 'Alias for --sync', false)
-		.action(async (opts: PushOptions) => {
-			// 1) Load manifest
-			let projectId: string, projectName: string, manifestEnvs: string[];
-			try {
-				projectId = Manifest.id();
-				projectName = Manifest.name();
-				manifestEnvs = Manifest.environmentNames();
-			} catch (error) {
-				log.error(toErrorMessage(error));
-				process.exit(1);
-				return;
-			}
-			if (!manifestEnvs.length) {
-				log.error('❌ No environments defined in ghostable.yml.');
-				process.exit(1);
-			}
+                .option('--prune-server', 'Alias for --sync', false)
+                .action(async (opts: PushOptions) => runEnvPush(opts));
+}
 
-			// 2) Pick env (flag → prompt)
-			let envName = opts.env;
-			if (!envName) {
-				envName = await select({
-					message: 'Which environment would you like to push?',
-					choices: manifestEnvs.sort().map((n) => ({ name: n, value: n })),
-				});
-			}
+export async function runEnvPush(opts: PushOptions): Promise<void> {
+        // 1) Load manifest
+        let projectId: string, projectName: string, manifestEnvs: string[];
+        try {
+                projectId = Manifest.id();
+                projectName = Manifest.name();
+                manifestEnvs = Manifest.environmentNames();
+        } catch (error) {
+                log.error(toErrorMessage(error));
+                process.exit(1);
+                return;
+        }
+        if (!manifestEnvs.length) {
+                log.error('❌ No environments defined in ghostable.yml.');
+                process.exit(1);
+        }
 
-			// 3) Resolve token, and org from session if needed
-			const sessionSvc = new SessionService();
-			const sess = await sessionSvc.load();
-			if (!sess?.accessToken) {
-				log.error('❌ No API token. Run `ghostable login`.');
-				process.exit(1);
-			}
-			let token = sess.accessToken;
-			let orgId = sess.organizationId;
+        // 2) Pick env (flag → prompt)
+        let envName = opts.env;
+        if (!envName) {
+                envName = await select({
+                        message: 'Which environment would you like to push?',
+                        choices: manifestEnvs.sort().map((n) => ({ name: n, value: n })),
+                });
+        }
 
-			// 4) Resolve .env file path
-			const filePath = resolveEnvFile(envName!, opts.file, true);
-			if (!fs.existsSync(filePath)) {
-				log.error(`❌ .env file not found at ${filePath}`);
-				process.exit(1);
-			}
+        // 3) Resolve token, and org from session if needed
+        const sessionSvc = new SessionService();
+        const sess = await sessionSvc.load();
+        if (!sess?.accessToken) {
+                log.error('❌ No API token. Run `ghostable login`.');
+                process.exit(1);
+        }
+        let token = sess.accessToken;
+        let orgId = sess.organizationId;
 
-			// 5) Read variables
-			const { vars: envMap, snapshots } = readEnvFileSafeWithMetadata(filePath);
-			const ignored = getIgnoredKeys(envName);
-			const filteredVars = filterIgnoredKeys(envMap, ignored);
-			const sync = Boolean(opts.sync || opts.replace || opts.pruneServer);
+        // 4) Resolve .env file path
+        const filePath = resolveEnvFile(envName!, opts.file, true);
+        if (!fs.existsSync(filePath)) {
+                log.error(`❌ .env file not found at ${filePath}`);
+                process.exit(1);
+        }
 
-			const entries = Object.entries(filteredVars).map(([name, parsedValue]) => ({
-				name,
-				parsedValue,
-				plaintext: resolvePlaintext(parsedValue, snapshots[name]),
-			}));
-			if (!entries.length) {
-				log.warn('⚠️  No variables found in the .env file.');
-				return;
-			}
+        // 5) Read variables
+        const { vars: envMap, snapshots } = readEnvFileSafeWithMetadata(filePath);
+        const ignored = getIgnoredKeys(envName);
+        const filteredVars = filterIgnoredKeys(envMap, ignored);
+        const sync = Boolean(opts.sync || opts.replace || opts.pruneServer);
 
-			if (!opts.assumeYes) {
-				log.info(
-					`About to push ${entries.length} variables from ${chalk.bold(filePath)}\n` +
-						`→ project ${chalk.bold(projectName)} (${projectId})\n` +
-						(orgId ? `→ org ${chalk.bold(orgId)}\n` : ''),
-				);
-			}
+        const entries = Object.entries(filteredVars).map(([name, parsedValue]) => ({
+                name,
+                parsedValue,
+                plaintext: resolvePlaintext(parsedValue, snapshots[name]),
+        }));
+        if (!entries.length) {
+                log.warn('⚠️  No variables found in the .env file.');
+                return;
+        }
 
-			// 6) Prep crypto + client
-			await initSodium(); // no-op with stablelib
-			const keyBundle = await loadOrCreateKeys();
-			const masterSeed = Buffer.from(keyBundle.masterSeedB64.replace(/^b64:/, ''), 'base64');
-			const edPriv = Buffer.from(keyBundle.ed25519PrivB64.replace(/^b64:/, ''), 'base64');
+        if (!opts.assumeYes) {
+                log.info(
+                        `About to push ${entries.length} variables from ${chalk.bold(filePath)}\n` +
+                                `→ project ${chalk.bold(projectName)} (${projectId})\n` +
+                                (orgId ? `→ org ${chalk.bold(orgId)}\n` : ''),
+                );
+        }
 
-			const client = GhostableClient.unauthenticated(config.apiBase).withToken(token);
+        // 6) Prep crypto + client
+        await initSodium(); // no-op with stablelib
+        const keyBundle = await loadOrCreateKeys();
+        const masterSeed = Buffer.from(keyBundle.masterSeedB64.replace(/^b64:/, ''), 'base64');
+        const edPriv = Buffer.from(keyBundle.ed25519PrivB64.replace(/^b64:/, ''), 'base64');
 
-			// 7) Encrypt + push per variable
-			const tasks = new Listr(
-				entries.map(({ name, parsedValue, plaintext }) => ({
-					title: `${name}`,
-					task: async (_ctx, task) => {
-						const validators: ValidatorRecord = {
-							non_empty: parsedValue.length > 0,
-						};
-						if (name === 'APP_KEY') {
-							validators.regex = {
-								id: 'base64_44char_v1',
-								ok: /^base64:/.test(parsedValue) && parsedValue.length >= 44,
-							};
-							validators.length = parsedValue.length;
-						}
+        const client = GhostableClient.unauthenticated(config.apiBase).withToken(token);
 
-						const payload = await buildSecretPayload({
-							name,
-							env: envName!, // from manifest selection
-							org: orgId ?? '', // server can infer if token is org-scoped
-							project: projectId, // from manifest
-							plaintext,
-							masterSeed,
-							edPriv,
-							validators,
-							// ifVersion?: number  // add later for optimistic concurrency
-						});
+        // 7) Encrypt + push per variable
+        const tasks = new Listr(
+                entries.map(({ name, parsedValue, plaintext }) => ({
+                        title: `${name}`,
+                        task: async (_ctx, task) => {
+                                const validators: ValidatorRecord = {
+                                        non_empty: parsedValue.length > 0,
+                                };
+                                if (name === 'APP_KEY') {
+                                        validators.regex = {
+                                                id: 'base64_44char_v1',
+                                                ok: /^base64:/.test(parsedValue) && parsedValue.length >= 44,
+                                        };
+                                        validators.length = parsedValue.length;
+                                }
 
-						await client.uploadSecret(
-							projectId,
-							envName,
-							payload,
-							sync ? { sync: true } : undefined,
-						);
-						task.title = `${name}  ${chalk.green('✓')}`;
-					},
-				})),
-				{ concurrent: false, exitOnError: true },
-			);
+                                const payload = await buildSecretPayload({
+                                        name,
+                                        env: envName!, // from manifest selection
+                                        org: orgId ?? '', // server can infer if token is org-scoped
+                                        project: projectId, // from manifest
+                                        plaintext,
+                                        masterSeed,
+                                        edPriv,
+                                        validators,
+                                        // ifVersion?: number  // add later for optimistic concurrency
+                                });
 
-			try {
-				await tasks.run();
-				log.ok(
-					`\n✅ Pushed ${entries.length} variables to ${projectId}:${envName} (encrypted locally).`,
-				);
-			} catch (error) {
-				log.error(error);
-				log.error(`\n❌ env:push failed: ${toErrorMessage(error)}`);
-				process.exit(1);
-			}
-		});
+                                await client.uploadSecret(
+                                        projectId,
+                                        envName,
+                                        payload,
+                                        sync ? { sync: true } : undefined,
+                                );
+                                task.title = `${name}  ${chalk.green('✓')}`;
+                        },
+                })),
+                { concurrent: false, exitOnError: true },
+        );
+
+        try {
+                await tasks.run();
+                log.ok(
+                        `\n✅ Pushed ${entries.length} variables to ${projectId}:${envName} (encrypted locally).`,
+                );
+        } catch (error) {
+                log.error(error);
+                log.error(`\n❌ env:push failed: ${toErrorMessage(error)}`);
+                process.exit(1);
+        }
 }
