@@ -5,7 +5,11 @@ import os from 'node:os';
 import path from 'node:path';
 import crypto from 'node:crypto';
 
-import { writeEnvFile, readEnvFileSafeWithMetadata, buildPreservedSnapshot } from '../support/env-files.js';
+import {
+	writeEnvFile,
+	readEnvFileSafeWithMetadata,
+	buildPreservedSnapshot,
+} from '../support/env-files.js';
 import {
 	createGhostableClient,
 	decryptBundle,
@@ -131,12 +135,12 @@ async function deployStandardVariables(
 	log.info(`Pulling existing environment "${vaporEnv}" from Vapor`);
 	vapor.ensureSuccess(vapor.tryRun(['env:pull', vaporEnv]), `pull environment "${vaporEnv}"`);
 
-        const envPath = path.resolve(resolveWorkDir(), `.env.${vaporEnv}`);
-        const existingMeta = readEnvFileSafeWithMetadata(envPath);
-        const existing = existingMeta.vars;
-        const merged = { ...existing, ...variables };
-        const preserved = buildPreservedSnapshot(existingMeta, variables);
-        writeEnvFile(envPath, merged, { preserve: preserved });
+	const envPath = path.resolve(resolveWorkDir(), `.env.${vaporEnv}`);
+	const existingMeta = readEnvFileSafeWithMetadata(envPath);
+	const existing = existingMeta.vars;
+	const merged = { ...existing, ...variables };
+	const preserved = buildPreservedSnapshot(existingMeta, variables);
+	writeEnvFile(envPath, merged, { preserve: preserved });
 
 	log.info(`Pushing updated environment "${vaporEnv}" to Vapor`);
 	vapor.ensureSuccess(vapor.tryRun(['env:push', vaporEnv]), `push environment "${vaporEnv}"`);

@@ -4,7 +4,11 @@ import path from 'node:path';
 import fs from 'node:fs';
 
 import { b64, randomBytes } from '../crypto.js';
-import { writeEnvFile, readEnvFileSafeWithMetadata, buildPreservedSnapshot } from '../support/env-files.js';
+import {
+	writeEnvFile,
+	readEnvFileSafeWithMetadata,
+	buildPreservedSnapshot,
+} from '../support/env-files.js';
 import { artisan } from '../support/artisan.js';
 import {
 	createGhostableClient,
@@ -83,12 +87,12 @@ export function registerDeployForgeCommand(program: Command) {
 				// 4) Write .env in working directory (Forge flow expects plain .env here)
 				const workDir = resolveWorkDir();
 				const envPath = path.resolve(workDir, '.env');
-                                const previousMeta = readEnvFileSafeWithMetadata(envPath);
-                                const previous = previousMeta.vars;
-                                const combined = { ...previous, ...merged };
-                                const preserved = buildPreservedSnapshot(previousMeta, merged);
+				const previousMeta = readEnvFileSafeWithMetadata(envPath);
+				const previous = previousMeta.vars;
+				const combined = { ...previous, ...merged };
+				const preserved = buildPreservedSnapshot(previousMeta, merged);
 
-                                writeEnvFile(envPath, combined, { preserve: preserved });
+				writeEnvFile(envPath, combined, { preserve: preserved });
 				log.ok(`✅ Wrote ${Object.keys(merged).length} keys → ${envPath}`);
 
 				// 5) If --encrypted, generate base64 key, run php artisan env:encrypt, and persist key in .env
@@ -105,7 +109,7 @@ export function registerDeployForgeCommand(program: Command) {
 
 					// ensure key is present in the plain .env file
 					combined['LARAVEL_ENV_ENCRYPTION_KEY'] = envKeyB64;
-                                        writeEnvFile(envPath, combined, { preserve: preserved });
+					writeEnvFile(envPath, combined, { preserve: preserved });
 					log.ok(`🔑 Set LARAVEL_ENV_ENCRYPTION_KEY in ${path.basename(envPath)}`);
 
 					// Create encrypted blob using Laravel's own command
