@@ -18,10 +18,6 @@ export interface ManifestShape {
         id?: string;
         name?: string;
         environments?: ManifestEnvs;
-        ghostable?: {
-                ignore?: string[];
-                [key: string]: unknown;
-        };
         [key: string]: unknown;
 }
 

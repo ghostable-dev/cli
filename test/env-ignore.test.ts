@@ -185,7 +185,7 @@ describe('env:diff ignore behaviour', () => {
         it('hides ignored keys and prints them with --show-ignored', async () => {
                 localEnvVars = {
                         FOO: 'local-value',
-                        GHOSTABLE_TOKEN: 'local-token',
+                        GHOSTABLE_CI_TOKEN: 'local-token',
                         CUSTOM_TOKEN: 'custom-local',
                 };
                 snapshots = Object.fromEntries(
@@ -195,7 +195,7 @@ describe('env:diff ignore behaviour', () => {
                         { entry: { name: 'FOO', meta: {} }, value: 'remote-value' },
                         { entry: { name: 'BAR', meta: {} }, value: 'remote-bar' },
                         { entry: { name: 'CUSTOM_TOKEN', meta: {} }, value: 'remote-custom' },
-                        { entry: { name: 'GHOSTABLE_TOKEN', meta: {} }, value: 'remote-token' },
+                        { entry: { name: 'GHOSTABLE_CI_TOKEN', meta: {} }, value: 'remote-token' },
                 ];
 
                 const consoleLog = vi.spyOn(console, 'log').mockImplementation(() => {});
@@ -215,16 +215,16 @@ describe('env:diff ignore behaviour', () => {
 
                 const combinedOutput = consoleLog.mock.calls.flat().join(' ');
                 expect(combinedOutput).toContain('FOO');
-                expect(combinedOutput).not.toContain('GHOSTABLE_TOKEN');
+                expect(combinedOutput).not.toContain('GHOSTABLE_CI_TOKEN');
                 expect(combinedOutput).not.toContain('CUSTOM_TOKEN');
-                expect(logOutputs.info).toContain('Ignored keys (2): GHOSTABLE_TOKEN, CUSTOM_TOKEN');
+                expect(logOutputs.info).toContain('Ignored keys (2): GHOSTABLE_CI_TOKEN, CUSTOM_TOKEN');
 
                 consoleLog.mockRestore();
         });
 
         it('--only overrides ignore list', async () => {
-                localEnvVars = { GHOSTABLE_TOKEN: 'only-token' };
-                snapshots = { GHOSTABLE_TOKEN: { rawValue: 'only-token' } };
+                localEnvVars = { GHOSTABLE_CI_TOKEN: 'only-token' };
+                snapshots = { GHOSTABLE_CI_TOKEN: { rawValue: 'only-token' } };
                 decryptedSecrets = [];
 
                 const consoleLog = vi.spyOn(console, 'log').mockImplementation(() => {});
@@ -240,21 +240,27 @@ describe('env:diff ignore behaviour', () => {
                         '--token',
                         'api-token',
                         '--only',
-                        'GHOSTABLE_TOKEN',
+                        'GHOSTABLE_CI_TOKEN',
                         '--show-ignored',
                 ]);
 
                 const combinedOutput = consoleLog.mock.calls.flat().join(' ');
-                expect(combinedOutput).toContain('GHOSTABLE_TOKEN');
+                expect(combinedOutput).toContain('GHOSTABLE_CI_TOKEN');
                 expect(logOutputs.info).toContain('Ignored keys (0): none');
 
                 consoleLog.mockRestore();
         });
 
-        it('uses default ignores when manifest omit ghostable section', async () => {
-                manifestData = { id: 'project-id', name: 'Project' };
-                localEnvVars = { NODE_ENV: 'development' };
-                snapshots = { NODE_ENV: { rawValue: 'development' } };
+        it('uses default ignores when manifest omits environment ignore list', async () => {
+                manifestData = {
+                        id: 'project-id',
+                        name: 'Project',
+                        environments: {
+                                prod: {},
+                        },
+                };
+                localEnvVars = { GHOSTABLE_MASTER_SEED: 'seed' };
+                snapshots = { GHOSTABLE_MASTER_SEED: { rawValue: 'seed' } };
                 decryptedSecrets = [];
 
                 const consoleLog = vi.spyOn(console, 'log').mockImplementation(() => {});
@@ -272,9 +278,9 @@ describe('env:diff ignore behaviour', () => {
                         '--show-ignored',
                 ]);
 
-                expect(logOutputs.info).toContain('Ignored keys (1): NODE_ENV');
+                expect(logOutputs.info).toContain('Ignored keys (1): GHOSTABLE_MASTER_SEED');
                 const combinedOutput = consoleLog.mock.calls.flat().join(' ');
-                expect(combinedOutput).not.toContain('NODE_ENV');
+                expect(combinedOutput).not.toContain('GHOSTABLE_MASTER_SEED');
 
                 consoleLog.mockRestore();
         });
@@ -284,12 +290,12 @@ describe('env:push ignore behaviour', () => {
         it('skips ignored keys when uploading', async () => {
                 localEnvVars = {
                         FOO: 'value',
-                        APP_DEBUG: 'true',
+                        GHOSTABLE_MASTER_SEED: 'true',
                         CUSTOM_TOKEN: 'custom',
                 };
                 snapshots = {
                         FOO: { rawValue: 'value' },
-                        APP_DEBUG: { rawValue: 'true' },
+                        GHOSTABLE_MASTER_SEED: { rawValue: 'true' },
                         CUSTOM_TOKEN: { rawValue: 'custom' },
                 };
 
@@ -325,7 +331,7 @@ describe('env:pull ignore behaviour', () => {
                                 },
                                 {
                                         env: 'prod',
-                                        name: 'GHOSTABLE_TOKEN',
+                                        name: 'GHOSTABLE_CI_TOKEN',
                                         ciphertext: 'token-value',
                                         nonce: 'nonce',
                                         alg: 'xchacha20',
@@ -343,8 +349,8 @@ describe('env:pull ignore behaviour', () => {
                                 },
                                 {
                                         env: 'prod',
-                                        name: 'NODE_ENV',
-                                        ciphertext: 'production',
+                                        name: 'GHOSTABLE_MASTER_SEED',
+                                        ciphertext: 'seed',
                                         nonce: 'nonce',
                                         alg: 'xchacha20',
                                         aad: {},
@@ -369,9 +375,9 @@ describe('env:pull ignore behaviour', () => {
                 expect(writeFileCalls).toHaveLength(1);
                 const [{ content }] = writeFileCalls;
                 expect(content).toContain('FOO=foo-value');
-                expect(content).not.toContain('GHOSTABLE_TOKEN');
-                expect(content).not.toContain('NODE_ENV');
+                expect(content).not.toContain('GHOSTABLE_CI_TOKEN');
+                expect(content).not.toContain('GHOSTABLE_MASTER_SEED');
                 expect(content).not.toContain('CUSTOM_TOKEN');
-                expect(logOutputs.info).toContain('Ignored keys (3): GHOSTABLE_TOKEN, NODE_ENV, CUSTOM_TOKEN');
+                expect(logOutputs.info).toContain('Ignored keys (3): GHOSTABLE_CI_TOKEN, GHOSTABLE_MASTER_SEED, CUSTOM_TOKEN');
         });
 });

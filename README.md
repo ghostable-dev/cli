@@ -17,9 +17,8 @@ environments:
   production:
     type: production
     ignore:
-      - GHOSTABLE_TOKEN
       - LOCAL_DB_URL
       - APP_DEBUG
 ```
 
-Default ignored keys (`GHOSTABLE_TOKEN`, `APP_DEBUG`, `LOCAL_DB_URL`, `NODE_ENV`) still apply across environments, and any per-environment list extends that default set.
+The defaults `GHOSTABLE_CI_TOKEN` and `GHOSTABLE_MASTER_SEED` are always ignored across every environment, and any per-environment list extends that fixed set.
