@@ -12,16 +12,18 @@ import { loadOrCreateKeys } from '../keys.js';
 import { log } from '../support/logger.js';
 import { toErrorMessage } from '../support/errors.js';
 import { resolveWorkDir } from '../support/workdir.js';
+import { getIgnoredKeys, filterIgnoredKeys } from '../support/ignore.js';
 
 import type { EnvironmentSecret, EnvironmentSecretBundle } from '@/domain';
 
 type PullOptions = {
 	token?: string;
 	env?: string;
-	file?: string; // output path; default .env.<env> or .env
-	only?: string[]; // repeatable: --only KEY --only OTHER
-	includeMeta?: boolean;
-	dryRun?: boolean; // don't write file; just show summary
+        file?: string; // output path; default .env.<env> or .env
+        only?: string[]; // repeatable: --only KEY --only OTHER
+        includeMeta?: boolean;
+        dryRun?: boolean; // don't write file; just show summary
+        showIgnored?: boolean;
 };
 
 function resolveOutputPath(envName: string | undefined, explicit?: string): string {
@@ -43,10 +45,11 @@ export function registerEnvPullCommand(program: Command) {
 		.option('--env <ENV>', 'Environment name (if omitted, select from manifest)')
 		.option('--file <PATH>', 'Output file (default: .env.<env> or .env)')
 		.option('--token <TOKEN>', 'API token (or stored session / GHOSTABLE_TOKEN)')
-		.option('--only <KEY...>', 'Only include these keys')
-		.option('--include-meta', 'Include meta flags in bundle', false)
-		.option('--dry-run', 'Do not write file; just report', false)
-		.action(async (opts: PullOptions) => {
+                .option('--only <KEY...>', 'Only include these keys')
+                .option('--include-meta', 'Include meta flags in bundle', false)
+                .option('--dry-run', 'Do not write file; just report', false)
+                .option('--show-ignored', 'Display ignored keys', false)
+                .action(async (opts: PullOptions) => {
 			// 1) Load manifest (project + envs)
 			let projectId: string, projectName: string, envNames: string[];
 			try {
@@ -119,8 +122,8 @@ export function registerEnvPullCommand(program: Command) {
 				byEnv.get(entry.env)!.push(entry);
 			}
 
-			const merged: Record<string, string> = {};
-			const commentFlags: Record<string, boolean> = {};
+                        const merged: Record<string, string> = {};
+                        const commentFlags: Record<string, boolean> = {};
 
 			for (const layer of chainOrder) {
 				const entries: EnvironmentSecret[] = byEnv.get(layer) || [];
@@ -145,29 +148,44 @@ export function registerEnvPullCommand(program: Command) {
 						commentFlags[entry.name] = Boolean(entry.meta?.is_commented);
 					} catch {
 						log.warn(`⚠️ Could not decrypt ${entry.name}; skipping`);
-					}
-				}
-			}
+                                        }
+                                }
+                        }
 
-			// 7) Render dotenv
-			const lines = Object.keys(merged)
-				.sort((a, b) => a.localeCompare(b))
-				.map((k) => lineForDotenv(k, merged[k], commentFlags[k]));
+                        const ignored = getIgnoredKeys();
+                        const filteredMerged = filterIgnoredKeys(merged, ignored, opts.only);
+                        const filteredComments = filterIgnoredKeys(commentFlags, ignored, opts.only);
+                        const ignoredKeysUsed =
+                                opts.only && opts.only.length
+                                        ? []
+                                        : ignored.filter((key) => key in merged);
 
-			const outputPath = resolveOutputPath(envName!, opts.file);
-			const content = lines.join('\n') + '\n';
+                        if (opts.showIgnored) {
+                                const message = ignoredKeysUsed.length
+                                        ? `Ignored keys (${ignoredKeysUsed.length}): ${ignoredKeysUsed.join(', ')}`
+                                        : 'Ignored keys (0): none';
+                                log.info(message);
+                        }
 
-			if (opts.dryRun) {
-				log.info(
-					`Dry run: would write ${Object.keys(merged).length} keys to ${outputPath}`,
-				);
-				process.exit(0);
-			}
+                        // 7) Render dotenv
+                        const lines = Object.keys(filteredMerged)
+                                .sort((a, b) => a.localeCompare(b))
+                                .map((k) => lineForDotenv(k, filteredMerged[k], filteredComments[k]));
 
-			fs.writeFileSync(outputPath, content, 'utf8');
+                        const outputPath = resolveOutputPath(envName!, opts.file);
+                        const content = lines.join('\n') + '\n';
 
-			log.ok(
-				`✅ Wrote ${Object.keys(merged).length} keys to ${outputPath} (decrypted & merged locally for ${projectName}:${envName}).`,
-			);
-		});
+                        if (opts.dryRun) {
+                                log.info(
+                                        `Dry run: would write ${Object.keys(filteredMerged).length} keys to ${outputPath}`,
+                                );
+                                process.exit(0);
+                        }
+
+                        fs.writeFileSync(outputPath, content, 'utf8');
+
+                        log.ok(
+                                `✅ Wrote ${Object.keys(filteredMerged).length} keys to ${outputPath} (decrypted & merged locally for ${projectName}:${envName}).`,
+                        );
+                });
 }

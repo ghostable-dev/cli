@@ -9,9 +9,14 @@ export type ManifestEnvsLegacy = string[] | Array<string | { name: string; type?
 export type ManifestEnvs = Record<string, EnvEntry> | ManifestEnvsLegacy;
 
 export interface ManifestShape {
-	id?: string;
-	name?: string;
-	environments?: ManifestEnvs;
+        id?: string;
+        name?: string;
+        environments?: ManifestEnvs;
+        ghostable?: {
+                ignore?: string[];
+                [key: string]: unknown;
+        };
+        [key: string]: unknown;
 }
 
 function defaultPath(): string {
@@ -96,13 +101,22 @@ export class Manifest {
 	}
 
 	/** Project name (required) */
-	static name(file = resolveManifestPath()): string {
-		const m = this.current(file);
-		if (!m.name) {
-			fail(`Invalid project name. Please verify your Ghostable manifest at [${file}].`);
-		}
-		return m.name!;
-	}
+        static name(file = resolveManifestPath()): string {
+                const m = this.current(file);
+                if (!m.name) {
+                        fail(`Invalid project name. Please verify your Ghostable manifest at [${file}].`);
+                }
+                return m.name!;
+        }
+
+        /** Return manifest data if available, or undefined when missing */
+        static data(file = resolveManifestPath()): ManifestShape | undefined {
+                try {
+                        return this.current(file);
+                } catch {
+                        return undefined;
+                }
+        }
 
 	/** Write a fresh manifest from an API project payload */
 	static fresh(
