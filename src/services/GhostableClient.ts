@@ -11,6 +11,8 @@ import {
 
 import type {
 	EnvironmentJson,
+	EnvironmentKeysResponse,
+	EnvironmentKeysResponseJson,
 	EnvironmentSecretBundleJson,
 	EnvironmentSuggestedNameJson,
 	EnvironmentTypeJson,
@@ -18,6 +20,7 @@ import type {
 	ProjectJson,
 	SignedEnvironmentSecretUploadRequest,
 } from '@/types';
+import { environmentKeysFromJSON } from '@/types';
 
 type LoginResponse = { token?: string; two_factor?: boolean };
 type ListResp<T> = { data?: T[] };
@@ -139,6 +142,17 @@ export class GhostableClient {
 		);
 
 		return EnvironmentSecretBundle.fromJSON(json);
+	}
+
+	async getEnvironmentKeys(projectId: string, envName: string): Promise<EnvironmentKeysResponse> {
+		const p = encodeURIComponent(projectId);
+		const e = encodeURIComponent(envName);
+
+		const json = await this.http.get<EnvironmentKeysResponseJson>(
+			`/projects/${p}/environments/${e}/keys`,
+		);
+
+		return environmentKeysFromJSON(json);
 	}
 
 	async deploy(opts?: {

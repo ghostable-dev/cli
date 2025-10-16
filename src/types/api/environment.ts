@@ -111,6 +111,65 @@ export type EnvironmentSecretBundleJson = {
 };
 
 /**
+ * Lightweight metadata for a single environment variable (no values).
+ * Returned by GET /projects/{projectId}/environments/{envName}/keys
+ */
+export type EnvironmentKeySummaryJson = {
+	name: string;
+	/** Opaque version identifier (number or string depending on backend). */
+	version: number | string | null;
+	/** ISO8601 timestamp or null if unknown. */
+	updated_at: string | null;
+	/** Email of the last updater (if available). */
+	updated_by_email: string | null;
+};
+
+export type EnvironmentKeysResponseJson = {
+	project_id: string;
+	environment: string;
+	count: number;
+	data: EnvironmentKeySummaryJson[];
+};
+
+/** Camel-cased client shapes */
+export type EnvironmentKeySummary = {
+	name: string;
+	version: number | string | null;
+	updatedAt: string | null;
+	updatedByEmail: string | null;
+};
+
+export type EnvironmentKeysResponse = {
+	projectId: string;
+	environment: string;
+	count: number;
+	data: EnvironmentKeySummary[];
+};
+
+/** JSON → TS mappers */
+export function environmentKeysFromJSON(
+	json: EnvironmentKeysResponseJson,
+): EnvironmentKeysResponse {
+	return {
+		projectId: json.project_id,
+		environment: json.environment,
+		count: json.count,
+		data: json.data.map(environmentKeySummaryFromJSON),
+	};
+}
+
+export function environmentKeySummaryFromJSON(
+	item: EnvironmentKeySummaryJson,
+): EnvironmentKeySummary {
+	return {
+		name: item.name,
+		version: item.version ?? null,
+		updatedAt: item.updated_at ?? null,
+		updatedByEmail: item.updated_by_email ?? null,
+	};
+}
+
+/**
  * Validator claims attached by the client during upload.
  */
 export type SecretUploadValidators = Record<string, unknown>;
