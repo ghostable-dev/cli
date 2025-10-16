@@ -152,7 +152,7 @@ export function registerEnvPullCommand(program: Command) {
                                 }
                         }
 
-                        const ignored = getIgnoredKeys();
+                        const ignored = getIgnoredKeys(envName);
                         const filteredMerged = filterIgnoredKeys(merged, ignored, opts.only);
                         const filteredComments = filterIgnoredKeys(commentFlags, ignored, opts.only);
                         const ignoredKeysUsed =

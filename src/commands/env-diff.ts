@@ -116,7 +116,7 @@ export function registerEnvDiffCommand(program: Command) {
                         }
 
                         // 6) Apply ignore list (unless overridden by --only)
-                        const ignored = getIgnoredKeys();
+                        const ignored = getIgnoredKeys(envName);
                         const localFiltered = filterIgnoredKeys(localMap, ignored, opts.only);
                         const remoteFiltered = filterIgnoredKeys(remoteMap, ignored, opts.only);
                         const ignoredKeysUsed =

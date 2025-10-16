@@ -97,7 +97,7 @@ export function registerEnvPushCommand(program: Command) {
 
 			// 5) Read variables
                         const { vars: envMap, snapshots } = readEnvFileSafeWithMetadata(filePath);
-                        const ignored = getIgnoredKeys();
+                        const ignored = getIgnoredKeys(envName);
                         const filteredVars = filterIgnoredKeys(envMap, ignored);
                         const entries = Object.entries(filteredVars).map(([name, parsedValue]) => ({
                                 name,

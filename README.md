@@ -10,12 +10,16 @@ See [SECURITY.md](./SECURITY.md) for our security policy.
 
 ### Ignored Keys
 
-You can specify keys in `ghostable.yml → ghostable.ignore` that Ghostable will skip during push, pull, and diff. These keys are never synced or overwritten.
+You can specify keys per environment in `ghostable.yml → environments.<env>.ignore` that Ghostable will skip during push, pull, and diff. These keys are never synced or overwritten.
 
 ```yaml
-ghostable:
-  ignore:
-    - GHOSTABLE_TOKEN
-    - LOCAL_DB_URL
-    - APP_DEBUG
+environments:
+  production:
+    type: production
+    ignore:
+      - GHOSTABLE_TOKEN
+      - LOCAL_DB_URL
+      - APP_DEBUG
 ```
+
+Default ignored keys (`GHOSTABLE_TOKEN`, `APP_DEBUG`, `LOCAL_DB_URL`, `NODE_ENV`) still apply across environments, and any per-environment list extends that default set.

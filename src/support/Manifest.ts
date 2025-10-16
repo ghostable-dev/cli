@@ -4,8 +4,14 @@ import yaml from 'js-yaml';
 
 import { resolveWorkDir } from './workdir.js';
 
-export type EnvEntry = { type?: string } | undefined;
-export type ManifestEnvsLegacy = string[] | Array<string | { name: string; type?: string }>;
+export interface EnvConfig {
+        type?: string;
+        ignore?: string[];
+        [key: string]: unknown;
+}
+
+export type EnvEntry = EnvConfig | undefined;
+export type ManifestEnvsLegacy = string[] | Array<string | { name: string; type?: string; ignore?: string[] }>;
 export type ManifestEnvs = Record<string, EnvEntry> | ManifestEnvsLegacy;
 
 export interface ManifestShape {
@@ -56,25 +62,34 @@ function writeYaml(file: string, manifest: ManifestShape) {
 
 /** Convert legacy list formats to the normalized map format */
 function normalizeEnvs(envs: ManifestEnvs | undefined): Record<string, EnvEntry> {
-	if (!envs) return {};
+        if (!envs) return {};
 
-	if (!Array.isArray(envs)) {
-		return { ...envs };
-	}
+        if (!Array.isArray(envs)) {
+                return { ...envs };
+        }
 
-	const out: Record<string, EnvEntry> = {};
-	for (const item of envs) {
-		if (typeof item === 'string') {
-			out[item] = {};
-		} else if (item && typeof item === 'object') {
-			const name = 'name' in item && typeof item.name === 'string' ? item.name : undefined;
-			if (!name) continue;
+        const out: Record<string, EnvEntry> = {};
+        for (const item of envs) {
+                if (typeof item === 'string') {
+                        out[item] = {};
+                } else if (item && typeof item === 'object') {
+                        const name = 'name' in item && typeof item.name === 'string' ? item.name : undefined;
+                        if (!name) continue;
 
-			const type = 'type' in item && typeof item.type === 'string' ? item.type : undefined;
-			out[name] = type ? { type } : {};
-		}
-	}
-	return out;
+                        const type = 'type' in item && typeof item.type === 'string' ? item.type : undefined;
+                        const ignore =
+                                'ignore' in item && Array.isArray(item.ignore)
+                                        ? (item.ignore as string[]).filter((value): value is string => typeof value === 'string')
+                                        : undefined;
+
+                        const entry: EnvConfig = {};
+                        if (type) entry.type = type;
+                        if (ignore) entry.ignore = [...ignore];
+
+                        out[name] = entry;
+                }
+        }
+        return out;
 }
 
 export class Manifest {

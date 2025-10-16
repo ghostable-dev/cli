@@ -154,7 +154,13 @@ beforeAll(async () => {
 });
 
 beforeEach(() => {
-        manifestData = { id: 'project-id', name: 'Project', ghostable: { ignore: ['LOCAL_DB_URL'] } };
+        manifestData = {
+                id: 'project-id',
+                name: 'Project',
+                environments: {
+                        prod: { ignore: ['CUSTOM_TOKEN'] },
+                },
+        };
         manifestEnvs = ['prod'];
         sessionData = { accessToken: 'session-token', organizationId: 'org-1' };
         envFilePath = '/workdir/.env.prod';
@@ -180,7 +186,7 @@ describe('env:diff ignore behaviour', () => {
                 localEnvVars = {
                         FOO: 'local-value',
                         GHOSTABLE_TOKEN: 'local-token',
-                        LOCAL_DB_URL: 'postgres://local',
+                        CUSTOM_TOKEN: 'custom-local',
                 };
                 snapshots = Object.fromEntries(
                         Object.entries(localEnvVars).map(([name, value]) => [name, { rawValue: value }]),
@@ -188,7 +194,7 @@ describe('env:diff ignore behaviour', () => {
                 decryptedSecrets = [
                         { entry: { name: 'FOO', meta: {} }, value: 'remote-value' },
                         { entry: { name: 'BAR', meta: {} }, value: 'remote-bar' },
-                        { entry: { name: 'LOCAL_DB_URL', meta: {} }, value: 'remote-db' },
+                        { entry: { name: 'CUSTOM_TOKEN', meta: {} }, value: 'remote-custom' },
                         { entry: { name: 'GHOSTABLE_TOKEN', meta: {} }, value: 'remote-token' },
                 ];
 
@@ -210,8 +216,8 @@ describe('env:diff ignore behaviour', () => {
                 const combinedOutput = consoleLog.mock.calls.flat().join(' ');
                 expect(combinedOutput).toContain('FOO');
                 expect(combinedOutput).not.toContain('GHOSTABLE_TOKEN');
-                expect(combinedOutput).not.toContain('LOCAL_DB_URL');
-                expect(logOutputs.info).toContain('Ignored keys (2): GHOSTABLE_TOKEN, LOCAL_DB_URL');
+                expect(combinedOutput).not.toContain('CUSTOM_TOKEN');
+                expect(logOutputs.info).toContain('Ignored keys (2): GHOSTABLE_TOKEN, CUSTOM_TOKEN');
 
                 consoleLog.mockRestore();
         });
@@ -279,10 +285,12 @@ describe('env:push ignore behaviour', () => {
                 localEnvVars = {
                         FOO: 'value',
                         APP_DEBUG: 'true',
+                        CUSTOM_TOKEN: 'custom',
                 };
                 snapshots = {
                         FOO: { rawValue: 'value' },
                         APP_DEBUG: { rawValue: 'true' },
+                        CUSTOM_TOKEN: { rawValue: 'custom' },
                 };
 
                 const program = new Command();
@@ -326,6 +334,15 @@ describe('env:pull ignore behaviour', () => {
                                 },
                                 {
                                         env: 'prod',
+                                        name: 'CUSTOM_TOKEN',
+                                        ciphertext: 'custom-value',
+                                        nonce: 'nonce',
+                                        alg: 'xchacha20',
+                                        aad: {},
+                                        meta: {},
+                                },
+                                {
+                                        env: 'prod',
                                         name: 'NODE_ENV',
                                         ciphertext: 'production',
                                         nonce: 'nonce',
@@ -354,6 +371,7 @@ describe('env:pull ignore behaviour', () => {
                 expect(content).toContain('FOO=foo-value');
                 expect(content).not.toContain('GHOSTABLE_TOKEN');
                 expect(content).not.toContain('NODE_ENV');
-                expect(logOutputs.info).toContain('Ignored keys (2): GHOSTABLE_TOKEN, NODE_ENV');
+                expect(content).not.toContain('CUSTOM_TOKEN');
+                expect(logOutputs.info).toContain('Ignored keys (3): GHOSTABLE_TOKEN, NODE_ENV, CUSTOM_TOKEN');
         });
 });

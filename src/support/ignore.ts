@@ -1,4 +1,5 @@
 import { Manifest } from './Manifest.js';
+import type { EnvEntry } from './Manifest.js';
 
 export const DEFAULT_IGNORES = [
         'GHOSTABLE_TOKEN',
@@ -7,13 +8,23 @@ export const DEFAULT_IGNORES = [
         'NODE_ENV',
 ];
 
-export function getIgnoredKeys(): string[] {
+export function getIgnoredKeys(env?: string): string[] {
         const manifest = Manifest.data();
-        const fromManifest =
+
+        const legacy =
                 manifest?.ghostable?.ignore && Array.isArray(manifest.ghostable.ignore)
                         ? (manifest.ghostable.ignore as string[])
                         : [];
-        return Array.from(new Set([...DEFAULT_IGNORES, ...fromManifest]));
+
+        let environmentSpecific: string[] = [];
+        if (env && manifest?.environments && !Array.isArray(manifest.environments)) {
+                const entry = manifest.environments[env] as EnvEntry;
+                if (entry && typeof entry === 'object' && 'ignore' in entry && Array.isArray(entry.ignore)) {
+                        environmentSpecific = entry.ignore.filter((value): value is string => typeof value === 'string');
+                }
+        }
+
+        return Array.from(new Set([...DEFAULT_IGNORES, ...legacy, ...environmentSpecific]));
 }
 
 export function filterIgnoredKeys<T extends Record<string, any>>(
