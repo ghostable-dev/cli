@@ -10,15 +10,15 @@ import {
 } from '@/domain';
 
 import type {
-        EnvironmentJson,
-        EnvironmentKeysResponse,
-        EnvironmentKeysResponseJson,
-        EnvironmentSecretBundleJson,
-        EnvironmentSuggestedNameJson,
-        EnvironmentTypeJson,
-        OrganizationJson,
-        ProjectJson,
-        SignedEnvironmentSecretUploadRequest,
+	EnvironmentJson,
+	EnvironmentKeysResponse,
+	EnvironmentKeysResponseJson,
+	EnvironmentSecretBundleJson,
+	EnvironmentSuggestedNameJson,
+	EnvironmentTypeJson,
+	OrganizationJson,
+	ProjectJson,
+	SignedEnvironmentSecretUploadRequest,
 } from '@/types';
 import { environmentKeysFromJSON } from '@/types';
 
@@ -118,11 +118,11 @@ export class GhostableClient {
 		return this.http.post(`/projects/${p}/environments/${e}/secrets${suffix}`, payload);
 	}
 
-        async pull(
-                projectId: string,
-                envName: string,
-                opts?: {
-                        only?: string[];
+	async pull(
+		projectId: string,
+		envName: string,
+		opts?: {
+			only?: string[];
 			includeMeta?: boolean;
 			includeVersions?: boolean;
 		},
@@ -141,28 +141,25 @@ export class GhostableClient {
 			`/projects/${p}/environments/${e}/pull${suffix}`,
 		);
 
-                return EnvironmentSecretBundle.fromJSON(json);
-        }
+		return EnvironmentSecretBundle.fromJSON(json);
+	}
 
-        async getEnvironmentKeys(
-                projectId: string,
-                envName: string,
-        ): Promise<EnvironmentKeysResponse> {
-                const p = encodeURIComponent(projectId);
-                const e = encodeURIComponent(envName);
+	async getEnvironmentKeys(projectId: string, envName: string): Promise<EnvironmentKeysResponse> {
+		const p = encodeURIComponent(projectId);
+		const e = encodeURIComponent(envName);
 
-                const json = await this.http.get<EnvironmentKeysResponseJson>(
-                        `/projects/${p}/environments/${e}/keys`,
-                );
+		const json = await this.http.get<EnvironmentKeysResponseJson>(
+			`/projects/${p}/environments/${e}/keys`,
+		);
 
-                return environmentKeysFromJSON(json);
-        }
+		return environmentKeysFromJSON(json);
+	}
 
-        async deploy(opts?: {
-                only?: string[];
-                includeMeta?: boolean;
-                includeVersions?: boolean;
-        }): Promise<EnvironmentSecretBundle> {
+	async deploy(opts?: {
+		only?: string[];
+		includeMeta?: boolean;
+		includeVersions?: boolean;
+	}): Promise<EnvironmentSecretBundle> {
 		const qs = new URLSearchParams();
 		if (opts?.includeMeta) qs.set('include_meta', '1');
 		if (opts?.includeVersions) qs.set('include_versions', '1');

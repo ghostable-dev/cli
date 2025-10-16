@@ -100,14 +100,14 @@ export type EnvironmentSecretJson = EnvironmentSecretCommon & {
  * Bundle of environment secrets merged across inheritance layers.
  */
 export type EnvironmentSecretBundleJson = {
-        /** Target environment name (e.g., "local"). */
-        env: string;
+	/** Target environment name (e.g., "local"). */
+	env: string;
 
-        /** Chain of inherited environments (parent → child). */
-        chain: string[];
+	/** Chain of inherited environments (parent → child). */
+	chain: string[];
 
-        /** List of encrypted secrets across the chain. */
-        secrets: EnvironmentSecretJson[];
+	/** List of encrypted secrets across the chain. */
+	secrets: EnvironmentSecretJson[];
 };
 
 /**
@@ -115,58 +115,58 @@ export type EnvironmentSecretBundleJson = {
  * Returned by GET /projects/{projectId}/environments/{envName}/keys
  */
 export type EnvironmentKeySummaryJson = {
-        name: string;
-        /** Opaque version identifier (number or string depending on backend). */
-        version: number | string | null;
-        /** ISO8601 timestamp or null if unknown. */
-        updated_at: string | null;
-        /** Email of the last updater (if available). */
-        updated_by_email: string | null;
+	name: string;
+	/** Opaque version identifier (number or string depending on backend). */
+	version: number | string | null;
+	/** ISO8601 timestamp or null if unknown. */
+	updated_at: string | null;
+	/** Email of the last updater (if available). */
+	updated_by_email: string | null;
 };
 
 export type EnvironmentKeysResponseJson = {
-        project_id: string;
-        environment: string;
-        count: number;
-        data: EnvironmentKeySummaryJson[];
+	project_id: string;
+	environment: string;
+	count: number;
+	data: EnvironmentKeySummaryJson[];
 };
 
 /** Camel-cased client shapes */
 export type EnvironmentKeySummary = {
-        name: string;
-        version: number | string | null;
-        updatedAt: string | null;
-        updatedByEmail: string | null;
+	name: string;
+	version: number | string | null;
+	updatedAt: string | null;
+	updatedByEmail: string | null;
 };
 
 export type EnvironmentKeysResponse = {
-        projectId: string;
-        environment: string;
-        count: number;
-        data: EnvironmentKeySummary[];
+	projectId: string;
+	environment: string;
+	count: number;
+	data: EnvironmentKeySummary[];
 };
 
 /** JSON → TS mappers */
 export function environmentKeysFromJSON(
-        json: EnvironmentKeysResponseJson,
+	json: EnvironmentKeysResponseJson,
 ): EnvironmentKeysResponse {
-        return {
-                projectId: json.project_id,
-                environment: json.environment,
-                count: json.count,
-                data: json.data.map(environmentKeySummaryFromJSON),
-        };
+	return {
+		projectId: json.project_id,
+		environment: json.environment,
+		count: json.count,
+		data: json.data.map(environmentKeySummaryFromJSON),
+	};
 }
 
 export function environmentKeySummaryFromJSON(
-        item: EnvironmentKeySummaryJson,
+	item: EnvironmentKeySummaryJson,
 ): EnvironmentKeySummary {
-        return {
-                name: item.name,
-                version: item.version ?? null,
-                updatedAt: item.updated_at ?? null,
-                updatedByEmail: item.updated_by_email ?? null,
-        };
+	return {
+		name: item.name,
+		version: item.version ?? null,
+		updatedAt: item.updated_at ?? null,
+		updatedByEmail: item.updated_by_email ?? null,
+	};
 }
 
 /**
