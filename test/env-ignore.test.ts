@@ -16,10 +16,11 @@ let localEnvVars: Record<string, string> = {};
 let snapshots: Record<string, { rawValue: string }> = {};
 let remoteBundle: any = { chain: ['prod'], secrets: [] };
 let decryptedSecrets: Array<{
-	entry: { name: string; meta?: { is_commented?: boolean } };
-	value: string;
+        entry: { name: string; meta?: { is_commented?: boolean } };
+        value: string;
 }> = [];
 const uploadPayloads: any[] = [];
+const uploadOptions: Array<{ sync?: boolean }> = [];
 const writeFileCalls: Array<{ path: string; content: string }> = [];
 const copyFileCalls: Array<{ src: string; dest: string }> = [];
 
@@ -54,10 +55,18 @@ vi.mock('../src/services/SessionService.js', () => ({
 }));
 
 const client = {
-	pull: vi.fn(async () => remoteBundle),
-	uploadSecret: vi.fn(async (_projectId: string, _env: string, payload: any) => {
-		uploadPayloads.push(payload);
-	}),
+        pull: vi.fn(async () => remoteBundle),
+        uploadSecret: vi.fn(
+                async (
+                        _projectId: string,
+                        _env: string,
+                        payload: any,
+                        options?: { sync?: boolean },
+                ) => {
+                        uploadPayloads.push(payload);
+                        uploadOptions.push(options ?? {});
+                },
+        ),
 };
 
 vi.mock('../src/services/GhostableClient.js', () => ({
@@ -185,7 +194,8 @@ beforeEach(() => {
 	snapshots = {};
 	remoteBundle = { chain: ['prod'], secrets: [] };
 	decryptedSecrets = [];
-	uploadPayloads.splice(0, uploadPayloads.length);
+        uploadPayloads.splice(0, uploadPayloads.length);
+        uploadOptions.splice(0, uploadOptions.length);
 	writeFileCalls.splice(0, writeFileCalls.length);
 	copyFileCalls.splice(0, copyFileCalls.length);
 	logOutputs.info.length = 0;
@@ -306,11 +316,11 @@ describe('env:diff ignore behaviour', () => {
 });
 
 describe('env:push ignore behaviour', () => {
-	it('skips ignored keys when uploading', async () => {
-		localEnvVars = {
-			FOO: 'value',
-			GHOSTABLE_MASTER_SEED: 'true',
-			CUSTOM_TOKEN: 'custom',
+        it('skips ignored keys when uploading', async () => {
+                localEnvVars = {
+                        FOO: 'value',
+                        GHOSTABLE_MASTER_SEED: 'true',
+                        CUSTOM_TOKEN: 'custom',
 		};
 		snapshots = {
 			FOO: { rawValue: 'value' },
@@ -322,9 +332,34 @@ describe('env:push ignore behaviour', () => {
 		registerEnvPushCommand(program);
 		await program.parseAsync(['node', 'test', 'env:push', '--env', 'prod', '--assume-yes']);
 
-		const uploadedNames = uploadPayloads.map((payload) => payload.name);
-		expect(uploadedNames).toEqual(['FOO']);
-	});
+                const uploadedNames = uploadPayloads.map((payload) => payload.name);
+                expect(uploadedNames).toEqual(['FOO']);
+                expect(uploadOptions).toEqual([{}]);
+        });
+
+        it('passes sync flag to upload when requested', async () => {
+                localEnvVars = {
+                        FOO: 'value',
+                };
+                snapshots = {
+                        FOO: { rawValue: 'value' },
+                };
+
+                const program = new Command();
+                registerEnvPushCommand(program);
+                await program.parseAsync([
+                        'node',
+                        'test',
+                        'env:push',
+                        '--env',
+                        'prod',
+                        '--assume-yes',
+                        '--sync',
+                ]);
+
+                expect(uploadPayloads).toHaveLength(1);
+                expect(uploadOptions).toEqual([{ sync: true }]);
+        });
 });
 
 describe('env:pull ignore behaviour', () => {

@@ -103,15 +103,17 @@ export class GhostableClient {
 		return Environment.fromJSON(res);
 	}
 
-	async uploadSecret(
-		projectId: string,
-		envName: string,
-		payload: SignedEnvironmentSecretUploadRequest,
-	): Promise<{ id?: string; version?: number }> {
-		const p = encodeURIComponent(projectId);
-		const e = encodeURIComponent(envName);
-		return this.http.post(`/projects/${p}/environments/${e}/secrets`, payload);
-	}
+        async uploadSecret(
+                projectId: string,
+                envName: string,
+                payload: SignedEnvironmentSecretUploadRequest,
+                opts?: { sync?: boolean },
+        ): Promise<{ id?: string; version?: number }> {
+                const p = encodeURIComponent(projectId);
+                const e = encodeURIComponent(envName);
+                const suffix = opts?.sync ? '?sync=1' : '';
+                return this.http.post(`/projects/${p}/environments/${e}/secrets${suffix}`, payload);
+        }
 
 	async pull(
 		projectId: string,

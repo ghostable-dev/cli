@@ -25,11 +25,14 @@ import { buildSecretPayload } from '../support/secret-payload.js';
 import type { ValidatorRecord } from '@/types';
 
 type PushOptions = {
-	api?: string;
-	token?: string;
-	file?: string; // optional override; else .env.<env> or .env
-	env?: string; // optional; prompt if missing
-	assumeYes?: boolean;
+        api?: string;
+        token?: string;
+        file?: string; // optional override; else .env.<env> or .env
+        env?: string; // optional; prompt if missing
+        assumeYes?: boolean;
+        sync?: boolean;
+        replace?: boolean;
+        pruneServer?: boolean;
 };
 
 function resolvePlaintext(parsed: string, snapshot?: EnvVarSnapshot): string {
@@ -49,10 +52,13 @@ export function registerEnvPushCommand(program: Command) {
 	program
 		.command('env:push')
 		.description('Encrypt and push a local .env file to Ghostable (uses ghostable.yml)')
-		.option('--file <PATH>', 'Path to .env file (default: .env.<env> or .env)')
-		.option('--env <ENV>', 'Environment name (if omitted, select from manifest)')
-		.option('-y, --assume-yes', 'Skip confirmation prompts', false)
-		.action(async (opts: PushOptions) => {
+                .option('--file <PATH>', 'Path to .env file (default: .env.<env> or .env)')
+                .option('--env <ENV>', 'Environment name (if omitted, select from manifest)')
+                .option('-y, --assume-yes', 'Skip confirmation prompts', false)
+                .option('--sync', 'Prune server variables not present locally', false)
+                .option('--replace', 'Alias for --sync', false)
+                .option('--prune-server', 'Alias for --sync', false)
+                .action(async (opts: PushOptions) => {
 			// 1) Load manifest
 			let projectId: string, projectName: string, manifestEnvs: string[];
 			try {
@@ -99,11 +105,13 @@ export function registerEnvPushCommand(program: Command) {
 			const { vars: envMap, snapshots } = readEnvFileSafeWithMetadata(filePath);
 			const ignored = getIgnoredKeys(envName);
 			const filteredVars = filterIgnoredKeys(envMap, ignored);
-			const entries = Object.entries(filteredVars).map(([name, parsedValue]) => ({
-				name,
-				parsedValue,
-				plaintext: resolvePlaintext(parsedValue, snapshots[name]),
-			}));
+                        const sync = Boolean(opts.sync || opts.replace || opts.pruneServer);
+
+                        const entries = Object.entries(filteredVars).map(([name, parsedValue]) => ({
+                                name,
+                                parsedValue,
+                                plaintext: resolvePlaintext(parsedValue, snapshots[name]),
+                        }));
 			if (!entries.length) {
 				log.warn('⚠️  No variables found in the .env file.');
 				return;
@@ -153,7 +161,12 @@ export function registerEnvPushCommand(program: Command) {
 							// ifVersion?: number  // add later for optimistic concurrency
 						});
 
-						await client.uploadSecret(projectId, envName, payload);
+                                                await client.uploadSecret(
+                                                        projectId,
+                                                        envName,
+                                                        payload,
+                                                        sync ? { sync: true } : undefined,
+                                                );
 						task.title = `${name}  ${chalk.green('✓')}`;
 					},
 				})),
