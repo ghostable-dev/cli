@@ -14,7 +14,11 @@ import { Manifest } from '../support/Manifest.js';
 import { log } from '../support/logger.js';
 import { toErrorMessage } from '../support/errors.js';
 
-import { resolveEnvFile, readEnvFileSafe } from '../support/env-files.js';
+import {
+	EnvVarSnapshot,
+	resolveEnvFile,
+	readEnvFileSafeWithMetadata,
+} from '../support/env-files.js';
 import { buildSecretPayload } from '../support/secret-payload.js';
 
 import type { ValidatorRecord } from '@/types';
@@ -26,6 +30,19 @@ type PushOptions = {
 	env?: string; // optional; prompt if missing
 	assumeYes?: boolean;
 };
+
+function resolvePlaintext(parsed: string, snapshot?: EnvVarSnapshot): string {
+	if (!snapshot) return parsed;
+
+	const trimmed = snapshot.rawValue.trim();
+	if (trimmed.length < 2) return parsed;
+
+	const first = trimmed[0];
+	if (first !== '"' && first !== "'") return parsed;
+	if (trimmed[trimmed.length - 1] !== first) return parsed;
+
+	return trimmed;
+}
 
 export function registerEnvPushCommand(program: Command) {
 	program
@@ -78,8 +95,12 @@ export function registerEnvPushCommand(program: Command) {
 			}
 
 			// 5) Read variables
-			const envMap = readEnvFileSafe(filePath);
-			const entries = Object.entries(envMap);
+			const { vars: envMap, snapshots } = readEnvFileSafeWithMetadata(filePath);
+			const entries = Object.entries(envMap).map(([name, parsedValue]) => ({
+				name,
+				parsedValue,
+				plaintext: resolvePlaintext(parsedValue, snapshots[name]),
+			}));
 			if (!entries.length) {
 				log.warn('⚠️  No variables found in the .env file.');
 				return;
@@ -103,18 +124,18 @@ export function registerEnvPushCommand(program: Command) {
 
 			// 7) Encrypt + push per variable
 			const tasks = new Listr(
-				entries.map(([name, value]) => ({
+				entries.map(({ name, parsedValue, plaintext }) => ({
 					title: `${name}`,
 					task: async (_ctx, task) => {
 						const validators: ValidatorRecord = {
-							non_empty: value.length > 0,
+							non_empty: parsedValue.length > 0,
 						};
 						if (name === 'APP_KEY') {
 							validators.regex = {
 								id: 'base64_44char_v1',
-								ok: /^base64:/.test(value) && value.length >= 44,
+								ok: /^base64:/.test(parsedValue) && parsedValue.length >= 44,
 							};
-							validators.length = value.length;
+							validators.length = parsedValue.length;
 						}
 
 						const payload = await buildSecretPayload({
@@ -122,7 +143,7 @@ export function registerEnvPushCommand(program: Command) {
 							env: envName!, // from manifest selection
 							org: orgId ?? '', // server can infer if token is org-scoped
 							project: projectId, // from manifest
-							plaintext: value,
+							plaintext,
 							masterSeed,
 							edPriv,
 							validators,
