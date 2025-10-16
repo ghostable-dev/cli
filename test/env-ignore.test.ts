@@ -21,6 +21,7 @@ let decryptedSecrets: Array<{
 }> = [];
 const uploadPayloads: any[] = [];
 const writeFileCalls: Array<{ path: string; content: string }> = [];
+const copyFileCalls: Array<{ src: string; dest: string }> = [];
 
 vi.mock('../src/support/logger.js', () => ({
 	log: {
@@ -139,15 +140,20 @@ const existsSyncMock = vi.fn(() => true);
 const writeFileSyncMock = vi.fn((path: string, content: string) => {
 	writeFileCalls.push({ path, content });
 });
+const copyFileSyncMock = vi.fn((src: string, dest: string) => {
+	copyFileCalls.push({ src, dest });
+});
 
 vi.mock('node:fs', () => ({
 	__esModule: true,
 	default: {
 		existsSync: existsSyncMock,
 		writeFileSync: writeFileSyncMock,
+		copyFileSync: copyFileSyncMock,
 	},
 	existsSync: existsSyncMock,
 	writeFileSync: writeFileSyncMock,
+	copyFileSync: copyFileSyncMock,
 }));
 
 vi.mock('../src/support/errors.js', () => ({
@@ -181,6 +187,7 @@ beforeEach(() => {
 	decryptedSecrets = [];
 	uploadPayloads.splice(0, uploadPayloads.length);
 	writeFileCalls.splice(0, writeFileCalls.length);
+	copyFileCalls.splice(0, copyFileCalls.length);
 	logOutputs.info.length = 0;
 	logOutputs.warn.length = 0;
 	logOutputs.error.length = 0;
@@ -190,6 +197,7 @@ beforeEach(() => {
 	existsSyncMock.mockClear();
 	existsSyncMock.mockReturnValue(true);
 	writeFileSyncMock.mockClear();
+	copyFileSyncMock.mockClear();
 });
 
 describe('env:diff ignore behaviour', () => {
@@ -385,5 +393,155 @@ describe('env:pull ignore behaviour', () => {
 		expect(logOutputs.info).toContain(
 			'Ignored keys (3): GHOSTABLE_CI_TOKEN, GHOSTABLE_MASTER_SEED, CUSTOM_TOKEN',
 		);
+	});
+});
+
+describe('env:pull file management', () => {
+	it('merges remote keys into existing file and creates a backup', async () => {
+		vi.useFakeTimers();
+		vi.setSystemTime(new Date('2024-01-02T03:04:05.678Z'));
+
+		try {
+			localEnvVars = {
+				KEEP: 'keep-value',
+				UPDATE_ME: 'old',
+			};
+			snapshots = {
+				KEEP: { rawValue: 'keep-value' },
+				UPDATE_ME: { rawValue: 'old' },
+			};
+			remoteBundle = {
+				chain: ['prod'],
+				secrets: [
+					{
+						env: 'prod',
+						name: 'UPDATE_ME',
+						ciphertext: 'new',
+						nonce: 'nonce',
+						alg: 'xchacha20',
+						aad: {},
+						meta: {},
+					},
+					{
+						env: 'prod',
+						name: 'NEW_KEY',
+						ciphertext: 'added',
+						nonce: 'nonce',
+						alg: 'xchacha20',
+						aad: {},
+						meta: {},
+					},
+				],
+			};
+
+			const program = new Command();
+			registerEnvPullCommand(program);
+			await program.parseAsync([
+				'node',
+				'test',
+				'env:pull',
+				'--env',
+				'prod',
+				'--token',
+				'api-token',
+			]);
+
+			expect(copyFileCalls).toHaveLength(1);
+			expect(copyFileCalls[0]).toEqual({
+				src: envFilePath,
+				dest: '/workdir/.env.prod.bak-2024-01-02T03-04-05.678Z',
+			});
+			expect(existsSyncMock).toHaveBeenCalledWith(envFilePath);
+
+			expect(writeFileCalls).toHaveLength(1);
+			const [{ content }] = writeFileCalls;
+			expect(content).toContain('KEEP=keep-value');
+			expect(content).toContain('NEW_KEY=added');
+			expect(content).toContain('UPDATE_ME=new');
+
+			expect(logOutputs.info).toContain('CREATE 1 | UPDATE 1');
+			expect(logOutputs.ok[0]).toContain('Updated /workdir/.env.prod');
+		} finally {
+			vi.useRealTimers();
+		}
+	});
+
+	it('honours --replace and reports deletions', async () => {
+		localEnvVars = {
+			KEEP: 'keep-value',
+			REMOVE_ME: 'bye',
+		};
+		snapshots = {
+			KEEP: { rawValue: 'keep-value' },
+			REMOVE_ME: { rawValue: 'bye' },
+		};
+		remoteBundle = {
+			chain: ['prod'],
+			secrets: [
+				{
+					env: 'prod',
+					name: 'KEEP',
+					ciphertext: 'keep-value',
+					nonce: 'nonce',
+					alg: 'xchacha20',
+					aad: {},
+					meta: {},
+				},
+			],
+		};
+
+		const program = new Command();
+		registerEnvPullCommand(program);
+		await program.parseAsync([
+			'node',
+			'test',
+			'env:pull',
+			'--env',
+			'prod',
+			'--token',
+			'api-token',
+			'--replace',
+		]);
+
+		expect(writeFileCalls).toHaveLength(1);
+		const [{ content }] = writeFileCalls;
+		expect(content).toContain('KEEP=keep-value');
+		expect(content).not.toContain('REMOVE_ME');
+		expect(logOutputs.info).toContain('CREATE 0 | UPDATE 0 | DELETE 1');
+	});
+
+	it('skips backups when --no-backup is provided', async () => {
+		localEnvVars = { EXISTING: 'one' };
+		snapshots = { EXISTING: { rawValue: 'one' } };
+		remoteBundle = {
+			chain: ['prod'],
+			secrets: [
+				{
+					env: 'prod',
+					name: 'EXISTING',
+					ciphertext: 'two',
+					nonce: 'nonce',
+					alg: 'xchacha20',
+					aad: {},
+					meta: {},
+				},
+			],
+		};
+
+		const program = new Command();
+		registerEnvPullCommand(program);
+		await program.parseAsync([
+			'node',
+			'test',
+			'env:pull',
+			'--env',
+			'prod',
+			'--token',
+			'api-token',
+			'--no-backup',
+		]);
+
+		expect(copyFileCalls).toHaveLength(0);
+		expect(writeFileCalls).toHaveLength(1);
 	});
 });
