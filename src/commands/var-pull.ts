@@ -88,7 +88,7 @@ export function registerVarPullCommand(program: Command) {
 			}
 
 			if (!envNames.length) {
-				log.error('❌ No environments defined in ghostable.yml.');
+				log.error('❌ No environments defined in .ghostable/ghostable.yaml.');
 				process.exit(1);
 				return;
 			}

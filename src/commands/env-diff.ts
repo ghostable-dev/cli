@@ -50,7 +50,7 @@ export function registerEnvDiffCommand(program: Command) {
 				return;
 			}
 			if (!envNames.length) {
-				log.error('❌ No environments defined in ghostable.yml.');
+				log.error('❌ No environments defined in .ghostable/ghostable.yaml.');
 				process.exit(1);
 			}
 
