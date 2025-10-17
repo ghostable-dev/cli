@@ -52,9 +52,9 @@ function resolvePlaintext(parsed: string, snapshot?: EnvVarSnapshot): string {
 export function registerEnvPushCommand(program: Command) {
 	program
 		.command('env:push')
-                .description(
-                        'Encrypt and push a local .env file to Ghostable (uses .ghostable/ghostable.yaml)',
-                )
+		.description(
+			'Encrypt and push a local .env file to Ghostable (uses .ghostable/ghostable.yaml)',
+		)
 		.option('--file <PATH>', 'Path to .env file (default: .env.<env> or .env)')
 		.option('--env <ENV>', 'Environment name (if omitted, select from manifest)')
 		.option('-y, --assume-yes', 'Skip confirmation prompts', false)
@@ -76,10 +76,10 @@ export async function runEnvPush(opts: PushOptions): Promise<void> {
 		process.exit(1);
 		return;
 	}
-        if (!manifestEnvs.length) {
-                log.error('❌ No environments defined in .ghostable/ghostable.yaml.');
-                process.exit(1);
-        }
+	if (!manifestEnvs.length) {
+		log.error('❌ No environments defined in .ghostable/ghostable.yaml.');
+		process.exit(1);
+	}
 
 	// 2) Pick env (flag → prompt)
 	let envName = opts.env;

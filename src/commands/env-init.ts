@@ -152,9 +152,7 @@ export function registerEnvInitCommand(program: Command) {
 					environments: manifestEnvs,
 				});
 
-                                log.ok(
-                                        `✅ Environment ${chalk.bold(env.name)} added to .ghostable/ghostable.yaml`,
-                                );
+				log.ok(`✅ Environment ${chalk.bold(env.name)} added to .ghostable/ghostable.yaml`);
 			} catch (error) {
 				createSpinner.fail('Failed creating environment.');
 				log.error(toErrorMessage(error));

@@ -15,7 +15,7 @@ temp/
 Thumbs.db
 *.swp
 *.swo
-ghostable.yml
+.ghostable/
 .env
 .env.*
 *.encrypted

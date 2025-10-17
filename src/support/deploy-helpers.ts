@@ -37,30 +37,27 @@ export async function resolveManifestContext(requestedEnv?: string): Promise<Man
 		projectId = Manifest.id();
 		projectName = Manifest.name();
 		envNames = Manifest.environmentNames();
-        } catch (error) {
-                const message =
-                        toErrorMessage(error) || 'Missing .ghostable/ghostable.yaml manifest';
-                throw new Error(chalk.red(message));
-        }
+	} catch (error) {
+		const message = toErrorMessage(error) || 'Missing .ghostable/ghostable.yaml manifest';
+		throw new Error(chalk.red(message));
+	}
 
-        if (!envNames.length) {
-                throw new Error(
-                        chalk.red('❌ No environments defined in .ghostable/ghostable.yaml'),
-                );
-        }
+	if (!envNames.length) {
+		throw new Error(chalk.red('❌ No environments defined in .ghostable/ghostable.yaml'));
+	}
 
 	let envName = requestedEnv?.trim();
 
 	if (envName) {
 		if (!envNames.includes(envName)) {
-                        throw new Error(
-                                chalk.red(
-                                        `❌ Environment "${envName}" not found in .ghostable/ghostable.yaml. Available: ${envNames
-                                                .slice()
-                                                .sort()
-                                                .join(', ')}`,
-                                ),
-                        );
+			throw new Error(
+				chalk.red(
+					`❌ Environment "${envName}" not found in .ghostable/ghostable.yaml. Available: ${envNames
+						.slice()
+						.sort()
+						.join(', ')}`,
+				),
+			);
 		}
 	} else {
 		envName = await select<string>({

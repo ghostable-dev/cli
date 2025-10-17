@@ -44,18 +44,15 @@ export function registerKeyExportCommand(program: Command) {
 			try {
 				projectId = Manifest.id();
 				envNames = Manifest.environmentNames();
-                        } catch (error) {
-                                log.error(
-                                        toErrorMessage(error) ||
-                                                'Missing .ghostable/ghostable.yaml manifest.',
-                                );
-                                process.exit(1);
-                                return;
-                        }
-                        if (!envNames.length) {
-                                log.error('❌ No environments found in .ghostable/ghostable.yaml.');
-                                process.exit(1);
-                        }
+			} catch (error) {
+				log.error(toErrorMessage(error) || 'Missing .ghostable/ghostable.yaml manifest.');
+				process.exit(1);
+				return;
+			}
+			if (!envNames.length) {
+				log.error('❌ No environments found in .ghostable/ghostable.yaml.');
+				process.exit(1);
+			}
 
 			// 2) Pick env (flag → prompt)
 			const envName =

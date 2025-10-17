@@ -49,10 +49,10 @@ export function registerEnvDiffCommand(program: Command) {
 				process.exit(1);
 				return;
 			}
-                        if (!envNames.length) {
-                                log.error('❌ No environments defined in .ghostable/ghostable.yaml.');
-                                process.exit(1);
-                        }
+			if (!envNames.length) {
+				log.error('❌ No environments defined in .ghostable/ghostable.yaml.');
+				process.exit(1);
+			}
 
 			let envName = opts.env?.trim();
 			if (!envName) {
