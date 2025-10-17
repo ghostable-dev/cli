@@ -186,10 +186,10 @@ export type EnvironmentSecretUploadRequest = EnvironmentSecretCommon & {
  * Signed upload request the CLI submits to the API.
  */
 export type SignedEnvironmentSecretUploadRequest = EnvironmentSecretUploadRequest & {
-        /** Ed25519 signature over the JSON body (excluding this field). */
-        client_sig: string;
+	/** Ed25519 signature over the JSON body (excluding this field). */
+	client_sig: string;
 };
 
 export type SignedEnvironmentSecretBatchUploadRequest = {
-        secrets: SignedEnvironmentSecretUploadRequest[];
+	secrets: SignedEnvironmentSecretUploadRequest[];
 };
