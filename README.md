@@ -10,7 +10,7 @@ See [SECURITY.md](./SECURITY.md) for our security policy.
 
 ### Ignored Keys
 
-You can specify keys per environment in `ghostable.yml → environments.<env>.ignore` that Ghostable will skip during push, pull, and diff. These keys are never synced or overwritten.
+You can specify keys per environment in `.ghostable/ghostable.yaml → environments.<env>.ignore` that Ghostable will skip during push, pull, and diff. These keys are never synced or overwritten.
 
 ```yaml
 environments:

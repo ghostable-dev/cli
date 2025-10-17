@@ -23,13 +23,37 @@ export interface ManifestShape {
 	[key: string]: unknown;
 }
 
-function defaultPath(): string {
-	return path.resolve(resolveWorkDir(), 'ghostable.yml');
+function manifestDir(): string {
+        return path.resolve(resolveWorkDir(), '.ghostable');
 }
 
-/** Resolve manifest path: env var wins, else cwd/ghostable.yml */
+function defaultPath(): string {
+        return path.resolve(manifestDir(), 'ghostable.yaml');
+}
+
+const LEGACY_MANIFEST_FILENAMES = ['ghostable.yml', 'ghostable.yaml'];
+
+/** Resolve manifest path: env var wins, else .ghostable/ghostable.yaml */
 export function resolveManifestPath(): string {
-	return process.env.GHOSTABLE_MANIFEST?.trim() || defaultPath();
+        const override = process.env.GHOSTABLE_MANIFEST?.trim();
+        if (override) {
+                return override;
+        }
+
+        const primary = defaultPath();
+        if (fs.existsSync(primary)) {
+                return primary;
+        }
+
+        const workdir = resolveWorkDir();
+        for (const filename of LEGACY_MANIFEST_FILENAMES) {
+                const candidate = path.resolve(workdir, filename);
+                if (fs.existsSync(candidate)) {
+                        return candidate;
+                }
+        }
+
+        return primary;
 }
 
 /** Throw with a helpful message (keeps commands clean) */
@@ -49,11 +73,12 @@ function readYaml(file: string): ManifestShape {
 }
 
 function writeYaml(file: string, manifest: ManifestShape) {
-	const doc = yaml.dump(manifest, {
-		indent: 2,
-		lineWidth: 120,
-		noRefs: true,
-		sortKeys: false,
+        fs.mkdirSync(path.dirname(file), { recursive: true });
+        const doc = yaml.dump(manifest, {
+                indent: 2,
+                lineWidth: 120,
+                noRefs: true,
+                sortKeys: false,
 	});
 	fs.writeFileSync(file, doc, 'utf8');
 }
