@@ -10,8 +10,8 @@ export type SchemaRule = string;
 export type SchemaDefinition = Record<string, SchemaRule[]>;
 
 export type ValidationIssue = {
-        variable: string;
-        message: string;
+	variable: string;
+	message: string;
 };
 
 const GLOBAL_SCHEMA_FILENAMES = ['schema.yaml', 'schema.yml'];
@@ -137,12 +137,12 @@ function parseRule(rule: SchemaRule): ParsedRule {
 }
 
 function validateRule(value: string, rule: ParsedRule): string | undefined {
-        const validator = getRuleValidator(rule.type);
-        if (!validator) {
-                return `has an unknown validation rule: ${rule.type}`;
-        }
+	const validator = getRuleValidator(rule.type);
+	if (!validator) {
+		return `has an unknown validation rule: ${rule.type}`;
+	}
 
-        return validator(value, rule);
+	return validator(value, rule);
 }
 
 export function validateVariables(

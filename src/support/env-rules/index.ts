@@ -15,27 +15,27 @@ import urlRule from './url.js';
 import type { RuleDefinition, RuleValidator } from './types.js';
 
 const definitions: RuleDefinition[] = [
-        booleanRule,
-        emailRule,
-        endsWithRule,
-        inRule,
-        integerRule,
-        maxRule,
-        minRule,
-        nullableRule,
-        numericRule,
-        regexRule,
-        requiredRule,
-        startsWithRule,
-        stringRule,
-        urlRule,
+	booleanRule,
+	emailRule,
+	endsWithRule,
+	inRule,
+	integerRule,
+	maxRule,
+	minRule,
+	nullableRule,
+	numericRule,
+	regexRule,
+	requiredRule,
+	startsWithRule,
+	stringRule,
+	urlRule,
 ];
 
 const registry = new Map<string, RuleValidator>();
 for (const { name, validate } of definitions) {
-        registry.set(name, validate);
+	registry.set(name, validate);
 }
 
 export function getRuleValidator(name: string): RuleValidator | undefined {
-        return registry.get(name);
+	return registry.get(name);
 }
