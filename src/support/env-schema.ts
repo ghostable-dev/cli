@@ -2,19 +2,16 @@ import fs from 'node:fs';
 import path from 'node:path';
 import yaml from 'js-yaml';
 
+import { getRuleValidator } from './env-rules/index.js';
+import type { ParsedRule } from './env-rules/types.js';
 import { resolveWorkDir } from './workdir.js';
 
 export type SchemaRule = string;
 export type SchemaDefinition = Record<string, SchemaRule[]>;
 
 export type ValidationIssue = {
-	variable: string;
-	message: string;
-};
-
-type ParsedRule = {
-	type: string;
-	argument?: string;
+        variable: string;
+        message: string;
 };
 
 const GLOBAL_SCHEMA_FILENAMES = ['schema.yaml', 'schema.yml'];
@@ -139,180 +136,13 @@ function parseRule(rule: SchemaRule): ParsedRule {
 	};
 }
 
-function stripDelimiters(value: string | undefined): string | undefined {
-	if (!value) return value;
-
-	const trimmed = value.trim();
-
-	if (trimmed.startsWith('<') && trimmed.endsWith('>')) {
-		return trimmed.slice(1, -1).trim();
-	}
-
-	return trimmed;
-}
-
-function parseNumber(argument: string | undefined): number | undefined {
-	if (!argument) return undefined;
-
-	const cleaned = Number(argument);
-	return Number.isFinite(cleaned) ? cleaned : undefined;
-}
-
-function parseList(argument: string | undefined): string[] {
-	const inner = stripDelimiters(argument);
-	if (!inner) return [];
-
-	return inner
-		.split(',')
-		.map((entry) => entry.trim())
-		.filter(Boolean);
-}
-
-function buildRegex(argument: string | undefined): RegExp | undefined {
-	if (!argument) return undefined;
-
-	const inner = stripDelimiters(argument);
-	if (!inner) return undefined;
-
-	if (inner.startsWith('/') && inner.lastIndexOf('/') > 0) {
-		const lastSlash = inner.lastIndexOf('/');
-		const pattern = inner.slice(1, lastSlash);
-		const flags = inner.slice(lastSlash + 1);
-		try {
-			return new RegExp(pattern, flags);
-		} catch {
-			return undefined;
-		}
-	}
-
-	try {
-		return new RegExp(inner);
-	} catch {
-		return undefined;
-	}
-}
-
-function isNumeric(value: string): boolean {
-	if (!value.trim()) return false;
-	return !Number.isNaN(Number(value));
-}
-
 function validateRule(value: string, rule: ParsedRule): string | undefined {
-	const argument = stripDelimiters(rule.argument);
+        const validator = getRuleValidator(rule.type);
+        if (!validator) {
+                return `has an unknown validation rule: ${rule.type}`;
+        }
 
-	switch (rule.type) {
-		case 'boolean': {
-			const normalized = value.toLowerCase();
-			const valid = ['true', 'false', '1', '0'];
-			if (!valid.includes(normalized)) {
-				return 'must be a boolean (true/false or 1/0)';
-			}
-			return undefined;
-		}
-		case 'integer': {
-			if (!/^[-+]?\d+$/.test(value.trim())) {
-				return 'must be an integer value';
-			}
-			return undefined;
-		}
-		case 'numeric': {
-			if (!isNumeric(value)) {
-				return 'must be numeric';
-			}
-			return undefined;
-		}
-		case 'string': {
-			return undefined;
-		}
-		case 'in': {
-			const candidates = parseList(argument);
-			if (!candidates.length) {
-				return 'has an invalid in rule';
-			}
-			if (!candidates.includes(value)) {
-				return `must be one of: ${candidates.join(', ')}`;
-			}
-			return undefined;
-		}
-		case 'url': {
-			try {
-				new URL(value);
-				return undefined;
-			} catch {
-				return 'must be a valid URL';
-			}
-		}
-		case 'email': {
-			const pattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-			if (!pattern.test(value)) {
-				return 'must be a valid email address';
-			}
-			return undefined;
-		}
-		case 'regex': {
-			const pattern = buildRegex(argument);
-			if (!pattern) {
-				return 'has an invalid regex rule';
-			}
-			if (!pattern.test(value)) {
-				return `must match regex ${pattern}`;
-			}
-			return undefined;
-		}
-		case 'starts_with': {
-			if (!argument) {
-				return 'has an invalid starts_with rule';
-			}
-			if (!value.startsWith(argument)) {
-				return `must start with "${argument}"`;
-			}
-			return undefined;
-		}
-		case 'ends_with': {
-			if (!argument) {
-				return 'has an invalid ends_with rule';
-			}
-			if (!value.endsWith(argument)) {
-				return `must end with "${argument}"`;
-			}
-			return undefined;
-		}
-		case 'min': {
-			const limit = parseNumber(argument);
-			if (limit === undefined) {
-				return 'has an invalid min rule';
-			}
-
-			if (isNumeric(value)) {
-				if (Number(value) < limit) {
-					return `must be at least ${limit}`;
-				}
-			} else if (value.length < limit) {
-				return `must be at least ${limit} characters long`;
-			}
-			return undefined;
-		}
-		case 'max': {
-			const limit = parseNumber(argument);
-			if (limit === undefined) {
-				return 'has an invalid max rule';
-			}
-
-			if (isNumeric(value)) {
-				if (Number(value) > limit) {
-					return `must be at most ${limit}`;
-				}
-			} else if (value.length > limit) {
-				return `must be at most ${limit} characters long`;
-			}
-			return undefined;
-		}
-		case 'required':
-		case 'nullable':
-			return undefined;
-		default:
-			return `has an unknown validation rule: ${rule.type}`;
-	}
+        return validator(value, rule);
 }
 
 export function validateVariables(
