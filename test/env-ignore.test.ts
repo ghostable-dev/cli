@@ -19,8 +19,7 @@ let decryptedSecrets: Array<{
 	entry: { name: string; meta?: { is_commented?: boolean } };
 	value: string;
 }> = [];
-const uploadPayloads: any[] = [];
-const uploadOptions: Array<{ sync?: boolean }> = [];
+const uploadCalls: Array<{ payload: any; options: { sync?: boolean } }> = [];
 const writeFileCalls: Array<{ path: string; content: string }> = [];
 const copyFileCalls: Array<{ src: string; dest: string }> = [];
 
@@ -56,10 +55,10 @@ vi.mock('../src/services/SessionService.js', () => ({
 
 const client = {
 	pull: vi.fn(async () => remoteBundle),
-	uploadSecret: vi.fn(
+	uploadSecret: vi.fn(),
+	push: vi.fn(
 		async (_projectId: string, _env: string, payload: any, options?: { sync?: boolean }) => {
-			uploadPayloads.push(payload);
-			uploadOptions.push(options ?? {});
+			uploadCalls.push({ payload, options: options ?? {} });
 		},
 	),
 };
@@ -189,8 +188,7 @@ beforeEach(() => {
 	snapshots = {};
 	remoteBundle = { chain: ['prod'], secrets: [] };
 	decryptedSecrets = [];
-	uploadPayloads.splice(0, uploadPayloads.length);
-	uploadOptions.splice(0, uploadOptions.length);
+	uploadCalls.splice(0, uploadCalls.length);
 	writeFileCalls.splice(0, writeFileCalls.length);
 	copyFileCalls.splice(0, copyFileCalls.length);
 	logOutputs.info.length = 0;
@@ -199,6 +197,7 @@ beforeEach(() => {
 	logOutputs.ok.length = 0;
 	client.pull.mockClear();
 	client.uploadSecret.mockClear();
+	client.push.mockClear();
 	existsSyncMock.mockClear();
 	existsSyncMock.mockReturnValue(true);
 	writeFileSyncMock.mockClear();
@@ -327,9 +326,10 @@ describe('env:push ignore behaviour', () => {
 		registerEnvPushCommand(program);
 		await program.parseAsync(['node', 'test', 'env:push', '--env', 'prod', '--assume-yes']);
 
-		const uploadedNames = uploadPayloads.map((payload) => payload.name);
+		expect(uploadCalls).toHaveLength(1);
+		const uploadedNames = uploadCalls[0]?.payload.secrets.map((payload: any) => payload.name);
 		expect(uploadedNames).toEqual(['FOO']);
-		expect(uploadOptions).toEqual([{}]);
+		expect(uploadCalls[0]?.options).toEqual({});
 	});
 
 	it('passes sync flag to upload when requested', async () => {
@@ -352,8 +352,8 @@ describe('env:push ignore behaviour', () => {
 			'--sync',
 		]);
 
-		expect(uploadPayloads).toHaveLength(1);
-		expect(uploadOptions).toEqual([{ sync: true }]);
+		expect(uploadCalls).toHaveLength(1);
+		expect(uploadCalls[0]?.options).toEqual({ sync: true });
 	});
 });
 

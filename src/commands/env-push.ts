@@ -1,12 +1,11 @@
 import { Command } from 'commander';
 import { select } from '@inquirer/prompts';
-import { Listr } from 'listr2';
+import { Listr, ListrTaskWrapper, ListrDefaultRenderer, ListrSimpleRenderer } from 'listr2';
 import fs from 'node:fs';
 import chalk from 'chalk';
 
 import { initSodium } from '../crypto.js';
 import { loadOrCreateKeys } from '../keys.js';
-
 import { config } from '../config/index.js';
 import { SessionService } from '../services/SessionService.js';
 import { GhostableClient } from '../services/GhostableClient.js';
@@ -14,7 +13,6 @@ import { Manifest } from '../support/Manifest.js';
 import { log } from '../support/logger.js';
 import { toErrorMessage } from '../support/errors.js';
 import { getIgnoredKeys, filterIgnoredKeys } from '../support/ignore.js';
-
 import {
 	EnvVarSnapshot,
 	resolveEnvFile,
@@ -22,7 +20,10 @@ import {
 } from '../support/env-files.js';
 import { buildSecretPayload } from '../support/secret-payload.js';
 
-import type { ValidatorRecord } from '@/types';
+import type { SignedEnvironmentSecretUploadRequest, ValidatorRecord } from '@/types';
+
+// Listr context (extend as needed)
+type Ctx = Record<string, unknown>;
 
 export type PushOptions = {
 	api?: string;
@@ -87,15 +88,15 @@ export async function runEnvPush(opts: PushOptions): Promise<void> {
 		});
 	}
 
-	// 3) Resolve token, and org from session if needed
+	// 3) Resolve token / org
 	const sessionSvc = new SessionService();
 	const sess = await sessionSvc.load();
 	if (!sess?.accessToken) {
 		log.error('❌ No API token. Run `ghostable login`.');
 		process.exit(1);
 	}
-	let token = sess.accessToken;
-	let orgId = sess.organizationId;
+	const token = sess.accessToken;
+	const orgId = sess.organizationId;
 
 	// 4) Resolve .env file path
 	const filePath = resolveEnvFile(envName!, opts.file, true);
@@ -104,7 +105,7 @@ export async function runEnvPush(opts: PushOptions): Promise<void> {
 		process.exit(1);
 	}
 
-	// 5) Read variables
+	// 5) Read variables + apply ignore list
 	const { vars: envMap, snapshots } = readEnvFileSafeWithMetadata(filePath);
 	const ignored = getIgnoredKeys(envName);
 	const filteredVars = filterIgnoredKeys(envMap, ignored);
@@ -129,50 +130,65 @@ export async function runEnvPush(opts: PushOptions): Promise<void> {
 	}
 
 	// 6) Prep crypto + client
-	await initSodium(); // no-op with stablelib
+	await initSodium();
 	const keyBundle = await loadOrCreateKeys();
 	const masterSeed = Buffer.from(keyBundle.masterSeedB64.replace(/^b64:/, ''), 'base64');
 	const edPriv = Buffer.from(keyBundle.ed25519PrivB64.replace(/^b64:/, ''), 'base64');
 
 	const client = GhostableClient.unauthenticated(config.apiBase).withToken(token);
 
-	// 7) Encrypt + push per variable
-	const tasks = new Listr(
-		entries.map(({ name, parsedValue, plaintext }) => ({
-			title: `${name}`,
-			task: async (_ctx, task) => {
-				const validators: ValidatorRecord = {
-					non_empty: parsedValue.length > 0,
-				};
-				if (name === 'APP_KEY') {
-					validators.regex = {
-						id: 'base64_44char_v1',
-						ok: /^base64:/.test(parsedValue) && parsedValue.length >= 44,
-					};
-					validators.length = parsedValue.length;
-				}
+	// 7) Encrypt & upload via Listr
+	const payloads: SignedEnvironmentSecretUploadRequest[] = [];
 
-				const payload = await buildSecretPayload({
-					name,
-					env: envName!, // from manifest selection
-					org: orgId ?? '', // server can infer if token is org-scoped
-					project: projectId, // from manifest
-					plaintext,
-					masterSeed,
-					edPriv,
-					validators,
-					// ifVersion?: number  // add later for optimistic concurrency
-				});
+	const tasks = new Listr<Ctx, ListrDefaultRenderer, ListrSimpleRenderer>(
+		[
+			...entries.map(({ name, parsedValue, plaintext }) => ({
+				title: `${name}`,
+				task: async (
+					_ctx: Ctx,
+					task: ListrTaskWrapper<Ctx, ListrDefaultRenderer, ListrSimpleRenderer>,
+				) => {
+					const validators: ValidatorRecord = { non_empty: parsedValue.length > 0 };
 
-				await client.uploadSecret(
-					projectId,
-					envName,
-					payload,
-					sync ? { sync: true } : undefined,
-				);
-				task.title = `${name}  ${chalk.green('✓')}`;
+					if (name === 'APP_KEY') {
+						validators.regex = {
+							id: 'base64_44char_v1',
+							ok: /^base64:/.test(parsedValue) && parsedValue.length >= 44,
+						};
+						validators.length = parsedValue.length;
+					}
+
+					const payload = await buildSecretPayload({
+						name,
+						env: envName!, // from manifest selection
+						org: orgId ?? '', // server may infer if token is org-scoped
+						project: projectId, // from manifest
+						plaintext,
+						masterSeed,
+						edPriv,
+						validators,
+					});
+
+					payloads.push(payload);
+					task.title = `${name}  ${chalk.green('✓')}`;
+				},
+			})),
+			{
+				title: `Upload ${entries.length} variables`,
+				task: async (
+					_ctx: Ctx,
+					task: ListrTaskWrapper<Ctx, ListrDefaultRenderer, ListrSimpleRenderer>,
+				) => {
+					await client.push(
+						projectId,
+						envName!,
+						{ secrets: payloads },
+						sync ? { sync: true } : undefined,
+					);
+					task.title = `Upload ${entries.length} variables  ${chalk.green('✓')}`;
+				},
 			},
-		})),
+		],
 		{ concurrent: false, exitOnError: true },
 	);
 

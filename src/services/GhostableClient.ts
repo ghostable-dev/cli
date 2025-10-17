@@ -18,6 +18,7 @@ import type {
 	EnvironmentTypeJson,
 	OrganizationJson,
 	ProjectJson,
+	SignedEnvironmentSecretBatchUploadRequest,
 	SignedEnvironmentSecretUploadRequest,
 } from '@/types';
 import { environmentKeysFromJSON } from '@/types';
@@ -116,6 +117,18 @@ export class GhostableClient {
 		const e = encodeURIComponent(envName);
 		const suffix = opts?.sync ? '?sync=1' : '';
 		return this.http.post(`/projects/${p}/environments/${e}/secrets${suffix}`, payload);
+	}
+
+	async push(
+		projectId: string,
+		envName: string,
+		payloads: SignedEnvironmentSecretBatchUploadRequest,
+		opts?: { sync?: boolean },
+	): Promise<void> {
+		const p = encodeURIComponent(projectId);
+		const e = encodeURIComponent(envName);
+		const suffix = opts?.sync ? '?sync=1' : '';
+		await this.http.post(`/projects/${p}/environments/${e}/push${suffix}`, payloads);
 	}
 
 	async pull(

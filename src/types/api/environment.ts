@@ -189,3 +189,7 @@ export type SignedEnvironmentSecretUploadRequest = EnvironmentSecretUploadReques
 	/** Ed25519 signature over the JSON body (excluding this field). */
 	client_sig: string;
 };
+
+export type SignedEnvironmentSecretBatchUploadRequest = {
+	secrets: SignedEnvironmentSecretUploadRequest[];
+};
