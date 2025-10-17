@@ -19,8 +19,7 @@ let decryptedSecrets: Array<{
 	entry: { name: string; meta?: { is_commented?: boolean } };
 	value: string;
 }> = [];
-const uploadPayloads: any[] = [];
-const uploadOptions: Array<{ sync?: boolean }> = [];
+const uploadCalls: Array<{ payload: any; options: { sync?: boolean } }> = [];
 const writeFileCalls: Array<{ path: string; content: string }> = [];
 const copyFileCalls: Array<{ src: string; dest: string }> = [];
 
@@ -55,13 +54,18 @@ vi.mock('../src/services/SessionService.js', () => ({
 }));
 
 const client = {
-	pull: vi.fn(async () => remoteBundle),
-	uploadSecret: vi.fn(
-		async (_projectId: string, _env: string, payload: any, options?: { sync?: boolean }) => {
-			uploadPayloads.push(payload);
-			uploadOptions.push(options ?? {});
-		},
-	),
+        pull: vi.fn(async () => remoteBundle),
+        uploadSecret: vi.fn(),
+        uploadSecrets: vi.fn(
+                async (
+                        _projectId: string,
+                        _env: string,
+                        payload: any,
+                        options?: { sync?: boolean },
+                ) => {
+                        uploadCalls.push({ payload, options: options ?? {} });
+                },
+        ),
 };
 
 vi.mock('../src/services/GhostableClient.js', () => ({
@@ -189,16 +193,16 @@ beforeEach(() => {
 	snapshots = {};
 	remoteBundle = { chain: ['prod'], secrets: [] };
 	decryptedSecrets = [];
-	uploadPayloads.splice(0, uploadPayloads.length);
-	uploadOptions.splice(0, uploadOptions.length);
+        uploadCalls.splice(0, uploadCalls.length);
 	writeFileCalls.splice(0, writeFileCalls.length);
-	copyFileCalls.splice(0, copyFileCalls.length);
-	logOutputs.info.length = 0;
-	logOutputs.warn.length = 0;
-	logOutputs.error.length = 0;
-	logOutputs.ok.length = 0;
-	client.pull.mockClear();
-	client.uploadSecret.mockClear();
+        copyFileCalls.splice(0, copyFileCalls.length);
+        logOutputs.info.length = 0;
+        logOutputs.warn.length = 0;
+        logOutputs.error.length = 0;
+        logOutputs.ok.length = 0;
+        client.pull.mockClear();
+        client.uploadSecret.mockClear();
+        client.uploadSecrets.mockClear();
 	existsSyncMock.mockClear();
 	existsSyncMock.mockReturnValue(true);
 	writeFileSyncMock.mockClear();
@@ -327,9 +331,10 @@ describe('env:push ignore behaviour', () => {
 		registerEnvPushCommand(program);
 		await program.parseAsync(['node', 'test', 'env:push', '--env', 'prod', '--assume-yes']);
 
-		const uploadedNames = uploadPayloads.map((payload) => payload.name);
-		expect(uploadedNames).toEqual(['FOO']);
-		expect(uploadOptions).toEqual([{}]);
+                expect(uploadCalls).toHaveLength(1);
+                const uploadedNames = uploadCalls[0]?.payload.secrets.map((payload: any) => payload.name);
+                expect(uploadedNames).toEqual(['FOO']);
+                expect(uploadCalls[0]?.options).toEqual({});
 	});
 
 	it('passes sync flag to upload when requested', async () => {
@@ -352,8 +357,8 @@ describe('env:push ignore behaviour', () => {
 			'--sync',
 		]);
 
-		expect(uploadPayloads).toHaveLength(1);
-		expect(uploadOptions).toEqual([{ sync: true }]);
+                expect(uploadCalls).toHaveLength(1);
+                expect(uploadCalls[0]?.options).toEqual({ sync: true });
 	});
 });
 

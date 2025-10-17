@@ -22,7 +22,7 @@ import {
 } from '../support/env-files.js';
 import { buildSecretPayload } from '../support/secret-payload.js';
 
-import type { ValidatorRecord } from '@/types';
+import type { SignedEnvironmentSecretUploadRequest, ValidatorRecord } from '@/types';
 
 export type PushOptions = {
 	api?: string;
@@ -136,45 +136,56 @@ export async function runEnvPush(opts: PushOptions): Promise<void> {
 
 	const client = GhostableClient.unauthenticated(config.apiBase).withToken(token);
 
-	// 7) Encrypt + push per variable
-	const tasks = new Listr(
-		entries.map(({ name, parsedValue, plaintext }) => ({
-			title: `${name}`,
-			task: async (_ctx, task) => {
-				const validators: ValidatorRecord = {
-					non_empty: parsedValue.length > 0,
-				};
-				if (name === 'APP_KEY') {
-					validators.regex = {
-						id: 'base64_44char_v1',
-						ok: /^base64:/.test(parsedValue) && parsedValue.length >= 44,
-					};
-					validators.length = parsedValue.length;
-				}
+        // 7) Encrypt variables locally then upload as a single batch
+        const payloads: SignedEnvironmentSecretUploadRequest[] = [];
 
-				const payload = await buildSecretPayload({
-					name,
-					env: envName!, // from manifest selection
-					org: orgId ?? '', // server can infer if token is org-scoped
-					project: projectId, // from manifest
-					plaintext,
-					masterSeed,
-					edPriv,
-					validators,
-					// ifVersion?: number  // add later for optimistic concurrency
-				});
+        const tasks = new Listr(
+                [
+                        ...entries.map(({ name, parsedValue, plaintext }) => ({
+                                title: `${name}`,
+                                task: async (_ctx, task) => {
+                                        const validators: ValidatorRecord = {
+                                                non_empty: parsedValue.length > 0,
+                                        };
+                                        if (name === 'APP_KEY') {
+                                                validators.regex = {
+                                                        id: 'base64_44char_v1',
+                                                        ok: /^base64:/.test(parsedValue) && parsedValue.length >= 44,
+                                                };
+                                                validators.length = parsedValue.length;
+                                        }
 
-				await client.uploadSecret(
-					projectId,
-					envName,
-					payload,
-					sync ? { sync: true } : undefined,
-				);
-				task.title = `${name}  ${chalk.green('✓')}`;
-			},
-		})),
-		{ concurrent: false, exitOnError: true },
-	);
+                                        const payload = await buildSecretPayload({
+                                                name,
+                                                env: envName!, // from manifest selection
+                                                org: orgId ?? '', // server can infer if token is org-scoped
+                                                project: projectId, // from manifest
+                                                plaintext,
+                                                masterSeed,
+                                                edPriv,
+                                                validators,
+                                                // ifVersion?: number  // add later for optimistic concurrency
+                                        });
+
+                                        payloads.push(payload);
+                                        task.title = `${name}  ${chalk.green('✓')}`;
+                                },
+                        })),
+                        {
+                                title: `Upload ${entries.length} variables`,
+                                task: async (_ctx, task) => {
+                                        await client.uploadSecrets(
+                                                projectId,
+                                                envName!,
+                                                { secrets: payloads },
+                                                sync ? { sync: true } : undefined,
+                                        );
+                                        task.title = `Upload ${entries.length} variables  ${chalk.green('✓')}`;
+                                },
+                        },
+                ],
+                { concurrent: false, exitOnError: true },
+        );
 
 	try {
 		await tasks.run();
