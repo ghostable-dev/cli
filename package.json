@@ -30,21 +30,16 @@
         "@stablelib/random": "^2.0.1",
         "@stablelib/xchacha20poly1305": "^2.0.1",
         "chalk": "^5.6.2",
-        "cli-table3": "^0.6.5",
         "commander": "^12.1.0",
         "cross-fetch": "^4.0.0",
         "dotenv": "^17.2.3",
-        "enquirer": "^2.4.1",
-        "keytar": "^7.9.0",
         "js-yaml": "^4.1.0",
-        "libsodium-wrappers": "^0.7.15",
+        "keytar": "^7.9.0",
         "listr2": "^9.0.4",
-        "ora": "^9.0.0",
-        "zod": "^3.23.8"
+        "ora": "^9.0.0"
     },
     "devDependencies": {
         "@types/js-yaml": "^4.0.9",
-        "@types/libsodium-wrappers": "^0.7.14",
         "@types/node": "^22.0.0",
         "@typescript-eslint/eslint-plugin": "^8.46.0",
         "@typescript-eslint/parser": "^8.46.0",
