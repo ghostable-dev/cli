@@ -29,7 +29,9 @@ export function registerLoginCommand(program: Command) {
 				const twofaClient = GhostableClient.unauthenticated(apiBase);
 				if (!token) {
 					spinner.stop();
-					const code = await password({ message: '2FA code:' });
+					const code = await password({
+						message: '2FA code:',
+					});
 					spinner.start('Verifying 2FA…');
 					token = await twofaClient.login(email, pwd, code);
 				}
@@ -45,7 +47,10 @@ export function registerLoginCommand(program: Command) {
 				} else if (orgs.length > 1) {
 					organizationId = await select({
 						message: 'Choose your organization',
-						choices: orgs.map((o) => ({ name: o.label(), value: o.id })),
+						choices: orgs.map((o) => ({
+							name: o.label(),
+							value: o.id,
+						})),
 					});
 					log.ok(
 						`✅ Using organization: ${orgs.find((o) => o.id === organizationId)?.label()}`,

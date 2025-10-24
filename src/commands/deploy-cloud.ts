@@ -38,7 +38,9 @@ export function registerDeployCloudCommand(program: Command) {
 			// 1) Token + client
 			let token: string;
 			try {
-				token = await resolveToken(opts.token, { allowSession: false });
+				token = await resolveToken(opts.token, {
+					allowSession: false,
+				});
 			} catch (error) {
 				log.error(toErrorMessage(error));
 				process.exit(1);
@@ -67,7 +69,9 @@ export function registerDeployCloudCommand(program: Command) {
 			}
 
 			// 3) Decrypt + merge (child wins). (Server currently returns a single layer.)
-			const { secrets, warnings } = await decryptBundle(bundle, { masterSeedB64 });
+			const { secrets, warnings } = await decryptBundle(bundle, {
+				masterSeedB64,
+			});
 			for (const w of warnings) log.warn(`⚠️ ${w}`);
 
 			const merged: Record<string, string> = {};

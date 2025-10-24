@@ -47,7 +47,9 @@ export function registerDeployForgeCommand(program: Command) {
 				// 1) Token + client
 				let token: string;
 				try {
-					token = await resolveToken(opts.token, { allowSession: false });
+					token = await resolveToken(opts.token, {
+						allowSession: false,
+					});
 				} catch (error) {
 					log.error(toErrorMessage(error));
 					process.exit(1);
@@ -109,7 +111,9 @@ export function registerDeployForgeCommand(program: Command) {
 
 					// ensure key is present in the plain .env file
 					combined['LARAVEL_ENV_ENCRYPTION_KEY'] = envKeyB64;
-					writeEnvFile(envPath, combined, { preserve: preserved });
+					writeEnvFile(envPath, combined, {
+						preserve: preserved,
+					});
 					log.ok(`🔑 Set LARAVEL_ENV_ENCRYPTION_KEY in ${path.basename(envPath)}`);
 
 					// Create encrypted blob using Laravel's own command

@@ -53,7 +53,10 @@ export function registerOrganizationListCommand(program: Command) {
 			// Build project choices
 			const choices = [
 				{ name: '[Create a new project]', value: '__new__' },
-				...projects.map((p) => ({ name: p.name || p.id, value: p.id })),
+				...projects.map((p) => ({
+					name: p.name || p.id,
+					value: p.id,
+				})),
 			];
 
 			const selection = await select<string>({

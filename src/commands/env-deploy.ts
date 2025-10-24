@@ -44,7 +44,9 @@ export function registerEnvDeployCommand(program: Command) {
 			// 1) Token + client
 			let token: string;
 			try {
-				token = await resolveToken(opts.token, { allowSession: false });
+				token = await resolveToken(opts.token, {
+					allowSession: false,
+				});
 			} catch (error) {
 				log.error(toErrorMessage(error));
 				process.exit(1);
@@ -73,7 +75,9 @@ export function registerEnvDeployCommand(program: Command) {
 			}
 
 			// 3) Decrypt and merge (child wins if multiple layers are ever present)
-			const { secrets, warnings } = await decryptBundle(bundle, { masterSeedB64 });
+			const { secrets, warnings } = await decryptBundle(bundle, {
+				masterSeedB64,
+			});
 			for (const w of warnings) log.warn(`⚠️ ${w}`);
 
 			const merged: Record<string, string> = {};

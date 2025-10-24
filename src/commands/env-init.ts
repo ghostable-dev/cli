@@ -55,7 +55,10 @@ export function registerEnvInitCommand(program: Command) {
 
 			const selectedType = await select<string>({
 				message: 'What type of environment are you creating?',
-				choices: typeOptions.map((t) => ({ name: t.label(), value: t.value })),
+				choices: typeOptions.map((t) => ({
+					name: t.label(),
+					value: t.value,
+				})),
 				pageSize: Math.min(12, typeOptions.length || 1),
 			});
 
@@ -96,8 +99,14 @@ export function registerEnvInitCommand(program: Command) {
 
 				if (suggestions.length) {
 					const suggestionChoices = [
-						...suggestions.map((s) => ({ name: s.name, value: s.name })),
-						{ name: 'Custom name', value: '__CUSTOM__' },
+						...suggestions.map((s) => ({
+							name: s.name,
+							value: s.name,
+						})),
+						{
+							name: 'Custom name',
+							value: '__CUSTOM__',
+						},
 					];
 
 					const choice = await select<string>({

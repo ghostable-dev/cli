@@ -218,7 +218,10 @@ describe('env:diff ignore behaviour', () => {
 			{ entry: { name: 'FOO', meta: {} }, value: 'remote-value' },
 			{ entry: { name: 'BAR', meta: {} }, value: 'remote-bar' },
 			{ entry: { name: 'CUSTOM_TOKEN', meta: {} }, value: 'remote-custom' },
-			{ entry: { name: 'GHOSTABLE_CI_TOKEN', meta: {} }, value: 'remote-token' },
+			{
+				entry: { name: 'GHOSTABLE_CI_TOKEN', meta: {} },
+				value: 'remote-token',
+			},
 		];
 
 		const consoleLog = vi.spyOn(console, 'log').mockImplementation(() => {});

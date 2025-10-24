@@ -150,7 +150,9 @@ export async function runEnvPush(opts: PushOptions): Promise<void> {
 					_ctx: Ctx,
 					task: ListrTaskWrapper<Ctx, ListrDefaultRenderer, ListrSimpleRenderer>,
 				) => {
-					const validators: ValidatorRecord = { non_empty: parsedValue.length > 0 };
+					const validators: ValidatorRecord = {
+						non_empty: parsedValue.length > 0,
+					};
 
 					if (name === 'APP_KEY') {
 						validators.regex = {

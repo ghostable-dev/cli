@@ -60,7 +60,10 @@ export function registerKeyExportCommand(program: Command) {
 					? opts.env
 					: await select<string>({
 							message: 'Which environment key would you like to export?',
-							choices: envNames.sort().map((n) => ({ name: n, value: n })),
+							choices: envNames.sort().map((n) => ({
+								name: n,
+								value: n,
+							})),
 						});
 
 			// 3) Get org from session (needed to build the derivation scope)

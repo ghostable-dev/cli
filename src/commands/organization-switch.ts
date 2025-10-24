@@ -45,7 +45,10 @@ export function registerOrganizationSwitchCommand(program: Command) {
 					choices: orgs
 						.slice()
 						.sort((a, b) => (a.name ?? '').localeCompare(b.name ?? ''))
-						.map((o) => ({ name: o.name ?? o.id, value: o.id })),
+						.map((o) => ({
+							name: o.name ?? o.id,
+							value: o.id,
+						})),
 				});
 			}
 

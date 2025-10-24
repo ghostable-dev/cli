@@ -112,7 +112,10 @@ export function registerVarPushCommand(program: Command) {
 			} else {
 				keyName = await select<string>({
 					message: `Select a variable to push from ${projectName}/${envName}:`,
-					choices: entries.map((entry) => ({ name: entry.name, value: entry.name })),
+					choices: entries.map((entry) => ({
+						name: entry.name,
+						value: entry.name,
+					})),
 				});
 			}
 
