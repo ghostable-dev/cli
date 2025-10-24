@@ -1,39 +1,39 @@
 import { HttpClient } from '../http/HttpClient.js';
 
 import {
-        Environment,
-        EnvironmentSecretBundle,
-        EnvironmentSuggestedName,
-        EnvironmentType,
-        Organization,
-        Project,
+	Environment,
+	EnvironmentSecretBundle,
+	EnvironmentSuggestedName,
+	EnvironmentType,
+	Organization,
+	Project,
 } from '@/domain';
 import type { EncryptedEnvelope, OneTimePrekey, SignedPrekey } from '@/crypto';
 
 import type {
-        EnvironmentJson,
-        EnvironmentKeysResponse,
-        EnvironmentKeysResponseJson,
-        EnvironmentSecretBundleJson,
-        EnvironmentSuggestedNameJson,
-        EnvironmentTypeJson,
-        DevicePrekeyBundle,
-        DevicePrekeyBundleJson,
-        EncryptedEnvelopeJson,
-        SignedPrekeyJson,
-        OrganizationJson,
-        ProjectJson,
-        SignedEnvironmentSecretBatchUploadRequest,
-        SignedEnvironmentSecretUploadRequest,
+	EnvironmentJson,
+	EnvironmentKeysResponse,
+	EnvironmentKeysResponseJson,
+	EnvironmentSecretBundleJson,
+	EnvironmentSuggestedNameJson,
+	EnvironmentTypeJson,
+	DevicePrekeyBundle,
+	DevicePrekeyBundleJson,
+	EncryptedEnvelopeJson,
+	SignedPrekeyJson,
+	OrganizationJson,
+	ProjectJson,
+	SignedEnvironmentSecretBatchUploadRequest,
+	SignedEnvironmentSecretUploadRequest,
 } from '@/types';
 import {
-        devicePrekeyBundleFromJSON,
-        encryptedEnvelopeFromJSON,
-        encryptedEnvelopeToJSON,
-        environmentKeysFromJSON,
-        oneTimePrekeyToJSON,
-        signedPrekeyFromJSON,
-        signedPrekeyToJSON,
+	devicePrekeyBundleFromJSON,
+	encryptedEnvelopeFromJSON,
+	encryptedEnvelopeToJSON,
+	environmentKeysFromJSON,
+	oneTimePrekeyToJSON,
+	signedPrekeyFromJSON,
+	signedPrekeyToJSON,
 } from '@/types';
 
 type LoginResponse = { token?: string; two_factor?: boolean };
@@ -181,11 +181,11 @@ export class GhostableClient {
 		return environmentKeysFromJSON(json);
 	}
 
-        async deploy(opts?: {
-                only?: string[];
-                includeMeta?: boolean;
-                includeVersions?: boolean;
-        }): Promise<EnvironmentSecretBundle> {
+	async deploy(opts?: {
+		only?: string[];
+		includeMeta?: boolean;
+		includeVersions?: boolean;
+	}): Promise<EnvironmentSecretBundle> {
 		const qs = new URLSearchParams();
 		if (opts?.includeMeta) qs.set('include_meta', '1');
 		if (opts?.includeVersions) qs.set('include_versions', '1');
@@ -195,48 +195,48 @@ export class GhostableClient {
 
 		const json = await this.http.get<EnvironmentSecretBundleJson>(`/ci/deploy${suffix}`);
 
-                return EnvironmentSecretBundle.fromJSON(json);
-        }
+		return EnvironmentSecretBundle.fromJSON(json);
+	}
 
-        async publishSignedPrekey(deviceId: string, prekey: SignedPrekey): Promise<SignedPrekey> {
-                const d = encodeURIComponent(deviceId);
-                const json = await this.http.post<SignedPrekeyJson>(
-                        `/devices/${d}/signed-prekey`,
-                        signedPrekeyToJSON(prekey),
-                );
-                return signedPrekeyFromJSON(json);
-        }
+	async publishSignedPrekey(deviceId: string, prekey: SignedPrekey): Promise<SignedPrekey> {
+		const d = encodeURIComponent(deviceId);
+		const json = await this.http.post<SignedPrekeyJson>(
+			`/devices/${d}/signed-prekey`,
+			signedPrekeyToJSON(prekey),
+		);
+		return signedPrekeyFromJSON(json);
+	}
 
-        async publishOneTimePrekeys(deviceId: string, prekeys: OneTimePrekey[]): Promise<void> {
-                const d = encodeURIComponent(deviceId);
-                await this.http.post(`/devices/${d}/one-time-prekeys`, {
-                        one_time_prekeys: prekeys.map(oneTimePrekeyToJSON),
-                });
-        }
+	async publishOneTimePrekeys(deviceId: string, prekeys: OneTimePrekey[]): Promise<void> {
+		const d = encodeURIComponent(deviceId);
+		await this.http.post(`/devices/${d}/one-time-prekeys`, {
+			one_time_prekeys: prekeys.map(oneTimePrekeyToJSON),
+		});
+	}
 
-        async getDevicePrekeys(deviceId: string): Promise<DevicePrekeyBundle> {
-                const d = encodeURIComponent(deviceId);
-                const json = await this.http.get<DevicePrekeyBundleJson>(`/devices/${d}/prekeys`);
-                return devicePrekeyBundleFromJSON(json);
-        }
+	async getDevicePrekeys(deviceId: string): Promise<DevicePrekeyBundle> {
+		const d = encodeURIComponent(deviceId);
+		const json = await this.http.get<DevicePrekeyBundleJson>(`/devices/${d}/prekeys`);
+		return devicePrekeyBundleFromJSON(json);
+	}
 
-        async sendEnvelope(deviceId: string, envelope: EncryptedEnvelope): Promise<void> {
-                const d = encodeURIComponent(deviceId);
-                await this.http.post(`/devices/${d}/envelopes`, encryptedEnvelopeToJSON(envelope));
-        }
+	async sendEnvelope(deviceId: string, envelope: EncryptedEnvelope): Promise<void> {
+		const d = encodeURIComponent(deviceId);
+		await this.http.post(`/devices/${d}/envelopes`, encryptedEnvelopeToJSON(envelope));
+	}
 
-        async getEnvelopes(
-                deviceId: string,
-                opts?: { limit?: number; since?: string },
-        ): Promise<EncryptedEnvelope[]> {
-                const d = encodeURIComponent(deviceId);
-                const qs = new URLSearchParams();
-                if (opts?.limit !== undefined) qs.set('limit', String(opts.limit));
-                if (opts?.since) qs.set('since', opts.since);
-                const suffix = qs.toString() ? `?${qs.toString()}` : '';
-                const res = await this.http.get<ListResp<EncryptedEnvelopeJson>>(
-                        `/devices/${d}/envelopes${suffix}`,
-                );
-                return (res.data ?? []).map(encryptedEnvelopeFromJSON);
-        }
+	async getEnvelopes(
+		deviceId: string,
+		opts?: { limit?: number; since?: string },
+	): Promise<EncryptedEnvelope[]> {
+		const d = encodeURIComponent(deviceId);
+		const qs = new URLSearchParams();
+		if (opts?.limit !== undefined) qs.set('limit', String(opts.limit));
+		if (opts?.since) qs.set('since', opts.since);
+		const suffix = qs.toString() ? `?${qs.toString()}` : '';
+		const res = await this.http.get<ListResp<EncryptedEnvelopeJson>>(
+			`/devices/${d}/envelopes${suffix}`,
+		);
+		return (res.data ?? []).map(encryptedEnvelopeFromJSON);
+	}
 }
