@@ -15,6 +15,7 @@ import { EncryptedEnvelope } from './types/EncryptedEnvelope';
 
 export class KeyService {
 	private static keyStore: KeyStore;
+	private static readonly SIGNED_PREKEY_TTL_MS = 1000 * 60 * 60 * 24 * 30; // 30 days
 
 	/** Initializes the KeyService with a KeyStore implementation. */
 	static initialize(keyStore: KeyStore) {
@@ -70,6 +71,7 @@ export class KeyService {
 		if (!privSign) throw new Error('Signing key not found');
 		const signature = await ed25519.sign(pubEnc, privSign);
 		const id = uuid();
+		const expiresAt = new Date(Date.now() + this.SIGNED_PREKEY_TTL_MS).toISOString();
 
 		const prekey: SignedPrekey = {
 			id,
@@ -78,12 +80,41 @@ export class KeyService {
 			signatureFromSigningKey: toBase64(signature),
 			signerKid: this.thumbprint(identity.signingKey.publicKey),
 			createdAtIso: new Date().toISOString(),
+			expiresAtIso: expiresAt,
 			revoked: false,
 		};
 
 		// Store private key
 		await this.keyStore.setKey(`signedPrekey:${id}`, keypair.secretKey);
 		return prekey;
+	}
+
+	/**
+	 * Rotates the provided signed prekey when it has expired.
+	 * Returns the active prekey along with metadata describing whether a rotation occurred.
+	 */
+	public static async rotateSignedPrekeyIfExpired(
+		identity: DeviceIdentity,
+		current: SignedPrekey | null | undefined,
+		now: Date = new Date(),
+	): Promise<{ active: SignedPrekey; rotated: boolean; retired?: SignedPrekey }> {
+		if (!current) {
+			const fresh = await this.createSignedPrekey(identity);
+			return { active: fresh, rotated: true };
+		}
+
+		if (!current.expiresAtIso) {
+			return { active: current, rotated: false };
+		}
+
+		const expiresAt = Date.parse(current.expiresAtIso);
+		if (Number.isNaN(expiresAt) || now.getTime() < expiresAt) {
+			return { active: current, rotated: false };
+		}
+
+		const retired: SignedPrekey = { ...current, revoked: true };
+		const fresh = await this.createSignedPrekey(identity);
+		return { active: fresh, rotated: true, retired };
 	}
 
 	/** Generates N one-time prekeys (X25519 keypairs) for single use. */
@@ -104,6 +135,33 @@ export class KeyService {
 			keys.push(prekey);
 		}
 		return keys;
+	}
+
+	/**
+	 * Removes private key material for consumed one-time prekeys from secure storage.
+	 * Returns a sanitized list that no longer exposes the private key values.
+	 */
+	public static async scrubConsumedOneTimePrekeys(
+		prekeys: OneTimePrekey[],
+	): Promise<OneTimePrekey[]> {
+		const sanitized: OneTimePrekey[] = [];
+
+		for (const prekey of prekeys) {
+			if (prekey.consumedAtIso) {
+				await this.keyStore.deleteKey(`oneTimePrekey:${prekey.id}`);
+
+				// Build a sanitized copy without exposing the private key
+				const rest = Object.fromEntries(
+					Object.entries(prekey).filter(([key]) => key !== 'privateKey'),
+				) as Omit<OneTimePrekey, 'privateKey'>;
+
+				sanitized.push({ ...rest, privateKey: undefined });
+			} else {
+				sanitized.push(prekey);
+			}
+		}
+
+		return sanitized;
 	}
 
 	/** Encrypts data for a recipient device using XChaCha20-Poly1305. */
