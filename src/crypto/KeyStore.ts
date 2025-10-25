@@ -1,6 +1,6 @@
 import keytarModule from 'keytar';
-import { toBase64, fromBase64 } from './utils';
-import { KeyStore } from './types/KeyStore';
+import { toBase64, fromBase64 } from './utils.js';
+import { KeyStore } from './types/KeyStore.js';
 
 type KeytarLike = {
 	getPassword(service: string, account: string): Promise<string | null>;

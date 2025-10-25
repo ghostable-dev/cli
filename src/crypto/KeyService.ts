@@ -4,14 +4,14 @@ import { randomBytes } from '@stablelib/random';
 import { XChaCha20Poly1305 } from '@stablelib/xchacha20poly1305';
 import { sha256 } from '@noble/hashes/sha256';
 import { v4 as uuid } from 'uuid';
-import { toBase64, fromBase64 } from './utils';
-import { deriveHKDF } from './derive/hkdf';
-import { KeyStore } from './types/KeyStore';
+import { toBase64, fromBase64 } from './utils.js';
+import { deriveHKDF } from './derive/hkdf.js';
+import { KeyStore } from './types/KeyStore.js';
 
-import { DeviceIdentity } from './types/DeviceIdentity';
-import { SignedPrekey } from './types/SignedPrekey';
-import { OneTimePrekey } from './types/OneTimePrekey';
-import { EncryptedEnvelope } from './types/EncryptedEnvelope';
+import { DeviceIdentity } from './types/DeviceIdentity.js';
+import { SignedPrekey } from './types/SignedPrekey.js';
+import { OneTimePrekey } from './types/OneTimePrekey.js';
+import { EncryptedEnvelope } from './types/EncryptedEnvelope.js';
 
 export class KeyService {
 	private static keyStore: KeyStore;

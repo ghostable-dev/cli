@@ -1,6 +1,6 @@
 import { hkdf } from '@noble/hashes/hkdf';
 import { sha256 } from '@noble/hashes/sha256';
-import { toBase64 } from '../utils';
+import { toBase64 } from '../utils.js';
 
 const enc = new TextEncoder();
 
