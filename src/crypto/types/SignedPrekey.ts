@@ -13,11 +13,14 @@ export type SignedPrekey = {
 	// X25519 private key (Base64), local-only
 	privateKey?: string;
 
-	// Ed25519 signature over the public key (Base64)
-	signatureFromSigningKey: string;
+        // Ed25519 signature over the public key (Base64)
+        signatureFromSigningKey: string;
 
-	// SHA-256 thumbprint (hex) of the signing public key
-	signerKid?: string;
+        // SHA-256 thumbprint (hex) of the signing public key
+        signerKid?: string;
+
+        // SHA-256 fingerprint (hex) derived from the public key
+        fingerprint?: string;
 
 	// Creation timestamp (ISO 8601)
 	createdAtIso: string;

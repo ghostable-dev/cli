@@ -1,39 +1,42 @@
 import { HttpClient } from '../http/HttpClient.js';
 
 import {
-	Environment,
-	EnvironmentSecretBundle,
-	EnvironmentSuggestedName,
-	EnvironmentType,
-	Organization,
-	Project,
+        Device,
+        DeviceEnvelope,
+        Environment,
+        EnvironmentSecretBundle,
+        EnvironmentSuggestedName,
+        EnvironmentType,
+        Organization,
+        Project,
 } from '@/domain';
-import type { EncryptedEnvelope, OneTimePrekey, SignedPrekey } from '@/crypto';
+import type { DeviceStatus } from '@/domain';
+import type { OneTimePrekey, SignedPrekey } from '@/crypto';
 
 import type {
-	EnvironmentJson,
-	EnvironmentKeysResponse,
-	EnvironmentKeysResponseJson,
-	EnvironmentSecretBundleJson,
-	EnvironmentSuggestedNameJson,
-	EnvironmentTypeJson,
-	DevicePrekeyBundle,
-	DevicePrekeyBundleJson,
-	EncryptedEnvelopeJson,
-	SignedPrekeyJson,
-	OrganizationJson,
-	ProjectJson,
-	SignedEnvironmentSecretBatchUploadRequest,
-	SignedEnvironmentSecretUploadRequest,
+        ConsumeEnvelopeResponseJson,
+        DeviceDeleteResponseJson,
+        DeviceDocumentJson,
+        DeviceEnvelopeJson,
+        DevicePrekeyBundle,
+        DevicePrekeyBundleJson,
+        EnvironmentJson,
+        EnvironmentKeysResponse,
+        EnvironmentKeysResponseJson,
+        EnvironmentSecretBundleJson,
+        EnvironmentSuggestedNameJson,
+        EnvironmentTypeJson,
+        OrganizationJson,
+        PublishOneTimePrekeysResponseJson,
+        PublishSignedPrekeyResponseJson,
+        ProjectJson,
+        QueueEnvelopeResponseJson,
+        SignedEnvironmentSecretBatchUploadRequest,
+        SignedEnvironmentSecretUploadRequest,
 } from '@/types';
 import {
-	devicePrekeyBundleFromJSON,
-	encryptedEnvelopeFromJSON,
-	encryptedEnvelopeToJSON,
-	environmentKeysFromJSON,
-	oneTimePrekeyToJSON,
-	signedPrekeyFromJSON,
-	signedPrekeyToJSON,
+        devicePrekeyBundleFromJSON,
+        environmentKeysFromJSON,
 } from '@/types';
 
 type LoginResponse = { token?: string; two_factor?: boolean };
@@ -198,45 +201,104 @@ export class GhostableClient {
 		return EnvironmentSecretBundle.fromJSON(json);
 	}
 
-	async publishSignedPrekey(deviceId: string, prekey: SignedPrekey): Promise<SignedPrekey> {
-		const d = encodeURIComponent(deviceId);
-		const json = await this.http.post<SignedPrekeyJson>(
-			`/devices/${d}/signed-prekey`,
-			signedPrekeyToJSON(prekey),
-		);
-		return signedPrekeyFromJSON(json);
-	}
+        private devicePath(deviceId?: string): string {
+                return deviceId
+                        ? `/api/v2.2/devices/${encodeURIComponent(deviceId)}`
+                        : '/api/v2.2/devices';
+        }
 
-	async publishOneTimePrekeys(deviceId: string, prekeys: OneTimePrekey[]): Promise<void> {
-		const d = encodeURIComponent(deviceId);
-		await this.http.post(`/devices/${d}/one-time-prekeys`, {
-			one_time_prekeys: prekeys.map(oneTimePrekeyToJSON),
-		});
-	}
+        async registerDevice(input: { publicKey: string; platform: string }): Promise<Device> {
+                const json = await this.http.post<DeviceDocumentJson>(this.devicePath(), {
+                        public_key: input.publicKey,
+                        platform: input.platform,
+                });
+                return Device.fromResource(json.data);
+        }
 
-	async getDevicePrekeys(deviceId: string): Promise<DevicePrekeyBundle> {
-		const d = encodeURIComponent(deviceId);
-		const json = await this.http.get<DevicePrekeyBundleJson>(`/devices/${d}/prekeys`);
-		return devicePrekeyBundleFromJSON(json);
-	}
+        async getDevice(deviceId: string): Promise<Device> {
+                const json = await this.http.get<DeviceDocumentJson>(this.devicePath(deviceId));
+                return Device.fromResource(json.data);
+        }
 
-	async sendEnvelope(deviceId: string, envelope: EncryptedEnvelope): Promise<void> {
-		const d = encodeURIComponent(deviceId);
-		await this.http.post(`/devices/${d}/envelopes`, encryptedEnvelopeToJSON(envelope));
-	}
+        async revokeDevice(
+                deviceId: string,
+        ): Promise<{ status: DeviceStatus; revokedAt: Date | null; success: boolean }> {
+                const json = await this.http.delete<DeviceDeleteResponseJson>(this.devicePath(deviceId));
+                const attrs = json.data.attributes;
+                return {
+                        status: attrs.status as DeviceStatus,
+                        revokedAt: attrs.revoked_at ? new Date(attrs.revoked_at) : null,
+                        success: json.meta?.success ?? false,
+                };
+        }
 
-	async getEnvelopes(
-		deviceId: string,
-		opts?: { limit?: number; since?: string },
-	): Promise<EncryptedEnvelope[]> {
-		const d = encodeURIComponent(deviceId);
-		const qs = new URLSearchParams();
-		if (opts?.limit !== undefined) qs.set('limit', String(opts.limit));
-		if (opts?.since) qs.set('since', opts.since);
-		const suffix = qs.toString() ? `?${qs.toString()}` : '';
-		const res = await this.http.get<ListResp<EncryptedEnvelopeJson>>(
-			`/devices/${d}/envelopes${suffix}`,
-		);
-		return (res.data ?? []).map(encryptedEnvelopeFromJSON);
-	}
+        async publishSignedPrekey(
+                deviceId: string,
+                prekey: SignedPrekey,
+        ): Promise<{ fingerprint: string; updatedAt: Date }> {
+                const json = await this.http.post<PublishSignedPrekeyResponseJson>(
+                        `${this.devicePath(deviceId)}/signed-prekey`,
+                        {
+                                public_key: prekey.publicKey,
+                                signature: prekey.signatureFromSigningKey,
+                                expires_at: prekey.expiresAtIso ?? null,
+                        },
+                );
+                return { fingerprint: json.fingerprint, updatedAt: new Date(json.updated_at) };
+        }
+
+        async publishOneTimePrekeys(deviceId: string, prekeys: OneTimePrekey[]): Promise<number> {
+                if (!prekeys.length) throw new Error('At least one prekey is required');
+                const json = await this.http.post<PublishOneTimePrekeysResponseJson>(
+                        `${this.devicePath(deviceId)}/one-time-prekeys`,
+                        {
+                                prekeys: prekeys.map((prekey) => ({
+                                        id: prekey.id,
+                                        public_key: prekey.publicKey,
+                                        expires_at: prekey.expiresAtIso ?? null,
+                                })),
+                        },
+                );
+                return json.queued;
+        }
+
+        async getDevicePrekeys(deviceId: string): Promise<DevicePrekeyBundle> {
+                const json = await this.http.get<DevicePrekeyBundleJson>(
+                        `${this.devicePath(deviceId)}/prekeys`,
+                );
+                return devicePrekeyBundleFromJSON(json);
+        }
+
+        async queueEnvelope(
+                deviceId: string,
+                payload: { ciphertext: string; senderDeviceId: string },
+        ): Promise<{ id: string; queued: boolean }> {
+                const json = await this.http.post<QueueEnvelopeResponseJson>(
+                        `${this.devicePath(deviceId)}/envelopes`,
+                        {
+                                ciphertext: payload.ciphertext,
+                                sender_device_id: payload.senderDeviceId,
+                        },
+                );
+                return { id: json.id, queued: json.queued };
+        }
+
+        async getEnvelopes(deviceId: string): Promise<DeviceEnvelope[]> {
+                const json = await this.http.get<DeviceEnvelopeJson[]>(
+                        `${this.devicePath(deviceId)}/envelopes`,
+                );
+                return json.map((item) => ({
+                        id: item.id,
+                        ciphertext: item.ciphertext,
+                        createdAt: new Date(item.created_at),
+                }));
+        }
+
+        async consumeEnvelope(deviceId: string, envelopeId: string): Promise<boolean> {
+                const json = await this.http.post<ConsumeEnvelopeResponseJson>(
+                        `${this.devicePath(deviceId)}/envelopes/${encodeURIComponent(envelopeId)}/consume`,
+                        {},
+                );
+                return json.success === true;
+        }
 }
