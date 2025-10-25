@@ -23,9 +23,12 @@ export type OneTimePrekey = {
 	// Device or session ID that consumed the prekey, set by server
 	consumedBy?: string;
 
-	// Optional expiration timestamp (ISO 8601)
-	expiresAtIso?: string;
+        // Optional expiration timestamp (ISO 8601)
+        expiresAtIso?: string;
 
-	// Whether the prekey is revoked
-	revoked?: boolean;
+        // Whether the prekey is revoked
+        revoked?: boolean;
+
+        // SHA-256 fingerprint (hex) derived from the public key
+        fingerprint?: string;
 };
