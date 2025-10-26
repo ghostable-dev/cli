@@ -202,9 +202,14 @@ export class GhostableClient {
 		return deviceId ? `/devices/${encodeURIComponent(deviceId)}` : '/devices';
 	}
 
-	async registerDevice(input: { publicKey: string; platform: string }): Promise<Device> {
+	async registerDevice(input: {
+		publicKey: string;
+		name: string;
+		platform: string;
+	}): Promise<Device> {
 		const json = await this.http.post<DeviceDocumentJson>(this.devicePath(), {
 			public_key: input.publicKey,
+			name: input.name,
 			platform: input.platform,
 		});
 		return Device.fromResource(json.data);
