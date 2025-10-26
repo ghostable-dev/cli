@@ -89,7 +89,7 @@ export async function runEnvPush(opts: PushOptions): Promise<void> {
 	}
 
 	// 5) Read variables + apply ignore list
-        const { vars: envMap } = readEnvFileSafeWithMetadata(filePath);
+	const { vars: envMap } = readEnvFileSafeWithMetadata(filePath);
 	const ignored = getIgnoredKeys(envName);
 	const filteredVars = filterIgnoredKeys(envMap, ignored);
 	const entryCount = Object.keys(filteredVars).length;
@@ -106,7 +106,7 @@ export async function runEnvPush(opts: PushOptions): Promise<void> {
 		);
 	}
 
-        const client = GhostableClient.unauthenticated(config.apiBase).withToken(token);
+	const client = GhostableClient.unauthenticated(config.apiBase).withToken(token);
 
 	let identityService: DeviceIdentityService;
 	try {
@@ -126,67 +126,62 @@ export async function runEnvPush(opts: PushOptions): Promise<void> {
 		return;
 	}
 
-        const spinner = ora('Encrypting environment…').start();
-        try {
-                spinner.text = 'Ensuring environment key…';
-                const envKeyService = await EnvironmentKeyService.create();
-                const keyInfo = await envKeyService.ensureEnvironmentKey({
-                        client,
-                        projectId,
-                        envName: envName!,
-                        identity,
-                });
+	const spinner = ora('Encrypting environment…').start();
+	try {
+		spinner.text = 'Ensuring environment key…';
+		const envKeyService = await EnvironmentKeyService.create();
+		const keyInfo = await envKeyService.ensureEnvironmentKey({
+			client,
+			projectId,
+			envName: envName!,
+			identity,
+		});
 
-                if (keyInfo.created) {
-                        spinner.text = 'Sharing environment key with team devices…';
-                        await envKeyService.publishKeyEnvelopes({
-                                client,
-                                projectId,
-                                envName: envName!,
-                                identity,
-                                key: keyInfo.key,
-                                version: keyInfo.version,
-                                fingerprint: keyInfo.fingerprint,
-                        });
-                }
+		if (keyInfo.created) {
+			spinner.text = 'Sharing environment key with team devices…';
+			await envKeyService.publishKeyEnvelopes({
+				client,
+				projectId,
+				envName: envName!,
+				identity,
+				key: keyInfo.key,
+				version: keyInfo.version,
+				fingerprint: keyInfo.fingerprint,
+			});
+		}
 
-                spinner.text = 'Encrypting environment variables locally…';
-                await initSodium();
-                const keyBundle = await loadOrCreateKeys();
-                const edPriv = Buffer.from(
-                        keyBundle.ed25519PrivB64.replace(/^b64:/, ''),
-                        'base64',
-                );
+		spinner.text = 'Encrypting environment variables locally…';
+		await initSodium();
+		const keyBundle = await loadOrCreateKeys();
+		const edPriv = Buffer.from(keyBundle.ed25519PrivB64.replace(/^b64:/, ''), 'base64');
 
-                const secrets = [] as SignedEnvironmentSecretUploadRequest[];
-                const sortedKeys = Object.keys(filteredVars).sort((a, b) => a.localeCompare(b));
-                for (const name of sortedKeys) {
-                        const value = filteredVars[name] ?? '';
-                        const payload = await buildSecretPayload({
-                                org: orgId ?? '',
-                                project: projectId,
-                                env: envName!,
-                                name,
-                                plaintext: value,
-                                keyMaterial: keyInfo.key,
-                                edPriv,
-                                envKekVersion: keyInfo.version,
-                                envKekFingerprint: keyInfo.fingerprint,
-                        });
-                        secrets.push(payload);
-                }
+		const secrets = [] as SignedEnvironmentSecretUploadRequest[];
+		const sortedKeys = Object.keys(filteredVars).sort((a, b) => a.localeCompare(b));
+		for (const name of sortedKeys) {
+			const value = filteredVars[name] ?? '';
+			const payload = await buildSecretPayload({
+				org: orgId ?? '',
+				project: projectId,
+				env: envName!,
+				name,
+				plaintext: value,
+				keyMaterial: keyInfo.key,
+				edPriv,
+				envKekVersion: keyInfo.version,
+				envKekFingerprint: keyInfo.fingerprint,
+			});
+			secrets.push(payload);
+		}
 
-                spinner.text = 'Uploading encrypted secrets to Ghostable…';
-                const sync = Boolean(opts.sync || opts.replace || opts.pruneServer);
-                await client.push(projectId, envName!, { secrets }, { sync });
+		spinner.text = 'Uploading encrypted secrets to Ghostable…';
+		const sync = Boolean(opts.sync || opts.replace || opts.pruneServer);
+		await client.push(projectId, envName!, { secrets }, { sync });
 
-                spinner.succeed('Environment pushed securely.');
-                log.ok(
-                        `✅ Pushed ${secrets.length} variables to ${projectId}:${envName}.`,
-                );
-        } catch (error) {
-                spinner.fail('env:push failed.');
-                log.error(toErrorMessage(error));
-                process.exit(1);
-        }
+		spinner.succeed('Environment pushed securely.');
+		log.ok(`✅ Pushed ${secrets.length} variables to ${projectId}:${envName}.`);
+	} catch (error) {
+		spinner.fail('env:push failed.');
+		log.error(toErrorMessage(error));
+		process.exit(1);
+	}
 }

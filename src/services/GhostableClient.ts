@@ -15,37 +15,37 @@ import type { DeviceStatus } from '@/domain';
 import type { EncryptedEnvelope, OneTimePrekey, SignedPrekey } from '@/crypto';
 
 import type {
-        ConsumeEnvelopeResponseJson,
-        DeviceDeleteResponseJson,
-        DeviceDocumentJson,
-        DeviceEnvelopeJson,
-        DeviceResourceJson,
-        DevicePrekeyBundle,
-        DevicePrekeyBundleJson,
-        EnvironmentJson,
-        EnvironmentKeyEnvelope,
-        EnvironmentKeyEnvelopeJson,
-        EnvironmentKeysResponse,
-        EnvironmentKeysResponseJson,
-        EnvironmentSecretBundleJson,
-        EnvironmentSuggestedNameJson,
-        EnvironmentTypeJson,
-        OrganizationJson,
-        PublishEnvironmentKeyRequest,
-        PublishEnvironmentKeyRequestJson,
-        PublishOneTimePrekeysResponseJson,
-        PublishSignedPrekeyResponseJson,
-        ProjectJson,
-        QueueEnvelopeResponseJson,
-        SignedEnvironmentSecretBatchUploadRequest,
-        SignedEnvironmentSecretUploadRequest,
+	ConsumeEnvelopeResponseJson,
+	DeviceDeleteResponseJson,
+	DeviceDocumentJson,
+	DeviceEnvelopeJson,
+	DeviceResourceJson,
+	DevicePrekeyBundle,
+	DevicePrekeyBundleJson,
+	EnvironmentJson,
+	EnvironmentKeyEnvelope,
+	EnvironmentKeyEnvelopeJson,
+	EnvironmentKeysResponse,
+	EnvironmentKeysResponseJson,
+	EnvironmentSecretBundleJson,
+	EnvironmentSuggestedNameJson,
+	EnvironmentTypeJson,
+	OrganizationJson,
+	PublishEnvironmentKeyRequest,
+	PublishEnvironmentKeyRequestJson,
+	PublishOneTimePrekeysResponseJson,
+	PublishSignedPrekeyResponseJson,
+	ProjectJson,
+	QueueEnvelopeResponseJson,
+	SignedEnvironmentSecretBatchUploadRequest,
+	SignedEnvironmentSecretUploadRequest,
 } from '@/types';
 import {
-        devicePrekeyBundleFromJSON,
-        encryptedEnvelopeToJSON,
-        environmentKeyEnvelopeFromJSON,
-        environmentKeysFromJSON,
-        publishEnvironmentKeyRequestToJSON,
+	devicePrekeyBundleFromJSON,
+	encryptedEnvelopeToJSON,
+	environmentKeyEnvelopeFromJSON,
+	environmentKeysFromJSON,
+	publishEnvironmentKeyRequestToJSON,
 } from '@/types';
 
 type LoginResponse = { token?: string; two_factor?: boolean };
@@ -77,23 +77,23 @@ export class GhostableClient {
 		return (res.data ?? []).map(Organization.fromJSON);
 	}
 
-        async projects(organizationId: string): Promise<Project[]> {
-                const res = await this.http.get<ListResp<ProjectJson>>(
-                        `/organizations/${organizationId}/projects`,
-                );
-                return (res.data ?? []).map(Project.fromJSON);
-        }
+	async projects(organizationId: string): Promise<Project[]> {
+		const res = await this.http.get<ListResp<ProjectJson>>(
+			`/organizations/${organizationId}/projects`,
+		);
+		return (res.data ?? []).map(Project.fromJSON);
+	}
 
-        async listDevices(): Promise<Device[]> {
-                const res = await this.http.get<{ data?: DeviceResourceJson[] }>('/devices');
-                return (res.data ?? []).map(Device.fromResource);
-        }
+	async listDevices(): Promise<Device[]> {
+		const res = await this.http.get<{ data?: DeviceResourceJson[] }>('/devices');
+		return (res.data ?? []).map(Device.fromResource);
+	}
 
-        async createProject(input: { organizationId: string; name: string }): Promise<Project> {
-                const res = await this.http.post<ProjectJson>(
-                        `/organizations/${input.organizationId}/projects`,
-                        { name: input.name },
-                );
+	async createProject(input: { organizationId: string; name: string }): Promise<Project> {
+		const res = await this.http.post<ProjectJson>(
+			`/organizations/${input.organizationId}/projects`,
+			{ name: input.name },
+		);
 		return Project.fromJSON(res);
 	}
 
@@ -187,57 +187,57 @@ export class GhostableClient {
 		return EnvironmentSecretBundle.fromJSON(json);
 	}
 
-        async getEnvironmentKeys(projectId: string, envName: string): Promise<EnvironmentKeysResponse> {
-                const p = encodeURIComponent(projectId);
-                const e = encodeURIComponent(envName);
+	async getEnvironmentKeys(projectId: string, envName: string): Promise<EnvironmentKeysResponse> {
+		const p = encodeURIComponent(projectId);
+		const e = encodeURIComponent(envName);
 
-                const json = await this.http.get<EnvironmentKeysResponseJson>(
-                        `/projects/${p}/environments/${e}/keys`,
-                );
+		const json = await this.http.get<EnvironmentKeysResponseJson>(
+			`/projects/${p}/environments/${e}/keys`,
+		);
 
-                return environmentKeysFromJSON(json);
-        }
+		return environmentKeysFromJSON(json);
+	}
 
-        async getEnvironmentKey(
-                projectId: string,
-                envName: string,
-                deviceId: string,
-        ): Promise<EnvironmentKeyEnvelope | null> {
-                const p = encodeURIComponent(projectId);
-                const e = encodeURIComponent(envName);
-                const d = encodeURIComponent(deviceId);
+	async getEnvironmentKey(
+		projectId: string,
+		envName: string,
+		deviceId: string,
+	): Promise<EnvironmentKeyEnvelope | null> {
+		const p = encodeURIComponent(projectId);
+		const e = encodeURIComponent(envName);
+		const d = encodeURIComponent(deviceId);
 
-                try {
-                        const json = await this.http.get<EnvironmentKeyEnvelopeJson>(
-                                `/projects/${p}/environments/${e}/keys/${d}`,
-                        );
-                        return environmentKeyEnvelopeFromJSON(json);
-                } catch (error) {
-                        if (error instanceof HttpError && error.status === 404) {
-                                return null;
-                        }
-                        throw error;
-                }
-        }
+		try {
+			const json = await this.http.get<EnvironmentKeyEnvelopeJson>(
+				`/projects/${p}/environments/${e}/keys/${d}`,
+			);
+			return environmentKeyEnvelopeFromJSON(json);
+		} catch (error) {
+			if (error instanceof HttpError && error.status === 404) {
+				return null;
+			}
+			throw error;
+		}
+	}
 
-        async publishEnvironmentKeyEnvelopes(
-                projectId: string,
-                envName: string,
-                request: PublishEnvironmentKeyRequest,
-        ): Promise<void> {
-                const p = encodeURIComponent(projectId);
-                const e = encodeURIComponent(envName);
-                await this.http.post<PublishEnvironmentKeyRequestJson>(
-                        `/projects/${p}/environments/${e}/keys`,
-                        publishEnvironmentKeyRequestToJSON(request),
-                );
-        }
+	async publishEnvironmentKeyEnvelopes(
+		projectId: string,
+		envName: string,
+		request: PublishEnvironmentKeyRequest,
+	): Promise<void> {
+		const p = encodeURIComponent(projectId);
+		const e = encodeURIComponent(envName);
+		await this.http.post<PublishEnvironmentKeyRequestJson>(
+			`/projects/${p}/environments/${e}/keys`,
+			publishEnvironmentKeyRequestToJSON(request),
+		);
+	}
 
-        async deploy(opts?: {
-                only?: string[];
-                includeMeta?: boolean;
-                includeVersions?: boolean;
-        }): Promise<EnvironmentSecretBundle> {
+	async deploy(opts?: {
+		only?: string[];
+		includeMeta?: boolean;
+		includeVersions?: boolean;
+	}): Promise<EnvironmentSecretBundle> {
 		const qs = new URLSearchParams();
 		if (opts?.includeMeta) qs.set('include_meta', '1');
 		if (opts?.includeVersions) qs.set('include_versions', '1');
@@ -321,20 +321,20 @@ export class GhostableClient {
 		return devicePrekeyBundleFromJSON(json);
 	}
 
-        async sendEnvelope(
-                deviceId: string,
-                envelope: EncryptedEnvelope,
-                senderDeviceId?: string,
-        ): Promise<{ id: string }> {
-                const json = await this.http.post<{ id: string }>(
-                        `${this.devicePath(deviceId)}/envelopes`,
-                        {
-                                envelope: encryptedEnvelopeToJSON(envelope),
-                                sender_device_id: senderDeviceId ?? deviceId,
-                        },
-                );
-                return { id: json.id };
-        }
+	async sendEnvelope(
+		deviceId: string,
+		envelope: EncryptedEnvelope,
+		senderDeviceId?: string,
+	): Promise<{ id: string }> {
+		const json = await this.http.post<{ id: string }>(
+			`${this.devicePath(deviceId)}/envelopes`,
+			{
+				envelope: encryptedEnvelopeToJSON(envelope),
+				sender_device_id: senderDeviceId ?? deviceId,
+			},
+		);
+		return { id: json.id };
+	}
 
 	async queueEnvelope(
 		deviceId: string,

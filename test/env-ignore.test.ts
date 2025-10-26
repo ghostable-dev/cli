@@ -16,8 +16,8 @@ let localEnvVars: Record<string, string> = {};
 let snapshots: Record<string, { rawValue: string }> = {};
 let remoteBundle: any = { chain: ['prod'], secrets: [] };
 let decryptedSecrets: Array<{
-        entry: { name: string; meta?: { is_commented?: boolean } };
-        value: string;
+	entry: { name: string; meta?: { is_commented?: boolean } };
+	value: string;
 }> = [];
 const writeFileCalls: Array<{ path: string; content: string }> = [];
 const copyFileCalls: Array<{ src: string; dest: string }> = [];
@@ -31,19 +31,19 @@ const identity = {
 const buildSecretPayloadCalls: Array<Record<string, unknown>> = [];
 
 const buildSecretPayloadMock = vi.fn(async (input: Record<string, unknown>) => {
-        buildSecretPayloadCalls.push(input);
-        return {
-                name: input.name,
-                env: input.env,
-                ciphertext: `cipher-${input.name as string}`,
-                nonce: 'nonce',
-                alg: 'alg',
-                aad: { org: input.org, project: input.project, env: input.env, name: input.name },
-                claims: { hmac: 'hmac', validators: {} },
-                client_sig: 'sig',
-                env_kek_version: input.envKekVersion,
-                env_kek_fingerprint: input.envKekFingerprint,
-        };
+	buildSecretPayloadCalls.push(input);
+	return {
+		name: input.name,
+		env: input.env,
+		ciphertext: `cipher-${input.name as string}`,
+		nonce: 'nonce',
+		alg: 'alg',
+		aad: { org: input.org, project: input.project, env: input.env, name: input.name },
+		claims: { hmac: 'hmac', validators: {} },
+		client_sig: 'sig',
+		env_kek_version: input.envKekVersion,
+		env_kek_fingerprint: input.envKekFingerprint,
+	};
 });
 
 const requireIdentityMock = vi.fn(async () => identity);
@@ -88,12 +88,12 @@ vi.mock('../src/services/SessionService.js', () => ({
 }));
 
 const client = {
-        pull: vi.fn(async () => remoteBundle),
-        uploadSecret: vi.fn(),
-        push: vi.fn(),
-        getEnvironmentKey: vi.fn(async () => null),
-        publishEnvironmentKeyEnvelopes: vi.fn(),
-        listDevices: vi.fn(async () => []),
+	pull: vi.fn(async () => remoteBundle),
+	uploadSecret: vi.fn(),
+	push: vi.fn(),
+	getEnvironmentKey: vi.fn(async () => null),
+	publishEnvironmentKeyEnvelopes: vi.fn(),
+	listDevices: vi.fn(async () => []),
 };
 
 vi.mock('../src/services/GhostableClient.js', () => ({
@@ -105,7 +105,7 @@ vi.mock('../src/services/GhostableClient.js', () => ({
 }));
 
 vi.mock('../src/support/deploy-helpers.js', () => ({
-        decryptBundle: vi.fn(async () => ({ secrets: decryptedSecrets, warnings: [] })),
+	decryptBundle: vi.fn(async () => ({ secrets: decryptedSecrets, warnings: [] })),
 }));
 
 vi.mock('../src/support/env-files.js', () => ({
@@ -119,28 +119,28 @@ vi.mock('../src/support/workdir.js', () => ({
 }));
 
 vi.mock('../src/crypto.js', () => ({
-        initSodium: vi.fn(async () => {}),
-        deriveKeys: vi.fn(() => ({ encKey: new Uint8Array(), hmacKey: new Uint8Array() })),
-        aeadDecrypt: vi.fn((_encKey: Uint8Array, params: { ciphertext: string }) =>
-                new TextEncoder().encode(params.ciphertext),
-        ),
-        scopeFromAAD: vi.fn(() => 'scope'),
-        aeadEncrypt: vi.fn(() => ({
-                ciphertext: 'ciphertext',
-                nonce: 'nonce',
-                alg: 'alg',
-                aad: { org: 'org', project: 'project', env: 'env', name: 'name' },
-        })),
-        edSign: vi.fn(async () => new Uint8Array()),
-        hmacSHA256: vi.fn(() => 'hmac'),
-        b64: vi.fn(() => 'encoded'),
+	initSodium: vi.fn(async () => {}),
+	deriveKeys: vi.fn(() => ({ encKey: new Uint8Array(), hmacKey: new Uint8Array() })),
+	aeadDecrypt: vi.fn((_encKey: Uint8Array, params: { ciphertext: string }) =>
+		new TextEncoder().encode(params.ciphertext),
+	),
+	scopeFromAAD: vi.fn(() => 'scope'),
+	aeadEncrypt: vi.fn(() => ({
+		ciphertext: 'ciphertext',
+		nonce: 'nonce',
+		alg: 'alg',
+		aad: { org: 'org', project: 'project', env: 'env', name: 'name' },
+	})),
+	edSign: vi.fn(async () => new Uint8Array()),
+	hmacSHA256: vi.fn(() => 'hmac'),
+	b64: vi.fn(() => 'encoded'),
 }));
 
 vi.mock('../src/keys.js', () => ({
-        loadOrCreateKeys: vi.fn(async () => ({
-                masterSeedB64: `b64:${Buffer.from('0123456789abcdef0123456789abcdef', 'utf8').toString('base64')}`,
-                ed25519PrivB64: `b64:${Buffer.from('abcdef0123456789abcdef0123456789', 'utf8').toString('base64')}`,
-        })),
+	loadOrCreateKeys: vi.fn(async () => ({
+		masterSeedB64: `b64:${Buffer.from('0123456789abcdef0123456789abcdef', 'utf8').toString('base64')}`,
+		ed25519PrivB64: `b64:${Buffer.from('abcdef0123456789abcdef0123456789', 'utf8').toString('base64')}`,
+	})),
 }));
 
 vi.mock('@inquirer/prompts', () => ({
@@ -148,31 +148,31 @@ vi.mock('@inquirer/prompts', () => ({
 }));
 
 vi.mock('../src/services/DeviceIdentityService.js', () => ({
-        DeviceIdentityService: {
-                create: createDeviceServiceMock,
-        },
+	DeviceIdentityService: {
+		create: createDeviceServiceMock,
+	},
 }));
 
 const ensureEnvironmentKeyMock = vi.fn(async () => ({
-        key: new Uint8Array([1, 2, 3, 4]),
-        version: 1,
-        fingerprint: 'fingerprint-1',
-        created: false,
+	key: new Uint8Array([1, 2, 3, 4]),
+	version: 1,
+	fingerprint: 'fingerprint-1',
+	created: false,
 }));
 const publishKeyEnvelopesMock = vi.fn(async () => {});
 const createEnvironmentKeyServiceMock = vi.fn(async () => ({
-        ensureEnvironmentKey: ensureEnvironmentKeyMock,
-        publishKeyEnvelopes: publishKeyEnvelopesMock,
+	ensureEnvironmentKey: ensureEnvironmentKeyMock,
+	publishKeyEnvelopes: publishKeyEnvelopesMock,
 }));
 
 vi.mock('../src/services/EnvironmentKeyService.js', () => ({
-        EnvironmentKeyService: {
-                create: createEnvironmentKeyServiceMock,
-        },
+	EnvironmentKeyService: {
+		create: createEnvironmentKeyServiceMock,
+	},
 }));
 
 vi.mock('../src/support/secret-payload.js', () => ({
-        buildSecretPayload: buildSecretPayloadMock,
+	buildSecretPayload: buildSecretPayloadMock,
 }));
 
 vi.mock('ora', () => ({
@@ -235,22 +235,22 @@ beforeEach(() => {
 	logOutputs.warn.length = 0;
 	logOutputs.error.length = 0;
 	logOutputs.ok.length = 0;
-        client.pull.mockClear();
-        client.uploadSecret.mockClear();
-        client.push.mockClear();
-        client.getEnvironmentKey.mockClear();
-        client.publishEnvironmentKeyEnvelopes.mockClear();
-        client.listDevices.mockClear();
-        buildSecretPayloadCalls.splice(0, buildSecretPayloadCalls.length);
-        buildSecretPayloadMock.mockClear();
-        ensureEnvironmentKeyMock.mockClear();
-        publishKeyEnvelopesMock.mockClear();
-        createEnvironmentKeyServiceMock.mockClear();
-        createDeviceServiceMock.mockClear();
-        requireIdentityMock.mockClear();
-        spinner.start.mockClear();
-        spinner.succeed.mockClear();
-        spinner.fail.mockClear();
+	client.pull.mockClear();
+	client.uploadSecret.mockClear();
+	client.push.mockClear();
+	client.getEnvironmentKey.mockClear();
+	client.publishEnvironmentKeyEnvelopes.mockClear();
+	client.listDevices.mockClear();
+	buildSecretPayloadCalls.splice(0, buildSecretPayloadCalls.length);
+	buildSecretPayloadMock.mockClear();
+	ensureEnvironmentKeyMock.mockClear();
+	publishKeyEnvelopesMock.mockClear();
+	createEnvironmentKeyServiceMock.mockClear();
+	createDeviceServiceMock.mockClear();
+	requireIdentityMock.mockClear();
+	spinner.start.mockClear();
+	spinner.succeed.mockClear();
+	spinner.fail.mockClear();
 	spinner.text = '';
 	oraMock.mockClear();
 	existsSyncMock.mockClear();
@@ -368,11 +368,11 @@ describe('env:diff ignore behaviour', () => {
 });
 
 describe('env:push ignore behaviour', () => {
-        it('skips ignored keys when uploading', async () => {
-                localEnvVars = {
-                        FOO: 'value',
-                        GHOSTABLE_MASTER_SEED: 'true',
-                        CUSTOM_TOKEN: 'custom',
+	it('skips ignored keys when uploading', async () => {
+		localEnvVars = {
+			FOO: 'value',
+			GHOSTABLE_MASTER_SEED: 'true',
+			CUSTOM_TOKEN: 'custom',
 		};
 		snapshots = {
 			FOO: { rawValue: 'value' },
@@ -380,39 +380,39 @@ describe('env:push ignore behaviour', () => {
 			CUSTOM_TOKEN: { rawValue: 'custom' },
 		};
 
-                const program = new Command();
-                registerEnvPushCommand(program);
-                await program.parseAsync(['node', 'test', 'env:push', '--env', 'prod', '--assume-yes']);
+		const program = new Command();
+		registerEnvPushCommand(program);
+		await program.parseAsync(['node', 'test', 'env:push', '--env', 'prod', '--assume-yes']);
 
-                expect(ensureEnvironmentKeyMock).toHaveBeenCalledTimes(1);
-                expect(publishKeyEnvelopesMock).not.toHaveBeenCalled();
-                expect(buildSecretPayloadMock).toHaveBeenCalledTimes(1);
+		expect(ensureEnvironmentKeyMock).toHaveBeenCalledTimes(1);
+		expect(publishKeyEnvelopesMock).not.toHaveBeenCalled();
+		expect(buildSecretPayloadMock).toHaveBeenCalledTimes(1);
 
-                const [call] = buildSecretPayloadMock.mock.calls;
-                expect(call[0]).toMatchObject({
-                        name: 'FOO',
-                        plaintext: 'value',
-                        envKekVersion: 1,
-                        envKekFingerprint: 'fingerprint-1',
-                });
+		const [call] = buildSecretPayloadMock.mock.calls;
+		expect(call[0]).toMatchObject({
+			name: 'FOO',
+			plaintext: 'value',
+			envKekVersion: 1,
+			envKekFingerprint: 'fingerprint-1',
+		});
 
-                expect(client.push).toHaveBeenCalledTimes(1);
-                const [args] = client.push.mock.calls;
-                expect(args[0]).toBe('project-id');
-                expect(args[1]).toBe('prod');
-                expect(args[2]).toEqual({
-                        secrets: [
-                                expect.objectContaining({
-                                        name: 'FOO',
-                                        env: 'prod',
-                                        ciphertext: 'cipher-FOO',
-                                        env_kek_version: 1,
-                                        env_kek_fingerprint: 'fingerprint-1',
-                                }),
-                        ],
-                });
-                expect(args[3]).toEqual({ sync: false });
-        });
+		expect(client.push).toHaveBeenCalledTimes(1);
+		const [args] = client.push.mock.calls;
+		expect(args[0]).toBe('project-id');
+		expect(args[1]).toBe('prod');
+		expect(args[2]).toEqual({
+			secrets: [
+				expect.objectContaining({
+					name: 'FOO',
+					env: 'prod',
+					ciphertext: 'cipher-FOO',
+					env_kek_version: 1,
+					env_kek_fingerprint: 'fingerprint-1',
+				}),
+			],
+		});
+		expect(args[3]).toEqual({ sync: false });
+	});
 
 	it('passes sync flag to upload when requested', async () => {
 		localEnvVars = {
@@ -424,21 +424,21 @@ describe('env:push ignore behaviour', () => {
 
 		const program = new Command();
 		registerEnvPushCommand(program);
-                await program.parseAsync([
-                        'node',
-                        'test',
-                        'env:push',
-                        '--env',
-                        'prod',
-                        '--assume-yes',
-                        '--sync',
-                ]);
+		await program.parseAsync([
+			'node',
+			'test',
+			'env:push',
+			'--env',
+			'prod',
+			'--assume-yes',
+			'--sync',
+		]);
 
-                expect(buildSecretPayloadMock).toHaveBeenCalledTimes(1);
-                expect(client.push).toHaveBeenCalledTimes(1);
-                const [args] = client.push.mock.calls;
-                expect(args[3]).toEqual({ sync: true });
-        });
+		expect(buildSecretPayloadMock).toHaveBeenCalledTimes(1);
+		expect(client.push).toHaveBeenCalledTimes(1);
+		const [args] = client.push.mock.calls;
+		expect(args[3]).toEqual({ sync: true });
+	});
 });
 
 describe('env:pull ignore behaviour', () => {

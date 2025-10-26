@@ -164,16 +164,16 @@ export function registerVarPushCommand(program: Command) {
 			}
 
 			try {
-                                const payload = await buildSecretPayload({
-                                        name: target.name,
-                                        env: envName!,
-                                        org: orgId,
-                                        project: projectId,
-                                        plaintext: target.plaintext,
-                                        keyMaterial: masterSeed,
-                                        edPriv,
-                                        validators,
-                                });
+				const payload = await buildSecretPayload({
+					name: target.name,
+					env: envName!,
+					org: orgId,
+					project: projectId,
+					plaintext: target.plaintext,
+					keyMaterial: masterSeed,
+					edPriv,
+					validators,
+				});
 
 				await client.uploadSecret(projectId, envName, payload);
 				log.ok(
