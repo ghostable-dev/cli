@@ -20,7 +20,7 @@ function defaultPlatformLabel(): string {
 async function promptForDeviceMetadata() {
 	const suggestedName = os.hostname();
 	const name = await input({
-		message: 'Device label',
+		message: 'Device label (reported to Ghostable)',
 		default: suggestedName,
 	});
 
@@ -53,6 +53,7 @@ export async function linkDeviceFlow(client: GhostableClient): Promise<void> {
 		spinner.text = 'Registering device with Ghostable…';
 		const registered = await client.registerDevice({
 			publicKey: identity.encryptionKey.publicKey,
+			name,
 			platform,
 		});
 
