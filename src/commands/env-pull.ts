@@ -179,7 +179,6 @@ export function registerEnvPullCommand(program: Command) {
 
 			const replace = Boolean(opts.replace || opts.pruneLocal);
 			const noBackup = opts.backup === false || opts.noBackup === true;
-			console.log(noBackup);
 			const serverKeys = Object.keys(filteredMerged);
 
 			let createCount = 0;

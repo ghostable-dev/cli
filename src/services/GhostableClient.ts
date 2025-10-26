@@ -199,7 +199,7 @@ export class GhostableClient {
 	}
 
 	private devicePath(deviceId?: string): string {
-		return deviceId ? `/api/v2.2/devices/${encodeURIComponent(deviceId)}` : '/api/v2.2/devices';
+		return deviceId ? `/devices/${encodeURIComponent(deviceId)}` : '/devices';
 	}
 
 	async registerDevice(input: { publicKey: string; platform: string }): Promise<Device> {
