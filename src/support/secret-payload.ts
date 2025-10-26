@@ -1,4 +1,4 @@
-import { aeadEncrypt, b64, deriveKeys, edSign, hmacSHA256 } from '@/crypto.js';
+import { aeadEncrypt, b64, deriveKeys, edSign, hmacSHA256 } from '../crypto.js';
 import type {
 	AAD,
 	Claims,
