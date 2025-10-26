@@ -34,7 +34,11 @@ import type {
 	SignedEnvironmentSecretBatchUploadRequest,
 	SignedEnvironmentSecretUploadRequest,
 } from '@/types';
-import { devicePrekeyBundleFromJSON, encryptedEnvelopeToJSON, environmentKeysFromJSON } from '@/types';
+import {
+	devicePrekeyBundleFromJSON,
+	encryptedEnvelopeToJSON,
+	environmentKeysFromJSON,
+} from '@/types';
 
 type LoginResponse = { token?: string; two_factor?: boolean };
 type ListResp<T> = { data?: T[] };
@@ -262,26 +266,26 @@ export class GhostableClient {
 		return json.queued;
 	}
 
-        async getDevicePrekeys(deviceId: string): Promise<DevicePrekeyBundle> {
-                const json = await this.http.get<DevicePrekeyBundleJson>(
-                        `${this.devicePath(deviceId)}/prekeys`,
-                );
-                return devicePrekeyBundleFromJSON(json);
-        }
+	async getDevicePrekeys(deviceId: string): Promise<DevicePrekeyBundle> {
+		const json = await this.http.get<DevicePrekeyBundleJson>(
+			`${this.devicePath(deviceId)}/prekeys`,
+		);
+		return devicePrekeyBundleFromJSON(json);
+	}
 
-        async sendEnvelope(deviceId: string, envelope: EncryptedEnvelope): Promise<{ id: string }> {
-                const json = await this.http.post<{ id: string }>(
-                        `${this.devicePath(deviceId)}/envelopes`,
-                        { envelope: encryptedEnvelopeToJSON(envelope) },
-                );
-                return { id: json.id };
-        }
+	async sendEnvelope(deviceId: string, envelope: EncryptedEnvelope): Promise<{ id: string }> {
+		const json = await this.http.post<{ id: string }>(
+			`${this.devicePath(deviceId)}/envelopes`,
+			{ envelope: encryptedEnvelopeToJSON(envelope) },
+		);
+		return { id: json.id };
+	}
 
-        async queueEnvelope(
-                deviceId: string,
-                payload: { ciphertext: string; senderDeviceId: string },
-        ): Promise<{ id: string; queued: boolean }> {
-                const json = await this.http.post<QueueEnvelopeResponseJson>(
+	async queueEnvelope(
+		deviceId: string,
+		payload: { ciphertext: string; senderDeviceId: string },
+	): Promise<{ id: string; queued: boolean }> {
+		const json = await this.http.post<QueueEnvelopeResponseJson>(
 			`${this.devicePath(deviceId)}/envelopes`,
 			{
 				ciphertext: payload.ciphertext,
