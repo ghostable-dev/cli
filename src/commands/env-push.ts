@@ -1,14 +1,14 @@
 import { Command } from 'commander';
 import { select } from '@inquirer/prompts';
-import { Listr, ListrTaskWrapper, ListrDefaultRenderer, ListrSimpleRenderer } from 'listr2';
 import fs from 'node:fs';
 import chalk from 'chalk';
+import ora from 'ora';
 
-import { initSodium } from '../crypto.js';
-import { loadOrCreateKeys } from '../keys.js';
 import { config } from '../config/index.js';
 import { SessionService } from '../services/SessionService.js';
 import { GhostableClient } from '../services/GhostableClient.js';
+import { DeviceIdentityService } from '../services/DeviceIdentityService.js';
+import { EnvelopeService } from '../services/EnvelopeService.js';
 import { Manifest } from '../support/Manifest.js';
 import { log } from '../support/logger.js';
 import { toErrorMessage } from '../support/errors.js';
@@ -18,12 +18,6 @@ import {
 	resolveEnvFile,
 	readEnvFileSafeWithMetadata,
 } from '../support/env-files.js';
-import { buildSecretPayload } from '../support/secret-payload.js';
-
-import type { SignedEnvironmentSecretUploadRequest, ValidatorRecord } from '@/types';
-
-// Listr context (extend as needed)
-type Ctx = Record<string, unknown>;
 
 export type PushOptions = {
 	api?: string;
@@ -36,17 +30,23 @@ export type PushOptions = {
 	pruneServer?: boolean;
 };
 
-function resolvePlaintext(parsed: string, snapshot?: EnvVarSnapshot): string {
-	if (!snapshot) return parsed;
-
-	const trimmed = snapshot.rawValue.trim();
-	if (trimmed.length < 2) return parsed;
-
-	const first = trimmed[0];
-	if (first !== '"' && first !== "'") return parsed;
-	if (trimmed[trimmed.length - 1] !== first) return parsed;
-
-	return trimmed;
+function serializeEnv(
+	vars: Record<string, string>,
+	snapshots: Record<string, EnvVarSnapshot>,
+): string {
+	return (
+		Object.keys(vars)
+			.sort((a, b) => a.localeCompare(b))
+			.map((key) => {
+				const value = vars[key] ?? '';
+				const snapshot = snapshots[key];
+				if (snapshot && snapshot.value === value) {
+					return `${key}=${snapshot.rawValue}`;
+				}
+				return `${key}=${value}`;
+			})
+			.join('\n') + '\n'
+	);
 }
 
 export function registerEnvPushCommand(program: Command) {
@@ -111,99 +111,75 @@ export async function runEnvPush(opts: PushOptions): Promise<void> {
 	const { vars: envMap, snapshots } = readEnvFileSafeWithMetadata(filePath);
 	const ignored = getIgnoredKeys(envName);
 	const filteredVars = filterIgnoredKeys(envMap, ignored);
-	const sync = Boolean(opts.sync || opts.replace || opts.pruneServer);
-
-	const entries = Object.entries(filteredVars).map(([name, parsedValue]) => ({
-		name,
-		parsedValue,
-		plaintext: resolvePlaintext(parsedValue, snapshots[name]),
-	}));
-	if (!entries.length) {
+	const entryCount = Object.keys(filteredVars).length;
+	if (!entryCount) {
 		log.warn('⚠️  No variables found in the .env file.');
 		return;
 	}
 
 	if (!opts.assumeYes) {
 		log.info(
-			`About to push ${entries.length} variables from ${chalk.bold(filePath)}\n` +
+			`About to push ${entryCount} variables from ${chalk.bold(filePath)}\n` +
 				`→ project ${chalk.bold(projectName)} (${projectId})\n` +
 				(orgId ? `→ org ${chalk.bold(orgId)}\n` : ''),
 		);
 	}
 
-	// 6) Prep crypto + client
-	await initSodium();
-	const keyBundle = await loadOrCreateKeys();
-	const masterSeed = Buffer.from(keyBundle.masterSeedB64.replace(/^b64:/, ''), 'base64');
-	const edPriv = Buffer.from(keyBundle.ed25519PrivB64.replace(/^b64:/, ''), 'base64');
+	const serialized = serializeEnv(filteredVars, snapshots);
+	const plaintext = Buffer.from(serialized, 'utf8');
+
+	if (!plaintext.length) {
+		log.warn('⚠️  No variables found in the .env file.');
+		return;
+	}
 
 	const client = GhostableClient.unauthenticated(config.apiBase).withToken(token);
 
-	// 7) Encrypt & upload via Listr
-	const payloads: SignedEnvironmentSecretUploadRequest[] = [];
-
-	const tasks = new Listr<Ctx, ListrDefaultRenderer, ListrSimpleRenderer>(
-		[
-			...entries.map(({ name, parsedValue, plaintext }) => ({
-				title: `${name}`,
-				task: async (
-					_ctx: Ctx,
-					task: ListrTaskWrapper<Ctx, ListrDefaultRenderer, ListrSimpleRenderer>,
-				) => {
-					const validators: ValidatorRecord = {
-						non_empty: parsedValue.length > 0,
-					};
-
-					if (name === 'APP_KEY') {
-						validators.regex = {
-							id: 'base64_44char_v1',
-							ok: /^base64:/.test(parsedValue) && parsedValue.length >= 44,
-						};
-						validators.length = parsedValue.length;
-					}
-
-					const payload = await buildSecretPayload({
-						name,
-						env: envName!, // from manifest selection
-						org: orgId ?? '', // server may infer if token is org-scoped
-						project: projectId, // from manifest
-						plaintext,
-						masterSeed,
-						edPriv,
-						validators,
-					});
-
-					payloads.push(payload);
-					task.title = `${name}  ${chalk.green('✓')}`;
-				},
-			})),
-			{
-				title: `Upload ${entries.length} variables`,
-				task: async (
-					_ctx: Ctx,
-					task: ListrTaskWrapper<Ctx, ListrDefaultRenderer, ListrSimpleRenderer>,
-				) => {
-					await client.push(
-						projectId,
-						envName!,
-						{ secrets: payloads },
-						sync ? { sync: true } : undefined,
-					);
-					task.title = `Upload ${entries.length} variables  ${chalk.green('✓')}`;
-				},
-			},
-		],
-		{ concurrent: false, exitOnError: true },
-	);
-
+	let identityService: DeviceIdentityService;
 	try {
-		await tasks.run();
+		identityService = await DeviceIdentityService.create();
+	} catch (error) {
+		log.error(toErrorMessage(error));
+		process.exit(1);
+		return;
+	}
+
+	let identity;
+	try {
+		identity = await identityService.requireIdentity();
+	} catch (error) {
+		log.error(toErrorMessage(error));
+		process.exit(1);
+		return;
+	}
+
+	const spinner = ora('Encrypting environment…').start();
+	try {
+		spinner.text = 'Encrypting environment variables locally…';
+		const envelope = await EnvelopeService.encrypt({
+			sender: identity,
+			recipientPublicKey: identity.encryptionKey.publicKey,
+			plaintext,
+			meta: {
+				project_id: projectId,
+				environment: envName!,
+				org_id: orgId ?? '',
+				file_path: filePath,
+			},
+		});
+
+		spinner.text = 'Uploading encrypted envelope to Ghostable…';
+		const result = await client.sendEnvelope(identity.deviceId, envelope);
+
+		spinner.succeed('Environment pushed securely.');
+		const ciphertextBytes = Buffer.from(envelope.ciphertextB64, 'base64').byteLength;
 		log.ok(
-			`\n✅ Pushed ${entries.length} variables to ${projectId}:${envName} (encrypted locally).`,
+			`✅ Envelope ${result.id} uploaded (${ciphertextBytes} encrypted bytes for ${projectId}:${envName}).`,
 		);
 	} catch (error) {
-		log.error(error);
-		log.error(`\n❌ env:push failed: ${toErrorMessage(error)}`);
+		console.log(error);
+		spinner.fail('env:push failed.');
+		log.error(toErrorMessage(error));
 		process.exit(1);
 	}
 }

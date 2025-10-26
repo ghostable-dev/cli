@@ -11,7 +11,7 @@ import {
 	Project,
 } from '@/domain';
 import type { DeviceStatus } from '@/domain';
-import type { OneTimePrekey, SignedPrekey } from '@/crypto';
+import type { EncryptedEnvelope, OneTimePrekey, SignedPrekey } from '@/crypto';
 
 import type {
 	ConsumeEnvelopeResponseJson,
@@ -34,7 +34,11 @@ import type {
 	SignedEnvironmentSecretBatchUploadRequest,
 	SignedEnvironmentSecretUploadRequest,
 } from '@/types';
-import { devicePrekeyBundleFromJSON, environmentKeysFromJSON } from '@/types';
+import {
+	devicePrekeyBundleFromJSON,
+	encryptedEnvelopeToJSON,
+	environmentKeysFromJSON,
+} from '@/types';
 
 type LoginResponse = { token?: string; two_factor?: boolean };
 type ListResp<T> = { data?: T[] };
@@ -267,6 +271,14 @@ export class GhostableClient {
 			`${this.devicePath(deviceId)}/prekeys`,
 		);
 		return devicePrekeyBundleFromJSON(json);
+	}
+
+	async sendEnvelope(deviceId: string, envelope: EncryptedEnvelope): Promise<{ id: string }> {
+		const json = await this.http.post<{ id: string }>(
+			`${this.devicePath(deviceId)}/envelopes`,
+			{ envelope: encryptedEnvelopeToJSON(envelope) },
+		);
+		return { id: json.id };
 	}
 
 	async queueEnvelope(
