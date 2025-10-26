@@ -84,10 +84,14 @@ export class GhostableClient {
 		return (res.data ?? []).map(Project.fromJSON);
 	}
 
-	async listDevices(): Promise<Device[]> {
-		const res = await this.http.get<{ data?: DeviceResourceJson[] }>('/devices');
-		return (res.data ?? []).map(Device.fromResource);
-	}
+        async listDevices(projectId: string, envName: string): Promise<Device[]> {
+                const p = encodeURIComponent(projectId);
+                const e = encodeURIComponent(envName);
+                const res = await this.http.get<{ data?: DeviceResourceJson[] }>(
+                        `/projects/${p}/environments/${e}/devices`,
+                );
+                return (res.data ?? []).map(Device.fromResource);
+        }
 
 	async createProject(input: { organizationId: string; name: string }): Promise<Project> {
 		const res = await this.http.post<ProjectJson>(
