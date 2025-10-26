@@ -6,6 +6,7 @@ import { SessionService } from '../services/SessionService.js';
 import { GhostableClient } from '../services/GhostableClient.js';
 import { log } from '../support/logger.js';
 import { toErrorMessage } from '../support/errors.js';
+import { linkDeviceFlow } from './device/index.js';
 
 export function registerLoginCommand(program: Command) {
 	program
@@ -59,11 +60,21 @@ export function registerLoginCommand(program: Command) {
 					log.warn('No organizations found. Create one in the dashboard.');
 				}
 
-				await session.save({ accessToken: token, organizationId });
-				log.ok('✅ Session stored in OS keychain.');
-			} catch (error) {
-				spinner.fail(toErrorMessage(error) || 'Login failed');
-				process.exit(1);
+                                await session.save({ accessToken: token, organizationId });
+                                log.ok('✅ Session stored in OS keychain.');
+
+                                try {
+                                        await linkDeviceFlow(authed);
+                                } catch (deviceError) {
+                                        log.warn(
+                                                `⚠️ Device provisioning skipped: ${
+                                                        toErrorMessage(deviceError) ?? String(deviceError)
+                                                }`,
+                                        );
+                                }
+                        } catch (error) {
+                                spinner.fail(toErrorMessage(error) || 'Login failed');
+                                process.exit(1);
 			}
 		});
 }
