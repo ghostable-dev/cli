@@ -170,7 +170,7 @@ export function registerVarPushCommand(program: Command) {
 					org: orgId,
 					project: projectId,
 					plaintext: target.plaintext,
-					masterSeed,
+					keyMaterial: masterSeed,
 					edPriv,
 					validators,
 				});

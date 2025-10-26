@@ -12,14 +12,28 @@ export async function buildSecretPayload(opts: {
 	env: string;
 	name: string;
 	plaintext: string;
-	masterSeed: Uint8Array;
+	keyMaterial: Uint8Array;
 	edPriv: Uint8Array;
 	validators?: SecretUploadValidators;
 	ifVersion?: number;
+	envKekVersion?: number;
+	envKekFingerprint?: string;
 }): Promise<SignedEnvironmentSecretUploadRequest> {
-	const { org, project, env, name, plaintext, masterSeed, edPriv, validators, ifVersion } = opts;
+	const {
+		org,
+		project,
+		env,
+		name,
+		plaintext,
+		keyMaterial,
+		edPriv,
+		validators,
+		ifVersion,
+		envKekVersion,
+		envKekFingerprint,
+	} = opts;
 
-	const { encKey, hmacKey } = deriveKeys(masterSeed, `${org}/${project}/${env}`);
+	const { encKey, hmacKey } = deriveKeys(keyMaterial, `${org}/${project}/${env}`);
 
 	const aad: AAD = { org, project, env, name };
 	const pt = new TextEncoder().encode(plaintext);
@@ -40,6 +54,8 @@ export async function buildSecretPayload(opts: {
 		aad: bundle.aad,
 		claims,
 		...(ifVersion !== undefined ? { if_version: ifVersion } : {}),
+		...(envKekVersion !== undefined ? { env_kek_version: envKekVersion } : {}),
+		...(envKekFingerprint ? { env_kek_fingerprint: envKekFingerprint } : {}),
 	};
 
 	const bytes = new TextEncoder().encode(JSON.stringify(body));

@@ -8,16 +8,16 @@ import { config } from '../config/index.js';
 import { SessionService } from '../services/SessionService.js';
 import { GhostableClient } from '../services/GhostableClient.js';
 import { DeviceIdentityService } from '../services/DeviceIdentityService.js';
-import { EnvelopeService } from '../services/EnvelopeService.js';
+import { EnvironmentKeyService } from '../services/EnvironmentKeyService.js';
 import { Manifest } from '../support/Manifest.js';
 import { log } from '../support/logger.js';
 import { toErrorMessage } from '../support/errors.js';
 import { getIgnoredKeys, filterIgnoredKeys } from '../support/ignore.js';
-import {
-	EnvVarSnapshot,
-	resolveEnvFile,
-	readEnvFileSafeWithMetadata,
-} from '../support/env-files.js';
+import { resolveEnvFile, readEnvFileSafeWithMetadata } from '../support/env-files.js';
+import { initSodium } from '../crypto.js';
+import { loadOrCreateKeys } from '../keys.js';
+import { buildSecretPayload } from '../support/secret-payload.js';
+import type { SignedEnvironmentSecretUploadRequest } from '@/types';
 
 export type PushOptions = {
 	api?: string;
@@ -29,25 +29,6 @@ export type PushOptions = {
 	replace?: boolean;
 	pruneServer?: boolean;
 };
-
-function serializeEnv(
-	vars: Record<string, string>,
-	snapshots: Record<string, EnvVarSnapshot>,
-): string {
-	return (
-		Object.keys(vars)
-			.sort((a, b) => a.localeCompare(b))
-			.map((key) => {
-				const value = vars[key] ?? '';
-				const snapshot = snapshots[key];
-				if (snapshot && snapshot.value === value) {
-					return `${key}=${snapshot.rawValue}`;
-				}
-				return `${key}=${value}`;
-			})
-			.join('\n') + '\n'
-	);
-}
 
 export function registerEnvPushCommand(program: Command) {
 	program
@@ -108,7 +89,7 @@ export async function runEnvPush(opts: PushOptions): Promise<void> {
 	}
 
 	// 5) Read variables + apply ignore list
-	const { vars: envMap, snapshots } = readEnvFileSafeWithMetadata(filePath);
+	const { vars: envMap } = readEnvFileSafeWithMetadata(filePath);
 	const ignored = getIgnoredKeys(envName);
 	const filteredVars = filterIgnoredKeys(envMap, ignored);
 	const entryCount = Object.keys(filteredVars).length;
@@ -123,14 +104,6 @@ export async function runEnvPush(opts: PushOptions): Promise<void> {
 				`→ project ${chalk.bold(projectName)} (${projectId})\n` +
 				(orgId ? `→ org ${chalk.bold(orgId)}\n` : ''),
 		);
-	}
-
-	const serialized = serializeEnv(filteredVars, snapshots);
-	const plaintext = Buffer.from(serialized, 'utf8');
-
-	if (!plaintext.length) {
-		log.warn('⚠️  No variables found in the .env file.');
-		return;
 	}
 
 	const client = GhostableClient.unauthenticated(config.apiBase).withToken(token);
@@ -155,29 +128,58 @@ export async function runEnvPush(opts: PushOptions): Promise<void> {
 
 	const spinner = ora('Encrypting environment…').start();
 	try {
-		spinner.text = 'Encrypting environment variables locally…';
-		const envelope = await EnvelopeService.encrypt({
-			sender: identity,
-			recipientPublicKey: identity.encryptionKey.publicKey,
-			plaintext,
-			meta: {
-				project_id: projectId,
-				environment: envName!,
-				org_id: orgId ?? '',
-				file_path: filePath,
-			},
+		spinner.text = 'Ensuring environment key…';
+		const envKeyService = await EnvironmentKeyService.create();
+		const keyInfo = await envKeyService.ensureEnvironmentKey({
+			client,
+			projectId,
+			envName: envName!,
+			identity,
 		});
 
-		spinner.text = 'Uploading encrypted envelope to Ghostable…';
-		const result = await client.sendEnvelope(identity.deviceId, envelope);
+		if (keyInfo.created) {
+			spinner.text = 'Sharing environment key with team devices…';
+			await envKeyService.publishKeyEnvelopes({
+				client,
+				projectId,
+				envName: envName!,
+				identity,
+				key: keyInfo.key,
+				version: keyInfo.version,
+				fingerprint: keyInfo.fingerprint,
+			});
+		}
+
+		spinner.text = 'Encrypting environment variables locally…';
+		await initSodium();
+		const keyBundle = await loadOrCreateKeys();
+		const edPriv = Buffer.from(keyBundle.ed25519PrivB64.replace(/^b64:/, ''), 'base64');
+
+		const secrets = [] as SignedEnvironmentSecretUploadRequest[];
+		const sortedKeys = Object.keys(filteredVars).sort((a, b) => a.localeCompare(b));
+		for (const name of sortedKeys) {
+			const value = filteredVars[name] ?? '';
+			const payload = await buildSecretPayload({
+				org: orgId ?? '',
+				project: projectId,
+				env: envName!,
+				name,
+				plaintext: value,
+				keyMaterial: keyInfo.key,
+				edPriv,
+				envKekVersion: keyInfo.version,
+				envKekFingerprint: keyInfo.fingerprint,
+			});
+			secrets.push(payload);
+		}
+
+		spinner.text = 'Uploading encrypted secrets to Ghostable…';
+		const sync = Boolean(opts.sync || opts.replace || opts.pruneServer);
+		await client.push(projectId, envName!, { secrets }, { sync });
 
 		spinner.succeed('Environment pushed securely.');
-		const ciphertextBytes = Buffer.from(envelope.ciphertextB64, 'base64').byteLength;
-		log.ok(
-			`✅ Envelope ${result.id} uploaded (${ciphertextBytes} encrypted bytes for ${projectId}:${envName}).`,
-		);
+		log.ok(`✅ Pushed ${secrets.length} variables to ${projectId}:${envName}.`);
 	} catch (error) {
-		console.log(error);
 		spinner.fail('env:push failed.');
 		log.error(toErrorMessage(error));
 		process.exit(1);

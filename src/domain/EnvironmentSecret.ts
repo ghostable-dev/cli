@@ -13,6 +13,8 @@ export class EnvironmentSecret {
 		public readonly aad: AAD,
 		public readonly claims?: Claims,
 		public readonly version?: number,
+		public readonly envKekVersion?: number,
+		public readonly envKekFingerprint?: string | null,
 		public readonly meta?: {
 			line_bytes?: number;
 			is_vapor_secret?: boolean;
@@ -31,6 +33,8 @@ export class EnvironmentSecret {
 			json.aad,
 			json.claims,
 			json.version,
+			json.env_kek_version ?? undefined,
+			json.env_kek_fingerprint ?? null,
 			json.meta,
 		);
 	}

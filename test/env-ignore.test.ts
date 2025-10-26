@@ -19,7 +19,6 @@ let decryptedSecrets: Array<{
 	entry: { name: string; meta?: { is_commented?: boolean } };
 	value: string;
 }> = [];
-const sendEnvelopeCalls: Array<{ deviceId: string; envelope: any }> = [];
 const writeFileCalls: Array<{ path: string; content: string }> = [];
 const copyFileCalls: Array<{ src: string; dest: string }> = [];
 
@@ -29,26 +28,23 @@ const identity = {
 	encryptionKey: { alg: 'X25519', publicKey: 'enc-pub', privateKey: 'enc-priv' },
 };
 
-const encryptedEnvelope = {
-	id: 'envelope-1',
-	version: 'v1',
-	alg: 'XChaCha20-Poly1305+HKDF-SHA256',
-	toDevicePublicKey: identity.encryptionKey.publicKey,
-	fromEphemeralPublicKey: 'ephemeral-pub',
-	nonceB64: Buffer.from('nonce').toString('base64'),
-	ciphertextB64: Buffer.from('ciphertext').toString('base64'),
-	createdAtIso: new Date('2024-01-01T00:00:00.000Z').toISOString(),
-	meta: {},
-};
+const buildSecretPayloadCalls: Array<Record<string, unknown>> = [];
 
-const encryptCalls: Array<{ plaintext: Uint8Array; meta?: Record<string, string> }> = [];
-
-const envelopeEncryptMock = vi.fn(
-	async (input: { plaintext: Uint8Array; meta?: Record<string, string> }) => {
-		encryptCalls.push(input);
-		return encryptedEnvelope;
-	},
-);
+const buildSecretPayloadMock = vi.fn(async (input: Record<string, unknown>) => {
+	buildSecretPayloadCalls.push(input);
+	return {
+		name: input.name,
+		env: input.env,
+		ciphertext: `cipher-${input.name as string}`,
+		nonce: 'nonce',
+		alg: 'alg',
+		aad: { org: input.org, project: input.project, env: input.env, name: input.name },
+		claims: { hmac: 'hmac', validators: {} },
+		client_sig: 'sig',
+		env_kek_version: input.envKekVersion,
+		env_kek_fingerprint: input.envKekFingerprint,
+	};
+});
 
 const requireIdentityMock = vi.fn(async () => identity);
 const createDeviceServiceMock = vi.fn(async () => ({ requireIdentity: requireIdentityMock }));
@@ -95,10 +91,9 @@ const client = {
 	pull: vi.fn(async () => remoteBundle),
 	uploadSecret: vi.fn(),
 	push: vi.fn(),
-	sendEnvelope: vi.fn(async (deviceId: string, envelope: any) => {
-		sendEnvelopeCalls.push({ deviceId, envelope });
-		return { id: 'envelope-1' };
-	}),
+	getEnvironmentKey: vi.fn(async () => null),
+	publishEnvironmentKeyEnvelopes: vi.fn(),
+	listDevices: vi.fn(async () => []),
 };
 
 vi.mock('../src/services/GhostableClient.js', () => ({
@@ -143,8 +138,8 @@ vi.mock('../src/crypto.js', () => ({
 
 vi.mock('../src/keys.js', () => ({
 	loadOrCreateKeys: vi.fn(async () => ({
-		masterSeedB64: 'b64:master',
-		ed25519PrivB64: 'b64:priv',
+		masterSeedB64: `b64:${Buffer.from('0123456789abcdef0123456789abcdef', 'utf8').toString('base64')}`,
+		ed25519PrivB64: `b64:${Buffer.from('abcdef0123456789abcdef0123456789', 'utf8').toString('base64')}`,
 	})),
 }));
 
@@ -158,10 +153,26 @@ vi.mock('../src/services/DeviceIdentityService.js', () => ({
 	},
 }));
 
-vi.mock('../src/services/EnvelopeService.js', () => ({
-	EnvelopeService: {
-		encrypt: envelopeEncryptMock,
+const ensureEnvironmentKeyMock = vi.fn(async () => ({
+	key: new Uint8Array([1, 2, 3, 4]),
+	version: 1,
+	fingerprint: 'fingerprint-1',
+	created: false,
+}));
+const publishKeyEnvelopesMock = vi.fn(async () => {});
+const createEnvironmentKeyServiceMock = vi.fn(async () => ({
+	ensureEnvironmentKey: ensureEnvironmentKeyMock,
+	publishKeyEnvelopes: publishKeyEnvelopesMock,
+}));
+
+vi.mock('../src/services/EnvironmentKeyService.js', () => ({
+	EnvironmentKeyService: {
+		create: createEnvironmentKeyServiceMock,
 	},
+}));
+
+vi.mock('../src/support/secret-payload.js', () => ({
+	buildSecretPayload: buildSecretPayloadMock,
 }));
 
 vi.mock('ora', () => ({
@@ -227,10 +238,14 @@ beforeEach(() => {
 	client.pull.mockClear();
 	client.uploadSecret.mockClear();
 	client.push.mockClear();
-	client.sendEnvelope.mockClear();
-	sendEnvelopeCalls.splice(0, sendEnvelopeCalls.length);
-	encryptCalls.splice(0, encryptCalls.length);
-	envelopeEncryptMock.mockClear();
+	client.getEnvironmentKey.mockClear();
+	client.publishEnvironmentKeyEnvelopes.mockClear();
+	client.listDevices.mockClear();
+	buildSecretPayloadCalls.splice(0, buildSecretPayloadCalls.length);
+	buildSecretPayloadMock.mockClear();
+	ensureEnvironmentKeyMock.mockClear();
+	publishKeyEnvelopesMock.mockClear();
+	createEnvironmentKeyServiceMock.mockClear();
 	createDeviceServiceMock.mockClear();
 	requireIdentityMock.mockClear();
 	spinner.start.mockClear();
@@ -369,25 +384,34 @@ describe('env:push ignore behaviour', () => {
 		registerEnvPushCommand(program);
 		await program.parseAsync(['node', 'test', 'env:push', '--env', 'prod', '--assume-yes']);
 
-		expect(envelopeEncryptMock).toHaveBeenCalledTimes(1);
-		const [[input]] = envelopeEncryptMock.mock.calls as Array<
-			[{ plaintext: Uint8Array; meta?: Record<string, string> }]
-		>;
-		expect(input).toBeDefined();
-		const plaintext = Buffer.from(input.plaintext).toString('utf8');
-		expect(plaintext).toBe('FOO=value\n');
-		expect(input.meta).toMatchObject({
-			project_id: 'project-id',
-			environment: 'prod',
-			org_id: 'org-1',
-			file_path: envFilePath,
+		expect(ensureEnvironmentKeyMock).toHaveBeenCalledTimes(1);
+		expect(publishKeyEnvelopesMock).not.toHaveBeenCalled();
+		expect(buildSecretPayloadMock).toHaveBeenCalledTimes(1);
+
+		const [call] = buildSecretPayloadMock.mock.calls;
+		expect(call[0]).toMatchObject({
+			name: 'FOO',
+			plaintext: 'value',
+			envKekVersion: 1,
+			envKekFingerprint: 'fingerprint-1',
 		});
 
-		expect(sendEnvelopeCalls).toHaveLength(1);
-		expect(sendEnvelopeCalls[0]).toEqual({
-			deviceId: identity.deviceId,
-			envelope: encryptedEnvelope,
+		expect(client.push).toHaveBeenCalledTimes(1);
+		const [args] = client.push.mock.calls;
+		expect(args[0]).toBe('project-id');
+		expect(args[1]).toBe('prod');
+		expect(args[2]).toEqual({
+			secrets: [
+				expect.objectContaining({
+					name: 'FOO',
+					env: 'prod',
+					ciphertext: 'cipher-FOO',
+					env_kek_version: 1,
+					env_kek_fingerprint: 'fingerprint-1',
+				}),
+			],
 		});
+		expect(args[3]).toEqual({ sync: false });
 	});
 
 	it('passes sync flag to upload when requested', async () => {
@@ -410,8 +434,10 @@ describe('env:push ignore behaviour', () => {
 			'--sync',
 		]);
 
-		expect(envelopeEncryptMock).toHaveBeenCalledTimes(1);
-		expect(sendEnvelopeCalls).toHaveLength(1);
+		expect(buildSecretPayloadMock).toHaveBeenCalledTimes(1);
+		expect(client.push).toHaveBeenCalledTimes(1);
+		const [args] = client.push.mock.calls;
+		expect(args[3]).toEqual({ sync: true });
 	});
 });
 

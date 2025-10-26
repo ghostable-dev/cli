@@ -1,4 +1,5 @@
 import { HttpClient } from '../http/HttpClient.js';
+import { HttpError } from '../http/errors.js';
 
 import {
 	Device,
@@ -18,15 +19,20 @@ import type {
 	DeviceDeleteResponseJson,
 	DeviceDocumentJson,
 	DeviceEnvelopeJson,
+	DeviceResourceJson,
 	DevicePrekeyBundle,
 	DevicePrekeyBundleJson,
 	EnvironmentJson,
+	EnvironmentKeyEnvelope,
+	EnvironmentKeyEnvelopeJson,
 	EnvironmentKeysResponse,
 	EnvironmentKeysResponseJson,
 	EnvironmentSecretBundleJson,
 	EnvironmentSuggestedNameJson,
 	EnvironmentTypeJson,
 	OrganizationJson,
+	PublishEnvironmentKeyRequest,
+	PublishEnvironmentKeyRequestJson,
 	PublishOneTimePrekeysResponseJson,
 	PublishSignedPrekeyResponseJson,
 	ProjectJson,
@@ -37,7 +43,9 @@ import type {
 import {
 	devicePrekeyBundleFromJSON,
 	encryptedEnvelopeToJSON,
+	environmentKeyEnvelopeFromJSON,
 	environmentKeysFromJSON,
+	publishEnvironmentKeyRequestToJSON,
 } from '@/types';
 
 type LoginResponse = { token?: string; two_factor?: boolean };
@@ -74,6 +82,11 @@ export class GhostableClient {
 			`/organizations/${organizationId}/projects`,
 		);
 		return (res.data ?? []).map(Project.fromJSON);
+	}
+
+	async listDevices(): Promise<Device[]> {
+		const res = await this.http.get<{ data?: DeviceResourceJson[] }>('/devices');
+		return (res.data ?? []).map(Device.fromResource);
 	}
 
 	async createProject(input: { organizationId: string; name: string }): Promise<Project> {
@@ -185,6 +198,41 @@ export class GhostableClient {
 		return environmentKeysFromJSON(json);
 	}
 
+	async getEnvironmentKey(
+		projectId: string,
+		envName: string,
+		deviceId: string,
+	): Promise<EnvironmentKeyEnvelope | null> {
+		const p = encodeURIComponent(projectId);
+		const e = encodeURIComponent(envName);
+		const d = encodeURIComponent(deviceId);
+
+		try {
+			const json = await this.http.get<EnvironmentKeyEnvelopeJson>(
+				`/projects/${p}/environments/${e}/keys/${d}`,
+			);
+			return environmentKeyEnvelopeFromJSON(json);
+		} catch (error) {
+			if (error instanceof HttpError && error.status === 404) {
+				return null;
+			}
+			throw error;
+		}
+	}
+
+	async publishEnvironmentKeyEnvelopes(
+		projectId: string,
+		envName: string,
+		request: PublishEnvironmentKeyRequest,
+	): Promise<void> {
+		const p = encodeURIComponent(projectId);
+		const e = encodeURIComponent(envName);
+		await this.http.post<PublishEnvironmentKeyRequestJson>(
+			`/projects/${p}/environments/${e}/keys`,
+			publishEnvironmentKeyRequestToJSON(request),
+		);
+	}
+
 	async deploy(opts?: {
 		only?: string[];
 		includeMeta?: boolean;
@@ -273,20 +321,20 @@ export class GhostableClient {
 		return devicePrekeyBundleFromJSON(json);
 	}
 
-        async sendEnvelope(
-                deviceId: string,
-                envelope: EncryptedEnvelope,
-                senderDeviceId?: string,
-        ): Promise<{ id: string }> {
-                const json = await this.http.post<{ id: string }>(
-                        `${this.devicePath(deviceId)}/envelopes`,
-                        {
-                                envelope: encryptedEnvelopeToJSON(envelope),
-                                sender_device_id: senderDeviceId ?? deviceId,
-                        },
-                );
-                return { id: json.id };
-        }
+	async sendEnvelope(
+		deviceId: string,
+		envelope: EncryptedEnvelope,
+		senderDeviceId?: string,
+	): Promise<{ id: string }> {
+		const json = await this.http.post<{ id: string }>(
+			`${this.devicePath(deviceId)}/envelopes`,
+			{
+				envelope: encryptedEnvelopeToJSON(envelope),
+				sender_device_id: senderDeviceId ?? deviceId,
+			},
+		);
+		return { id: json.id };
+	}
 
 	async queueEnvelope(
 		deviceId: string,

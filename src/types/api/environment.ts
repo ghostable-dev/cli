@@ -1,4 +1,7 @@
 import type { AAD, CipherAlg, Claims } from '@/types';
+import type { EncryptedEnvelope } from '@/crypto';
+import type { EncryptedEnvelopeJson } from '@/types';
+import { encryptedEnvelopeFromJSON, encryptedEnvelopeToJSON } from '@/types';
 
 /**
  * Environment shape returned by Ghostable’s API.
@@ -64,6 +67,12 @@ export type EnvironmentSecretCommon = {
 
 	/** Optional claims (HMAC, validators, etc.) attached by the client. */
 	claims?: Claims;
+
+	/** Version of the environment KEK used during encryption (optional). */
+	env_kek_version?: number;
+
+	/** Fingerprint of the environment KEK used during encryption (optional). */
+	env_kek_fingerprint?: string | null;
 };
 
 /**
@@ -166,6 +175,69 @@ export function environmentKeySummaryFromJSON(
 		version: item.version ?? null,
 		updatedAt: item.updated_at ?? null,
 		updatedByEmail: item.updated_by_email ?? null,
+	};
+}
+
+export type EnvironmentKeyEnvelopeJson = {
+	version: number;
+	fingerprint?: string | null;
+	envelope: EncryptedEnvelopeJson;
+};
+
+export type EnvironmentKeyEnvelope = {
+	version: number;
+	fingerprint: string;
+	envelope: EncryptedEnvelope;
+};
+
+export type EnvironmentKeyEnvelopeUploadJson = {
+	device_id: string;
+	envelope: EncryptedEnvelopeJson;
+};
+
+export type EnvironmentKeyEnvelopeUpload = {
+	deviceId: string;
+	envelope: EncryptedEnvelope;
+};
+
+export type PublishEnvironmentKeyRequestJson = {
+	version: number;
+	fingerprint: string;
+	envelopes: EnvironmentKeyEnvelopeUploadJson[];
+};
+
+export type PublishEnvironmentKeyRequest = {
+	version: number;
+	fingerprint: string;
+	envelopes: EnvironmentKeyEnvelopeUpload[];
+};
+
+export function environmentKeyEnvelopeFromJSON(
+	json: EnvironmentKeyEnvelopeJson,
+): EnvironmentKeyEnvelope {
+	return {
+		version: json.version,
+		fingerprint: json.fingerprint ?? '',
+		envelope: encryptedEnvelopeFromJSON(json.envelope),
+	};
+}
+
+export function environmentKeyEnvelopeUploadToJSON(
+	upload: EnvironmentKeyEnvelopeUpload,
+): EnvironmentKeyEnvelopeUploadJson {
+	return {
+		device_id: upload.deviceId,
+		envelope: encryptedEnvelopeToJSON(upload.envelope),
+	};
+}
+
+export function publishEnvironmentKeyRequestToJSON(
+	request: PublishEnvironmentKeyRequest,
+): PublishEnvironmentKeyRequestJson {
+	return {
+		version: request.version,
+		fingerprint: request.fingerprint,
+		envelopes: request.envelopes.map(environmentKeyEnvelopeUploadToJSON),
 	};
 }
 
