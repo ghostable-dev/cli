@@ -273,13 +273,20 @@ export class GhostableClient {
 		return devicePrekeyBundleFromJSON(json);
 	}
 
-	async sendEnvelope(deviceId: string, envelope: EncryptedEnvelope): Promise<{ id: string }> {
-		const json = await this.http.post<{ id: string }>(
-			`${this.devicePath(deviceId)}/envelopes`,
-			{ envelope: encryptedEnvelopeToJSON(envelope) },
-		);
-		return { id: json.id };
-	}
+        async sendEnvelope(
+                deviceId: string,
+                envelope: EncryptedEnvelope,
+                senderDeviceId?: string,
+        ): Promise<{ id: string }> {
+                const json = await this.http.post<{ id: string }>(
+                        `${this.devicePath(deviceId)}/envelopes`,
+                        {
+                                envelope: encryptedEnvelopeToJSON(envelope),
+                                sender_device_id: senderDeviceId ?? deviceId,
+                        },
+                );
+                return { id: json.id };
+        }
 
 	async queueEnvelope(
 		deviceId: string,
