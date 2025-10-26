@@ -148,7 +148,7 @@ export class EnvironmentKeyService {
 	}): Promise<void> {
 		const { client, projectId, envName, identity, key, version, fingerprint } = opts;
 
-		const devices = await client.listDevices();
+                const devices = await client.listDevices(projectId, envName);
 		if (!devices.length) return;
 
 		const envelopes: PublishEnvironmentKeyRequest['envelopes'] = [];
