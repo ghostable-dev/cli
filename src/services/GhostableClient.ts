@@ -15,37 +15,36 @@ import type { DeviceStatus } from '@/domain';
 import type { EncryptedEnvelope, OneTimePrekey, SignedPrekey } from '@/crypto';
 
 import type {
-	ConsumeEnvelopeResponseJson,
-	DeviceDeleteResponseJson,
-	DeviceDocumentJson,
-	DeviceEnvelopeJson,
-	DeviceResourceJson,
-	DevicePrekeyBundle,
-	DevicePrekeyBundleJson,
-	EnvironmentJson,
-	EnvironmentKeyEnvelope,
-	EnvironmentKeyEnvelopeJson,
-	EnvironmentKeysResponse,
-	EnvironmentKeysResponseJson,
-	EnvironmentSecretBundleJson,
-	EnvironmentSuggestedNameJson,
-	EnvironmentTypeJson,
-	OrganizationJson,
-	PublishEnvironmentKeyRequest,
-	PublishEnvironmentKeyRequestJson,
-	PublishOneTimePrekeysResponseJson,
-	PublishSignedPrekeyResponseJson,
-	ProjectJson,
-	QueueEnvelopeResponseJson,
-	SignedEnvironmentSecretBatchUploadRequest,
-	SignedEnvironmentSecretUploadRequest,
+        ConsumeEnvelopeResponseJson,
+        CreateEnvironmentKeyRequest,
+        DeviceDeleteResponseJson,
+        DeviceDocumentJson,
+        DeviceEnvelopeJson,
+        DeviceResourceJson,
+        DevicePrekeyBundle,
+        DevicePrekeyBundleJson,
+        EnvironmentJson,
+        EnvironmentKey,
+        EnvironmentKeyResponseJson,
+        EnvironmentKeysResponse,
+        EnvironmentKeysResponseJson,
+        EnvironmentSecretBundleJson,
+        EnvironmentSuggestedNameJson,
+        EnvironmentTypeJson,
+        OrganizationJson,
+        PublishOneTimePrekeysResponseJson,
+        PublishSignedPrekeyResponseJson,
+        ProjectJson,
+        QueueEnvelopeResponseJson,
+        SignedEnvironmentSecretBatchUploadRequest,
+        SignedEnvironmentSecretUploadRequest,
 } from '@/types';
 import {
-	devicePrekeyBundleFromJSON,
-	encryptedEnvelopeToJSON,
-	environmentKeyEnvelopeFromJSON,
-	environmentKeysFromJSON,
-	publishEnvironmentKeyRequestToJSON,
+        createEnvironmentKeyRequestToJSON,
+        devicePrekeyBundleFromJSON,
+        encryptedEnvelopeToJSON,
+        environmentKeyResponseFromJSON,
+        environmentKeysFromJSON,
 } from '@/types';
 
 type LoginResponse = { token?: string; two_factor?: boolean };
@@ -58,31 +57,31 @@ export class GhostableClient {
 		return new GhostableClient(new HttpClient(apiBase));
 	}
 
-	withToken(token: string) {
-		return new GhostableClient(this.http.withBearer(token));
-	}
+        withToken(token: string) {
+                return new GhostableClient(this.http.withBearer(token));
+        }
 
-	async login(email: string, password: string, code?: string): Promise<string> {
-		const res = await this.http.post<LoginResponse>('/cli/login', {
-			email,
-			password,
-			...(code ? { code } : {}),
-		});
-		if (!res.token) throw new Error('Authentication failed');
+        async login(email: string, password: string, code?: string): Promise<string> {
+                const res = await this.http.post<LoginResponse>('/cli/login', {
+                        email,
+                        password,
+                        ...(code ? { code } : {}),
+                });
+                if (!res.token) throw new Error('Authentication failed');
 		return res.token;
 	}
 
-	async organizations(): Promise<Organization[]> {
-		const res = await this.http.get<{ data?: OrganizationJson[] }>('/organizations');
-		return (res.data ?? []).map(Organization.fromJSON);
-	}
+        async organizations(): Promise<Organization[]> {
+                const res = await this.http.get<{ data?: OrganizationJson[] }>('/organizations');
+                return (res.data ?? []).map(Organization.fromJSON);
+        }
 
-	async projects(organizationId: string): Promise<Project[]> {
-		const res = await this.http.get<ListResp<ProjectJson>>(
-			`/organizations/${organizationId}/projects`,
-		);
-		return (res.data ?? []).map(Project.fromJSON);
-	}
+        async projects(organizationId: string): Promise<Project[]> {
+                const res = await this.http.get<ListResp<ProjectJson>>(
+                        `/organizations/${organizationId}/projects`,
+                );
+                return (res.data ?? []).map(Project.fromJSON);
+        }
 
         async listDevices(projectId: string, envName: string): Promise<Device[]> {
                 const p = encodeURIComponent(projectId);
@@ -93,81 +92,86 @@ export class GhostableClient {
                 return (res.data ?? []).map(Device.fromResource);
         }
 
-	async createProject(input: { organizationId: string; name: string }): Promise<Project> {
-		const res = await this.http.post<ProjectJson>(
-			`/organizations/${input.organizationId}/projects`,
-			{ name: input.name },
-		);
-		return Project.fromJSON(res);
-	}
+        async createProject(input: { organizationId: string; name: string }): Promise<Project> {
+                const res = await this.http.post<ProjectJson>(
+                        `/organizations/${input.organizationId}/projects`,
+                        { name: input.name },
+                );
+                return Project.fromJSON(res);
+        }
 
-	async getEnvironments(projectId: string): Promise<Environment[]> {
-		const p = encodeURIComponent(projectId);
-		const res = await this.http.get<{ data?: EnvironmentJson[] }>(
-			`/projects/${p}/environments`,
-		);
-		return (res.data ?? []).map(Environment.fromJSON);
-	}
+        async getEnvironments(projectId: string): Promise<Environment[]> {
+                const p = encodeURIComponent(projectId);
+                const res = await this.http.get<{ data?: EnvironmentJson[] }>(
+                        `/projects/${p}/environments`,
+                );
+                return (res.data ?? []).map(Environment.fromJSON);
+        }
 
-	async getEnvironmentTypes(): Promise<EnvironmentType[]> {
-		const res = await this.http.get<{ data?: EnvironmentTypeJson[] }>('/environment-types');
-		return (res.data ?? []).map(EnvironmentType.fromJSON);
-	}
+        async getEnvironmentTypes(): Promise<EnvironmentType[]> {
+                const res = await this.http.get<{ data?: EnvironmentTypeJson[] }>(
+                        '/environment-types',
+                );
+                return (res.data ?? []).map(EnvironmentType.fromJSON);
+        }
 
-	async suggestEnvironmentNames(
-		projectId: string,
-		type: string,
-	): Promise<EnvironmentSuggestedName[]> {
-		const p = encodeURIComponent(projectId);
-		const res = await this.http.post<{ data?: EnvironmentSuggestedNameJson[] }>(
-			`/projects/${p}/generate-suggested-environment-names`,
-			{ type },
-		);
-		return (res.data ?? []).map(EnvironmentSuggestedName.fromJSON);
-	}
+        async suggestEnvironmentNames(
+                projectId: string,
+                type: string,
+        ): Promise<EnvironmentSuggestedName[]> {
+                const p = encodeURIComponent(projectId);
+                const res = await this.http.post<{ data?: EnvironmentSuggestedNameJson[] }>(
+                        `/projects/${p}/generate-suggested-environment-names`,
+                        { type },
+                );
+                return (res.data ?? []).map(EnvironmentSuggestedName.fromJSON);
+        }
 
-	async createEnvironment(input: {
-		projectId: string;
-		name: string;
-		type: string;
-		baseId: string | null;
-	}): Promise<Environment> {
-		const p = encodeURIComponent(input.projectId);
-		const res = await this.http.post<EnvironmentJson>(`/projects/${p}/environments`, {
-			name: input.name,
-			type: input.type,
-			base_id: input.baseId,
-		});
-		return Environment.fromJSON(res);
-	}
+        async createEnvironment(input: {
+                projectId: string;
+                name: string;
+                type: string;
+                baseId: string | null;
+        }): Promise<Environment> {
+                const p = encodeURIComponent(input.projectId);
+                const res = await this.http.post<EnvironmentJson>(
+                        `/projects/${p}/environments`,
+                        {
+                                name: input.name,
+                                type: input.type,
+                                base_id: input.baseId,
+                        },
+                );
+                return Environment.fromJSON(res);
+        }
 
-	async uploadSecret(
-		projectId: string,
+        async uploadSecret(
+                projectId: string,
 		envName: string,
 		payload: SignedEnvironmentSecretUploadRequest,
 		opts?: { sync?: boolean },
-	): Promise<{ id?: string; version?: number }> {
-		const p = encodeURIComponent(projectId);
-		const e = encodeURIComponent(envName);
-		const suffix = opts?.sync ? '?sync=1' : '';
-		return this.http.post(`/projects/${p}/environments/${e}/secrets${suffix}`, payload);
-	}
+        ): Promise<{ id?: string; version?: number }> {
+                const p = encodeURIComponent(projectId);
+                const e = encodeURIComponent(envName);
+                const suffix = opts?.sync ? '?sync=1' : '';
+                return this.http.post(`/projects/${p}/environments/${e}/secrets${suffix}`, payload);
+        }
 
-	async push(
-		projectId: string,
-		envName: string,
+        async push(
+                projectId: string,
+                envName: string,
 		payloads: SignedEnvironmentSecretBatchUploadRequest,
 		opts?: { sync?: boolean },
-	): Promise<void> {
-		const p = encodeURIComponent(projectId);
-		const e = encodeURIComponent(envName);
-		const suffix = opts?.sync ? '?sync=1' : '';
-		await this.http.post(`/projects/${p}/environments/${e}/push${suffix}`, payloads);
-	}
+        ): Promise<void> {
+                const p = encodeURIComponent(projectId);
+                const e = encodeURIComponent(envName);
+                const suffix = opts?.sync ? '?sync=1' : '';
+                await this.http.post(`/projects/${p}/environments/${e}/push${suffix}`, payloads);
+        }
 
-	async pull(
-		projectId: string,
-		envName: string,
+        async pull(
+                projectId: string,
+                envName: string,
 		opts?: {
 			only?: string[];
 			includeMeta?: boolean;
@@ -182,66 +186,66 @@ export class GhostableClient {
 		if (opts?.includeVersions) qs.set('include_versions', '1');
 		if (opts?.only?.length) for (const k of opts.only) qs.append('only[]', k);
 
-		const suffix = qs.toString() ? `?${qs.toString()}` : '';
+                const suffix = qs.toString() ? `?${qs.toString()}` : '';
 
-		const json = await this.http.get<EnvironmentSecretBundleJson>(
-			`/projects/${p}/environments/${e}/pull${suffix}`,
-		);
+                const json = await this.http.get<EnvironmentSecretBundleJson>(
+                        `/projects/${p}/environments/${e}/pull${suffix}`,
+                );
 
-		return EnvironmentSecretBundle.fromJSON(json);
-	}
+                return EnvironmentSecretBundle.fromJSON(json);
+        }
 
-	async getEnvironmentKeys(projectId: string, envName: string): Promise<EnvironmentKeysResponse> {
-		const p = encodeURIComponent(projectId);
-		const e = encodeURIComponent(envName);
+        async getEnvironmentKeys(projectId: string, envName: string): Promise<EnvironmentKeysResponse> {
+                const p = encodeURIComponent(projectId);
+                const e = encodeURIComponent(envName);
 
-		const json = await this.http.get<EnvironmentKeysResponseJson>(
-			`/projects/${p}/environments/${e}/keys`,
-		);
+                const json = await this.http.get<EnvironmentKeysResponseJson>(
+                        `/projects/${p}/environments/${e}/keys`,
+                );
 
-		return environmentKeysFromJSON(json);
-	}
+                return environmentKeysFromJSON(json);
+        }
 
-	async getEnvironmentKey(
-		projectId: string,
-		envName: string,
-		deviceId: string,
-	): Promise<EnvironmentKeyEnvelope | null> {
-		const p = encodeURIComponent(projectId);
-		const e = encodeURIComponent(envName);
-		const d = encodeURIComponent(deviceId);
+        async getEnvironmentKey(projectId: string, envName: string): Promise<EnvironmentKey | null> {
+                const p = encodeURIComponent(projectId);
+                const e = encodeURIComponent(envName);
 
-		try {
-			const json = await this.http.get<EnvironmentKeyEnvelopeJson>(
-				`/projects/${p}/environments/${e}/keys/${d}`,
-			);
-			return environmentKeyEnvelopeFromJSON(json);
-		} catch (error) {
-			if (error instanceof HttpError && error.status === 404) {
-				return null;
-			}
-			throw error;
-		}
-	}
+                try {
+                        const json = await this.http.get<EnvironmentKeyResponseJson>(
+                                `/projects/${p}/environments/${e}/key`,
+                        );
+                        return environmentKeyResponseFromJSON(json).data;
+                } catch (error) {
+                        if (error instanceof HttpError && error.status === 404) {
+                                return null;
+                        }
+                        throw error;
+                }
+        }
 
-	async publishEnvironmentKeyEnvelopes(
-		projectId: string,
-		envName: string,
-		request: PublishEnvironmentKeyRequest,
-	): Promise<void> {
-		const p = encodeURIComponent(projectId);
-		const e = encodeURIComponent(envName);
-		await this.http.post<PublishEnvironmentKeyRequestJson>(
-			`/projects/${p}/environments/${e}/keys`,
-			publishEnvironmentKeyRequestToJSON(request),
-		);
-	}
+        async createEnvironmentKey(
+                projectId: string,
+                envName: string,
+                request: CreateEnvironmentKeyRequest,
+        ): Promise<EnvironmentKey> {
+                const p = encodeURIComponent(projectId);
+                const e = encodeURIComponent(envName);
+                const json = await this.http.post<EnvironmentKeyResponseJson>(
+                        `/projects/${p}/environments/${e}/key`,
+                        createEnvironmentKeyRequestToJSON(request),
+                );
+                const response = environmentKeyResponseFromJSON(json).data;
+                if (!response) {
+                        throw new Error('Environment key creation failed');
+                }
+                return response;
+        }
 
-	async deploy(opts?: {
-		only?: string[];
-		includeMeta?: boolean;
-		includeVersions?: boolean;
-	}): Promise<EnvironmentSecretBundle> {
+        async deploy(opts?: {
+                only?: string[];
+                includeMeta?: boolean;
+                includeVersions?: boolean;
+        }): Promise<EnvironmentSecretBundle> {
 		const qs = new URLSearchParams();
 		if (opts?.includeMeta) qs.set('include_meta', '1');
 		if (opts?.includeVersions) qs.set('include_versions', '1');
@@ -249,14 +253,19 @@ export class GhostableClient {
 
 		const suffix = qs.toString() ? `?${qs.toString()}` : '';
 
-		const json = await this.http.get<EnvironmentSecretBundleJson>(`/ci/deploy${suffix}`);
+                const json = await this.http.get<EnvironmentSecretBundleJson>(
+                        `/ci/deploy${suffix}`,
+                );
 
-		return EnvironmentSecretBundle.fromJSON(json);
-	}
+                return EnvironmentSecretBundle.fromJSON(json);
+        }
 
-	private devicePath(deviceId?: string): string {
-		return deviceId ? `/devices/${encodeURIComponent(deviceId)}` : '/devices';
-	}
+        private devicePath(deviceId?: string): string {
+                const path = deviceId
+                        ? `/devices/${encodeURIComponent(deviceId)}`
+                        : '/devices';
+                return path;
+        }
 
 	async registerDevice(input: {
 		publicKey: string;

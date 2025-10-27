@@ -7,7 +7,7 @@ export interface AppConfig {
 }
 
 export const config: AppConfig = {
-	apiBase: process.env.GHOSTABLE_API ?? 'https://ghostable.dev/api/v2',
+        apiBase: process.env.GHOSTABLE_API ?? 'https://ghostable.dev/api/v2',
 	keychainService: 'ghostable-cli',
 	keychainAccount: 'session',
 };

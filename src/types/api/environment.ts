@@ -179,66 +179,178 @@ export function environmentKeySummaryFromJSON(
 }
 
 export type EnvironmentKeyEnvelopeJson = {
-	version: number;
-	fingerprint?: string | null;
-	envelope: EncryptedEnvelopeJson;
+        id?: string;
+        version?: string | null;
+        alg?: string | null;
+        device_id: string;
+        ciphertext_b64: string;
+        nonce_b64: string;
+        from_ephemeral_public_key: string;
+        to_device_public_key?: string | null;
+        created_at?: string | null;
+        expires_at?: string | null;
+        meta?: Record<string, string>;
+        aad_b64?: string | null;
+        sender_kid?: string | null;
+        signature_b64?: string | null;
 };
 
 export type EnvironmentKeyEnvelope = {
-	version: number;
-	fingerprint: string;
-	envelope: EncryptedEnvelope;
+        deviceId: string;
+        envelope: EncryptedEnvelope;
+        expiresAtIso: string | null;
+};
+
+export type EnvironmentKeyJson = {
+        version: number;
+        fingerprint?: string | null;
+        created_at?: string | null;
+        rotated_at?: string | null;
+        created_by_device_id?: string | null;
+        envelopes: EnvironmentKeyEnvelopeJson[];
+};
+
+export type EnvironmentKey = {
+        version: number;
+        fingerprint: string;
+        createdAtIso: string | null;
+        rotatedAtIso: string | null;
+        createdByDeviceId: string | null;
+        envelopes: EnvironmentKeyEnvelope[];
 };
 
 export type EnvironmentKeyEnvelopeUploadJson = {
-	device_id: string;
-	envelope: EncryptedEnvelopeJson;
+        device_id: string;
+        ciphertext_b64: string;
+        nonce_b64: string;
+        from_ephemeral_public_key: string;
+        to_device_public_key?: string | null;
+        created_at?: string | null;
+        expires_at?: string | null;
+        meta?: Record<string, string>;
+        aad_b64?: string | null;
+        sender_kid?: string | null;
+        signature_b64?: string | null;
+        alg?: string | null;
+        version?: string | null;
+        id?: string | null;
 };
 
 export type EnvironmentKeyEnvelopeUpload = {
-	deviceId: string;
-	envelope: EncryptedEnvelope;
+        deviceId: string;
+        envelope: EncryptedEnvelope;
+        expiresAtIso?: string | null;
 };
 
-export type PublishEnvironmentKeyRequestJson = {
-	version: number;
-	fingerprint: string;
-	envelopes: EnvironmentKeyEnvelopeUploadJson[];
+export type CreateEnvironmentKeyRequestJson = {
+        fingerprint: string;
+        version?: number;
+        created_by_device_id?: string | null;
+        rotated_at?: string | null;
+        envelopes: EnvironmentKeyEnvelopeUploadJson[];
 };
 
-export type PublishEnvironmentKeyRequest = {
-	version: number;
-	fingerprint: string;
-	envelopes: EnvironmentKeyEnvelopeUpload[];
+export type CreateEnvironmentKeyRequest = {
+        fingerprint: string;
+        version?: number;
+        createdByDeviceId?: string | null;
+        rotatedAtIso?: string | null;
+        envelopes: EnvironmentKeyEnvelopeUpload[];
 };
+
+export type EnvironmentKeyResponseJson = {
+        data: EnvironmentKeyJson | null;
+};
+
+export type EnvironmentKeyResponse = {
+        data: EnvironmentKey | null;
+};
+
+function toEncryptedEnvelopeJson(
+        envelope: EnvironmentKeyEnvelopeJson,
+): EncryptedEnvelopeJson {
+        return {
+                id: envelope.id ?? '',
+                version: envelope.version ?? 'v1',
+                alg: envelope.alg ?? undefined,
+                to_device_public_key: envelope.to_device_public_key ?? '',
+                from_ephemeral_public_key: envelope.from_ephemeral_public_key,
+                nonce_b64: envelope.nonce_b64,
+                ciphertext_b64: envelope.ciphertext_b64,
+                created_at: envelope.created_at ?? new Date().toISOString(),
+                expires_at: envelope.expires_at ?? undefined,
+                meta: envelope.meta,
+                aad_b64: envelope.aad_b64 ?? undefined,
+                sender_kid: envelope.sender_kid ?? undefined,
+                signature_b64: envelope.signature_b64 ?? undefined,
+        };
+}
 
 export function environmentKeyEnvelopeFromJSON(
-	json: EnvironmentKeyEnvelopeJson,
+        json: EnvironmentKeyEnvelopeJson,
 ): EnvironmentKeyEnvelope {
-	return {
-		version: json.version,
-		fingerprint: json.fingerprint ?? '',
-		envelope: encryptedEnvelopeFromJSON(json.envelope),
-	};
+        return {
+                deviceId: json.device_id,
+                envelope: encryptedEnvelopeFromJSON(toEncryptedEnvelopeJson(json)),
+                expiresAtIso: json.expires_at ?? null,
+        };
+}
+
+export function environmentKeyFromJSON(json: EnvironmentKeyJson): EnvironmentKey {
+        return {
+                version: json.version,
+                fingerprint: json.fingerprint ?? '',
+                createdAtIso: json.created_at ?? null,
+                rotatedAtIso: json.rotated_at ?? null,
+                createdByDeviceId: json.created_by_device_id ?? null,
+                envelopes: (json.envelopes ?? []).map(environmentKeyEnvelopeFromJSON),
+        };
+}
+
+export function environmentKeyResponseFromJSON(
+        json: EnvironmentKeyResponseJson,
+): EnvironmentKeyResponse {
+        return {
+                data: json.data ? environmentKeyFromJSON(json.data) : null,
+        };
 }
 
 export function environmentKeyEnvelopeUploadToJSON(
-	upload: EnvironmentKeyEnvelopeUpload,
+        upload: EnvironmentKeyEnvelopeUpload,
 ): EnvironmentKeyEnvelopeUploadJson {
-	return {
-		device_id: upload.deviceId,
-		envelope: encryptedEnvelopeToJSON(upload.envelope),
-	};
+        const json = encryptedEnvelopeToJSON(upload.envelope);
+        return {
+                device_id: upload.deviceId,
+                ciphertext_b64: json.ciphertext_b64,
+                nonce_b64: json.nonce_b64,
+                from_ephemeral_public_key: json.from_ephemeral_public_key,
+                to_device_public_key: json.to_device_public_key,
+                created_at: json.created_at,
+                ...(upload.expiresAtIso !== undefined
+                        ? { expires_at: upload.expiresAtIso }
+                        : {}),
+                ...(json.meta ? { meta: json.meta } : {}),
+                ...(json.aad_b64 ? { aad_b64: json.aad_b64 } : {}),
+                ...(json.sender_kid ? { sender_kid: json.sender_kid } : {}),
+                ...(json.signature_b64 ? { signature_b64: json.signature_b64 } : {}),
+                ...(json.alg ? { alg: json.alg } : {}),
+                ...(json.version ? { version: json.version } : {}),
+                ...(json.id ? { id: json.id } : {}),
+        };
 }
 
-export function publishEnvironmentKeyRequestToJSON(
-	request: PublishEnvironmentKeyRequest,
-): PublishEnvironmentKeyRequestJson {
-	return {
-		version: request.version,
-		fingerprint: request.fingerprint,
-		envelopes: request.envelopes.map(environmentKeyEnvelopeUploadToJSON),
-	};
+export function createEnvironmentKeyRequestToJSON(
+        request: CreateEnvironmentKeyRequest,
+): CreateEnvironmentKeyRequestJson {
+        return {
+                fingerprint: request.fingerprint,
+                ...(request.version !== undefined ? { version: request.version } : {}),
+                ...(request.createdByDeviceId
+                        ? { created_by_device_id: request.createdByDeviceId }
+                        : {}),
+                ...(request.rotatedAtIso ? { rotated_at: request.rotatedAtIso } : {}),
+                envelopes: request.envelopes.map(environmentKeyEnvelopeUploadToJSON),
+        };
 }
 
 /**
