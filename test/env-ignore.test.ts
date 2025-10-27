@@ -88,12 +88,12 @@ vi.mock('../src/services/SessionService.js', () => ({
 }));
 
 const client = {
-	pull: vi.fn(async () => remoteBundle),
-	uploadSecret: vi.fn(),
-	push: vi.fn(),
-	getEnvironmentKey: vi.fn(async () => null),
-	publishEnvironmentKeyEnvelopes: vi.fn(),
-	listDevices: vi.fn(async () => []),
+        pull: vi.fn(async () => remoteBundle),
+        uploadSecret: vi.fn(),
+        push: vi.fn(),
+        getEnvironmentKey: vi.fn(async () => null),
+        createEnvironmentKey: vi.fn(),
+        listDevices: vi.fn(async () => []),
 };
 
 vi.mock('../src/services/GhostableClient.js', () => ({
@@ -239,7 +239,7 @@ beforeEach(() => {
 	client.uploadSecret.mockClear();
 	client.push.mockClear();
 	client.getEnvironmentKey.mockClear();
-	client.publishEnvironmentKeyEnvelopes.mockClear();
+        client.createEnvironmentKey.mockClear();
 	client.listDevices.mockClear();
 	buildSecretPayloadCalls.splice(0, buildSecretPayloadCalls.length);
 	buildSecretPayloadMock.mockClear();
