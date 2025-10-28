@@ -8,6 +8,8 @@ import { loadOrCreateKeys } from '../keys.js';
 import { config } from '../config/index.js';
 import { SessionService } from '../services/SessionService.js';
 import { GhostableClient } from '../services/GhostableClient.js';
+import { DeviceIdentityService } from '../services/DeviceIdentityService.js';
+import { EnvironmentKeyService } from '../services/EnvironmentKeyService.js';
 import { Manifest } from '../support/Manifest.js';
 import { log } from '../support/logger.js';
 import { toErrorMessage } from '../support/errors.js';
@@ -146,14 +148,68 @@ export function registerVarPushCommand(program: Command) {
 			const sessionToken = token;
 			const client = GhostableClient.unauthenticated(config.apiBase).withToken(sessionToken);
 
-			await initSodium();
-			const keyBundle = await loadOrCreateKeys();
-			const masterSeed = Buffer.from(keyBundle.masterSeedB64.replace(/^b64:/, ''), 'base64');
-			const edPriv = Buffer.from(keyBundle.ed25519PrivB64.replace(/^b64:/, ''), 'base64');
+                        await initSodium();
+                        const keyBundle = await loadOrCreateKeys();
+                        const edPriv = Buffer.from(keyBundle.ed25519PrivB64.replace(/^b64:/, ''), 'base64');
 
-			const validators: ValidatorRecord = {
-				non_empty: target.parsedValue.length > 0,
-			};
+                        let identityService: DeviceIdentityService;
+                        try {
+                                identityService = await DeviceIdentityService.create();
+                        } catch (error) {
+                                log.error(toErrorMessage(error));
+                                process.exit(1);
+                                return;
+                        }
+
+                        let identity;
+                        try {
+                                identity = await identityService.requireIdentity();
+                        } catch (error) {
+                                log.error(toErrorMessage(error));
+                                process.exit(1);
+                                return;
+                        }
+
+                        let envKeyService: EnvironmentKeyService;
+                        try {
+                                envKeyService = await EnvironmentKeyService.create();
+                        } catch (error) {
+                                log.error(toErrorMessage(error));
+                                process.exit(1);
+                                return;
+                        }
+
+                        let keyInfo: Awaited<
+                                ReturnType<EnvironmentKeyService['ensureEnvironmentKey']>
+                        >;
+                        try {
+                                keyInfo = await envKeyService.ensureEnvironmentKey({
+                                        client,
+                                        projectId,
+                                        envName: envName!,
+                                        identity,
+                                });
+
+                                if (keyInfo.created) {
+                                        await envKeyService.publishKeyEnvelopes({
+                                                client,
+                                                projectId,
+                                                envName: envName!,
+                                                identity,
+                                                key: keyInfo.key,
+                                                version: keyInfo.version,
+                                                fingerprint: keyInfo.fingerprint,
+                                        });
+                                }
+                        } catch (error) {
+                                log.error(toErrorMessage(error));
+                                process.exit(1);
+                                return;
+                        }
+
+                        const validators: ValidatorRecord = {
+                                non_empty: target.parsedValue.length > 0,
+                        };
 
 			if (target.name === 'APP_KEY') {
 				validators.regex = {
@@ -164,23 +220,25 @@ export function registerVarPushCommand(program: Command) {
 			}
 
 			try {
-				const payload = await buildSecretPayload({
-					name: target.name,
-					env: envName!,
-					org: orgId,
-					project: projectId,
-					plaintext: target.plaintext,
-					keyMaterial: masterSeed,
-					edPriv,
-					validators,
-				});
+                                const payload = await buildSecretPayload({
+                                        name: target.name,
+                                        env: envName!,
+                                        org: orgId,
+                                        project: projectId,
+                                        plaintext: target.plaintext,
+                                        keyMaterial: keyInfo.key,
+                                        edPriv,
+                                        validators,
+                                        envKekVersion: keyInfo.version,
+                                        envKekFingerprint: keyInfo.fingerprint,
+                                });
 
-				await client.uploadSecret(projectId, envName, payload);
-				log.ok(
-					`✅ Pushed ${chalk.bold(target.name)} from ${chalk.bold(
-						filePath,
-					)} to ${projectId}:${envName}.`,
-				);
+                                await client.uploadSecret(projectId, envName!, payload);
+                                log.ok(
+                                        `✅ Pushed ${chalk.bold(target.name)} from ${chalk.bold(
+                                                filePath,
+                                        )} to ${projectId}:${envName!}.`,
+                                );
 			} catch (error) {
 				log.error(`❌ Failed to push variable: ${toErrorMessage(error)}`);
 				process.exit(1);
