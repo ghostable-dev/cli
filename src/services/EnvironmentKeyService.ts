@@ -91,76 +91,76 @@ export class EnvironmentKeyService {
 		);
 	}
 
-        async ensureEnvironmentKey(opts: {
-                client: GhostableClient;
-                projectId: string;
-                envName: string;
-                identity: DeviceIdentity;
-        }): Promise<EnsureEnvironmentKeyResult> {
-                const { client, projectId, envName, identity } = opts;
+	async ensureEnvironmentKey(opts: {
+		client: GhostableClient;
+		projectId: string;
+		envName: string;
+		identity: DeviceIdentity;
+	}): Promise<EnsureEnvironmentKeyResult> {
+		const { client, projectId, envName, identity } = opts;
 
-                const cached = await this.loadLocal(projectId, envName);
-                const cachedFingerprint = cached
-                        ? EnvironmentKeyService.normalizeFingerprint(cached.fingerprint)
-                        : '';
+		const cached = await this.loadLocal(projectId, envName);
+		const cachedFingerprint = cached
+			? EnvironmentKeyService.normalizeFingerprint(cached.fingerprint)
+			: '';
 
-                const remote = await client.getEnvironmentKey(projectId, envName);
+		const remote = await client.getEnvironmentKey(projectId, envName);
 
-                if (remote) {
-                        const remoteFingerprint = EnvironmentKeyService.normalizeFingerprint(remote.fingerprint);
-                        if (
-                                cached &&
-                                cached.version === remote.version &&
-                                cachedFingerprint === remoteFingerprint
-                        ) {
-                                return {
-                                        key: decodeKey(cached.keyB64),
-                                        version: cached.version,
-                                        fingerprint: remoteFingerprint,
-                                        created: false,
-                                };
-                        }
+		if (remote) {
+			const remoteFingerprint = EnvironmentKeyService.normalizeFingerprint(
+				remote.fingerprint,
+			);
+			if (
+				cached &&
+				cached.version === remote.version &&
+				cachedFingerprint === remoteFingerprint
+			) {
+				return {
+					key: decodeKey(cached.keyB64),
+					version: cached.version,
+					fingerprint: remoteFingerprint,
+					created: false,
+				};
+			}
 
-                        const envelope = remote.envelopes.find(
-                                (item) => item.deviceId === identity.deviceId,
-                        );
-                        if (!envelope) {
-                                throw new Error(
-                                        'Environment key is not shared with this device. Contact your administrator to request access.',
-                                );
-                        }
+			const envelope = remote.envelopes.find((item) => item.deviceId === identity.deviceId);
+			if (!envelope) {
+				throw new Error(
+					'Environment key is not shared with this device. Contact your administrator to request access.',
+				);
+			}
 
-                        const plaintext = await KeyService.decryptOnThisDevice(
-                                envelope.envelope,
-                                identity.deviceId,
-                        );
-                        await this.saveLocal(projectId, envName, {
-                                keyB64: encodeKey(plaintext),
-                                version: remote.version,
-                                fingerprint: remoteFingerprint,
-                        });
-                        return {
-                                key: plaintext,
-                                version: remote.version,
-                                fingerprint: remoteFingerprint,
-                                created: false,
-                        };
-                }
+			const plaintext = await KeyService.decryptOnThisDevice(
+				envelope.envelope,
+				identity.deviceId,
+			);
+			await this.saveLocal(projectId, envName, {
+				keyB64: encodeKey(plaintext),
+				version: remote.version,
+				fingerprint: remoteFingerprint,
+			});
+			return {
+				key: plaintext,
+				version: remote.version,
+				fingerprint: remoteFingerprint,
+				created: false,
+			};
+		}
 
-                const keyBytes = cached ? decodeKey(cached.keyB64) : randomBytes(32);
-                const fingerprint = cachedFingerprint
-                        ? cachedFingerprint
-                        : EnvironmentKeyService.fingerprintOf(keyBytes);
-                const version = cached?.version ?? 1;
+		const keyBytes = cached ? decodeKey(cached.keyB64) : randomBytes(32);
+		const fingerprint = cachedFingerprint
+			? cachedFingerprint
+			: EnvironmentKeyService.fingerprintOf(keyBytes);
+		const version = cached?.version ?? 1;
 
-                await this.saveLocal(projectId, envName, {
-                        keyB64: encodeKey(keyBytes),
-                        version,
-                        fingerprint,
-                });
+		await this.saveLocal(projectId, envName, {
+			keyB64: encodeKey(keyBytes),
+			version,
+			fingerprint,
+		});
 
-                return { key: keyBytes, version, fingerprint, created: true };
-        }
+		return { key: keyBytes, version, fingerprint, created: true };
+	}
 
 	async publishKeyEnvelopes(opts: {
 		client: GhostableClient;
@@ -173,15 +173,15 @@ export class EnvironmentKeyService {
 	}): Promise<void> {
 		const { client, projectId, envName, identity, key, version, fingerprint } = opts;
 
-                const devices = await client.listDevices(projectId, envName);
+		const devices = await client.listDevices(projectId, envName);
 		if (!devices.length) return;
 
-                const envelopes: CreateEnvironmentKeyRequest['envelopes'] = [];
-                for (const device of devices) {
-                        if (!device.publicKey) continue;
-                        const envelope = await EnvelopeService.encrypt({
-                                sender: identity,
-                                recipientPublicKey: device.publicKey,
+		const envelopes: CreateEnvironmentKeyRequest['envelopes'] = [];
+		for (const device of devices) {
+			if (!device.publicKey) continue;
+			const envelope = await EnvelopeService.encrypt({
+				sender: identity,
+				recipientPublicKey: device.publicKey,
 				plaintext: key,
 				meta: {
 					project_id: projectId,
@@ -198,17 +198,17 @@ export class EnvironmentKeyService {
 
 		if (!envelopes.length) return;
 
-                const response = await client.createEnvironmentKey(projectId, envName, {
-                        version,
-                        fingerprint,
-                        envelopes,
-                        createdByDeviceId: identity.deviceId,
-                });
+		const response = await client.createEnvironmentKey(projectId, envName, {
+			version,
+			fingerprint,
+			envelopes,
+			createdByDeviceId: identity.deviceId,
+		});
 
-                await this.saveLocal(projectId, envName, {
-                        keyB64: encodeKey(key),
-                        version: response.version,
-                        fingerprint: EnvironmentKeyService.normalizeFingerprint(response.fingerprint),
-                });
-        }
+		await this.saveLocal(projectId, envName, {
+			keyB64: encodeKey(key),
+			version: response.version,
+			fingerprint: EnvironmentKeyService.normalizeFingerprint(response.fingerprint),
+		});
+	}
 }

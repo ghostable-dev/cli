@@ -137,6 +137,8 @@ export async function runEnvPush(opts: PushOptions): Promise<void> {
 			identity,
 		});
 
+		console.log(keyInfo);
+
 		if (keyInfo.created) {
 			spinner.text = 'Sharing environment key with team devices…';
 			await envKeyService.publishKeyEnvelopes({
