@@ -52,7 +52,7 @@ describe('GhostableClient.sendEnvelope', () => {
 
 		await client.sendEnvelope('device-42', envelope, 'sender-99');
 
-                expect(post).toHaveBeenCalledWith('/devices/device-42/envelopes', {
+		expect(post).toHaveBeenCalledWith('/devices/device-42/envelopes', {
 			envelope: encryptedEnvelopeToJSON(envelope),
 			sender_device_id: 'sender-99',
 		});
@@ -64,7 +64,7 @@ describe('GhostableClient.sendEnvelope', () => {
 
 		await client.sendEnvelope('device-7', envelope);
 
-                expect(post).toHaveBeenCalledWith('/devices/device-7/envelopes', {
+		expect(post).toHaveBeenCalledWith('/devices/device-7/envelopes', {
 			envelope: encryptedEnvelopeToJSON(envelope),
 			sender_device_id: 'device-7',
 		});
