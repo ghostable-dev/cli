@@ -91,27 +91,36 @@ export class EnvironmentKeyService {
 		);
 	}
 
-	async ensureEnvironmentKey(opts: {
-		client: GhostableClient;
-		projectId: string;
-		envName: string;
-		identity: DeviceIdentity;
-	}): Promise<EnsureEnvironmentKeyResult> {
-		const { client, projectId, envName, identity } = opts;
+        async ensureEnvironmentKey(opts: {
+                client: GhostableClient;
+                projectId: string;
+                envName: string;
+                identity: DeviceIdentity;
+        }): Promise<EnsureEnvironmentKeyResult> {
+                const { client, projectId, envName, identity } = opts;
 
-		const cached = await this.loadLocal(projectId, envName);
-		if (cached) {
-			return {
-				key: decodeKey(cached.keyB64),
-				version: cached.version,
-				fingerprint: EnvironmentKeyService.normalizeFingerprint(cached.fingerprint),
-				created: false,
-			};
-		}
+                const cached = await this.loadLocal(projectId, envName);
+                const cachedFingerprint = cached
+                        ? EnvironmentKeyService.normalizeFingerprint(cached.fingerprint)
+                        : '';
 
                 const remote = await client.getEnvironmentKey(projectId, envName);
 
                 if (remote) {
+                        const remoteFingerprint = EnvironmentKeyService.normalizeFingerprint(remote.fingerprint);
+                        if (
+                                cached &&
+                                cached.version === remote.version &&
+                                cachedFingerprint === remoteFingerprint
+                        ) {
+                                return {
+                                        key: decodeKey(cached.keyB64),
+                                        version: cached.version,
+                                        fingerprint: remoteFingerprint,
+                                        created: false,
+                                };
+                        }
+
                         const envelope = remote.envelopes.find(
                                 (item) => item.deviceId === identity.deviceId,
                         );
@@ -125,26 +134,33 @@ export class EnvironmentKeyService {
                                 envelope.envelope,
                                 identity.deviceId,
                         );
-                        const fingerprint = EnvironmentKeyService.normalizeFingerprint(remote.fingerprint);
                         await this.saveLocal(projectId, envName, {
                                 keyB64: encodeKey(plaintext),
                                 version: remote.version,
-                                fingerprint,
-			});
-			return { key: plaintext, version: remote.version, fingerprint, created: false };
-		}
+                                fingerprint: remoteFingerprint,
+                        });
+                        return {
+                                key: plaintext,
+                                version: remote.version,
+                                fingerprint: remoteFingerprint,
+                                created: false,
+                        };
+                }
 
-		const key = randomBytes(32);
-		const fingerprint = EnvironmentKeyService.fingerprintOf(key);
-		const version = 1;
-		await this.saveLocal(projectId, envName, {
-			keyB64: encodeKey(key),
-			version,
-			fingerprint,
-		});
+                const keyBytes = cached ? decodeKey(cached.keyB64) : randomBytes(32);
+                const fingerprint = cachedFingerprint
+                        ? cachedFingerprint
+                        : EnvironmentKeyService.fingerprintOf(keyBytes);
+                const version = cached?.version ?? 1;
 
-		return { key, version, fingerprint, created: true };
-	}
+                await this.saveLocal(projectId, envName, {
+                        keyB64: encodeKey(keyBytes),
+                        version,
+                        fingerprint,
+                });
+
+                return { key: keyBytes, version, fingerprint, created: true };
+        }
 
 	async publishKeyEnvelopes(opts: {
 		client: GhostableClient;
