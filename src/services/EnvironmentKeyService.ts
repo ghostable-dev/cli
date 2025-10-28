@@ -147,6 +147,11 @@ export class EnvironmentKeyService {
 			};
 		}
 
+		const keyBytes = cached ? decodeKey(cached.keyB64) : randomBytes(32);
+		const version = cached?.version ?? 1;
+		const fingerprint =
+			cachedFingerprint || EnvironmentKeyService.fingerprintOf(keyBytes);
+
 		await this.saveLocal(projectId, envName, {
 			keyB64: encodeKey(keyBytes),
 			version,
