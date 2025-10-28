@@ -119,61 +119,61 @@ export function registerEnvPullCommand(program: Command) {
 			}
 
 			// 5) Prepare crypto
-                        await initSodium(); // no-op with stablelib; safe to keep
+			await initSodium(); // no-op with stablelib; safe to keep
 
-                        let deviceService: DeviceIdentityService;
-                        try {
-                                deviceService = await DeviceIdentityService.create();
-                        } catch (error) {
-                                log.error(`❌ Failed to access device identity: ${toErrorMessage(error)}`);
-                                process.exit(1);
-                                return;
-                        }
+			let deviceService: DeviceIdentityService;
+			try {
+				deviceService = await DeviceIdentityService.create();
+			} catch (error) {
+				log.error(`❌ Failed to access device identity: ${toErrorMessage(error)}`);
+				process.exit(1);
+				return;
+			}
 
-                        let identity;
-                        try {
-                                identity = await deviceService.requireIdentity();
-                        } catch (error) {
-                                log.error(`❌ Failed to load device identity: ${toErrorMessage(error)}`);
-                                process.exit(1);
-                                return;
-                        }
+			let identity;
+			try {
+				identity = await deviceService.requireIdentity();
+			} catch (error) {
+				log.error(`❌ Failed to load device identity: ${toErrorMessage(error)}`);
+				process.exit(1);
+				return;
+			}
 
-                        let envKeyService: EnvironmentKeyService;
-                        try {
-                                envKeyService = await EnvironmentKeyService.create();
-                        } catch (error) {
-                                log.error(`❌ Failed to access environment keys: ${toErrorMessage(error)}`);
-                                process.exit(1);
-                                return;
-                        }
+			let envKeyService: EnvironmentKeyService;
+			try {
+				envKeyService = await EnvironmentKeyService.create();
+			} catch (error) {
+				log.error(`❌ Failed to access environment keys: ${toErrorMessage(error)}`);
+				process.exit(1);
+				return;
+			}
 
-                        const envKeys = new Map<string, Uint8Array>();
-                        const envs = new Set<string>();
-                        for (const layer of bundle.chain) {
-                                envs.add(layer);
-                        }
-                        for (const entry of bundle.secrets) {
-                                envs.add(entry.env);
-                        }
+			const envKeys = new Map<string, Uint8Array>();
+			const envs = new Set<string>();
+			for (const layer of bundle.chain) {
+				envs.add(layer);
+			}
+			for (const entry of bundle.secrets) {
+				envs.add(entry.env);
+			}
 
-                        for (const env of envs) {
-                                try {
-                                        const { key } = await envKeyService.ensureEnvironmentKey({
-                                                client,
-                                                projectId,
-                                                envName: env,
-                                                identity,
-                                        });
-                                        envKeys.set(env, key);
-                                } catch (error) {
-                                        log.error(
-                                                `❌ Failed to load environment key for ${env}: ${toErrorMessage(error)}`,
-                                        );
-                                        process.exit(1);
-                                        return;
-                                }
-                        }
+			for (const env of envs) {
+				try {
+					const { key } = await envKeyService.ensureEnvironmentKey({
+						client,
+						projectId,
+						envName: env,
+						identity,
+					});
+					envKeys.set(env, key);
+				} catch (error) {
+					log.error(
+						`❌ Failed to load environment key for ${env}: ${toErrorMessage(error)}`,
+					);
+					process.exit(1);
+					return;
+				}
+			}
 
 			// 6) Decrypt layer-by-layer and merge (parent → … → child; child wins)
 			const chainOrder: readonly string[] = bundle.chain;
@@ -190,15 +190,15 @@ export function registerEnvPullCommand(program: Command) {
 				const entries: EnvironmentSecret[] = byEnv.get(layer) || [];
 				for (const entry of entries) {
 					// Derive key from AAD (org/project/env as used at push time)
-                                        const scope = scopeFromAAD(entry.aad);
-                                        const keyMaterial = envKeys.get(entry.env);
-                                        if (!keyMaterial) {
-                                                log.warn(
-                                                        `⚠️ Missing decryption key for ${entry.env}; skipping ${entry.name}`,
-                                                );
-                                                continue;
-                                        }
-                                        const { encKey } = deriveKeys(keyMaterial, scope);
+					const scope = scopeFromAAD(entry.aad);
+					const keyMaterial = envKeys.get(entry.env);
+					if (!keyMaterial) {
+						log.warn(
+							`⚠️ Missing decryption key for ${entry.env}; skipping ${entry.name}`,
+						);
+						continue;
+					}
+					const { encKey } = deriveKeys(keyMaterial, scope);
 
 					try {
 						const plaintext = aeadDecrypt(encKey, {
