@@ -147,30 +147,6 @@ export class EnvironmentKeyService {
 			};
 		}
 
-
-		const remote = await client.getEnvironmentKey(projectId, envName);
-
-		if (remote) {
-			const envelope = remote.envelopes.find((item) => item.deviceId === identity.deviceId);
-			if (!envelope) {
-				throw new Error(
-					'Environment key is not shared with this device. Contact your administrator to request access.',
-				);
-			}
-
-			const plaintext = await KeyService.decryptOnThisDevice(
-				envelope.envelope,
-				identity.deviceId,
-			);
-			const fingerprint = EnvironmentKeyService.normalizeFingerprint(remote.fingerprint);
-			await this.saveLocal(projectId, envName, {
-				keyB64: encodeKey(plaintext),
-				version: remote.version,
-				fingerprint,
-			});
-			return { key: plaintext, version: remote.version, fingerprint, created: false };
-		}
-
 		await this.saveLocal(projectId, envName, {
 			keyB64: encodeKey(keyBytes),
 			version,
