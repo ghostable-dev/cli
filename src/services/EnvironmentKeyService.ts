@@ -100,14 +100,53 @@ export class EnvironmentKeyService {
 		const { client, projectId, envName, identity } = opts;
 
 		const cached = await this.loadLocal(projectId, envName);
-		if (cached) {
+		const cachedFingerprint = cached
+			? EnvironmentKeyService.normalizeFingerprint(cached.fingerprint)
+			: '';
+
+		const remote = await client.getEnvironmentKey(projectId, envName);
+
+		if (remote) {
+			const remoteFingerprint = EnvironmentKeyService.normalizeFingerprint(
+				remote.fingerprint,
+			);
+			if (
+				cached &&
+				cached.version === remote.version &&
+				cachedFingerprint === remoteFingerprint
+			) {
+				return {
+					key: decodeKey(cached.keyB64),
+					version: cached.version,
+					fingerprint: remoteFingerprint,
+					created: false,
+				};
+			}
+
+			const envelope = remote.envelopes.find((item) => item.deviceId === identity.deviceId);
+			if (!envelope) {
+				throw new Error(
+					'Environment key is not shared with this device. Contact your administrator to request access.',
+				);
+			}
+
+			const plaintext = await KeyService.decryptOnThisDevice(
+				envelope.envelope,
+				identity.deviceId,
+			);
+			await this.saveLocal(projectId, envName, {
+				keyB64: encodeKey(plaintext),
+				version: remote.version,
+				fingerprint: remoteFingerprint,
+			});
 			return {
-				key: decodeKey(cached.keyB64),
-				version: cached.version,
-				fingerprint: EnvironmentKeyService.normalizeFingerprint(cached.fingerprint),
+				key: plaintext,
+				version: remote.version,
+				fingerprint: remoteFingerprint,
 				created: false,
 			};
 		}
+
 
 		const remote = await client.getEnvironmentKey(projectId, envName);
 
@@ -132,16 +171,13 @@ export class EnvironmentKeyService {
 			return { key: plaintext, version: remote.version, fingerprint, created: false };
 		}
 
-		const key = randomBytes(32);
-		const fingerprint = EnvironmentKeyService.fingerprintOf(key);
-		const version = 1;
 		await this.saveLocal(projectId, envName, {
-			keyB64: encodeKey(key),
+			keyB64: encodeKey(keyBytes),
 			version,
 			fingerprint,
 		});
 
-		return { key, version, fingerprint, created: true };
+		return { key: keyBytes, version, fingerprint, created: true };
 	}
 
 	async publishKeyEnvelopes(opts: {
