@@ -10,7 +10,7 @@ import { config } from '../config/index.js';
 import { log } from '../support/logger.js';
 import { toErrorMessage } from '../support/errors.js';
 
-import type { EnvironmentType, Environment, EnvironmentSuggestedName } from '@/domain';
+import type { EnvironmentType, EnvironmentSuggestedName } from '@/domain';
 
 export function registerEnvInitCommand(program: Command) {
 	program
@@ -62,31 +62,8 @@ export function registerEnvInitCommand(program: Command) {
 				pageSize: Math.min(12, typeOptions.length || 1),
 			});
 
-			// 3) Fetch project environments and choose base (DOMAIN: Environment[])
-			const envSpinner = ora('Loading existing environments…').start();
-			let existingEnvs: Environment[] = [];
-			try {
-				existingEnvs = await client.getEnvironments(projectId);
-				envSpinner.succeed(`Loaded ${existingEnvs.length} environments.`);
-			} catch (error) {
-				envSpinner.fail('Failed to load environments.');
-				log.error(toErrorMessage(error));
-				process.exit(1);
-			}
-
-			const baseChoices: Array<{ name: string; value: string | null }> = [
-				{ name: 'Standalone', value: null },
-				...existingEnvs.map((e) => ({ name: e.name, value: e.id })),
-			];
-
-			const selectedBase = await select<string | null>({
-				message: 'Which environment is this based on?',
-				choices: baseChoices,
-				pageSize: Math.min(12, baseChoices.length || 1),
-			});
-
-			// 4) Name (option > suggestions > custom)
-			let name: string | undefined = opts.name;
+                        // 3) Name (option > suggestions > custom)
+                        let name: string | undefined = opts.name;
 			if (!name) {
 				const suggestSpinner = ora('Fetching suggested environment names…').start();
 				let suggestions: EnvironmentSuggestedName[] = [];
@@ -135,33 +112,24 @@ export function registerEnvInitCommand(program: Command) {
 				}
 			}
 
-			// 5) Create the environment (DOMAIN: Environment)
-			const createSpinner = ora(`Creating environment "${name}"…`).start();
-			try {
-				const env = await client.createEnvironment({
-					projectId,
-					name: name!,
-					type: selectedType,
-					baseId: selectedBase, // may be null
-				});
-				createSpinner.succeed(`Environment "${env.name}" created.`);
+                        // 4) Create the environment (DOMAIN: Environment)
+                        const createSpinner = ora(`Creating environment "${name}"…`).start();
+                        try {
+                                const env = await client.createEnvironment({
+                                        projectId,
+                                        name: name!,
+                                        type: selectedType,
+                                        baseId: null,
+                                });
+                                createSpinner.succeed(`Environment "${env.name}" created.`);
 
-				// 6) Update manifest locally
-				const manifestEnvs =
-					env && existingEnvs
-						? [...existingEnvs, env].map((e: Environment) => ({
-								name: e.name,
-								type: e.type,
-							}))
-						: [{ name: env.name, type: env.type }];
+                                // 5) Update manifest locally
+                                Manifest.addEnvironment({
+                                        name: env.name,
+                                        type: env.type,
+                                });
 
-				Manifest.fresh({
-					id: projectId,
-					name: Manifest.name(),
-					environments: manifestEnvs,
-				});
-
-				log.ok(`✅ Environment ${chalk.bold(env.name)} added to .ghostable/ghostable.yaml`);
+                                log.ok(`✅ Environment ${chalk.bold(env.name)} added to .ghostable/ghostable.yaml`);
 			} catch (error) {
 				createSpinner.fail('Failed creating environment.');
 				log.error(toErrorMessage(error));
