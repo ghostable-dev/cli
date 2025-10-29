@@ -132,12 +132,13 @@ export class GhostableClient {
 		baseId: string | null;
 	}): Promise<Environment> {
 		const p = encodeURIComponent(input.projectId);
-		const res = await this.http.post<EnvironmentJson>(`/projects/${p}/environments`, {
+		const res = await this.http.post<{ data: EnvironmentJson }>(`/projects/${p}/environments`, {
 			name: input.name,
 			type: input.type,
 			base_id: input.baseId,
 		});
-		return Environment.fromJSON(res);
+		const json = res.data;
+		return Environment.fromJSON(json);
 	}
 
 	async uploadSecret(
