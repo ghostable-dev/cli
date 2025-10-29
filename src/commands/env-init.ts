@@ -62,8 +62,8 @@ export function registerEnvInitCommand(program: Command) {
 				pageSize: Math.min(12, typeOptions.length || 1),
 			});
 
-                        // 3) Name (option > suggestions > custom)
-                        let name: string | undefined = opts.name;
+			// 3) Name (option > suggestions > custom)
+			let name: string | undefined = opts.name;
 			if (!name) {
 				const suggestSpinner = ora('Fetching suggested environment names…').start();
 				let suggestions: EnvironmentSuggestedName[] = [];
@@ -112,24 +112,24 @@ export function registerEnvInitCommand(program: Command) {
 				}
 			}
 
-                        // 4) Create the environment (DOMAIN: Environment)
-                        const createSpinner = ora(`Creating environment "${name}"…`).start();
-                        try {
-                                const env = await client.createEnvironment({
-                                        projectId,
-                                        name: name!,
-                                        type: selectedType,
-                                        baseId: null,
-                                });
-                                createSpinner.succeed(`Environment "${env.name}" created.`);
+			// 4) Create the environment (DOMAIN: Environment)
+			const createSpinner = ora(`Creating environment "${name}"…`).start();
+			try {
+				const env = await client.createEnvironment({
+					projectId,
+					name: name!,
+					type: selectedType,
+					baseId: null,
+				});
+				createSpinner.succeed(`Environment "${env.name}" created.`);
 
-                                // 5) Update manifest locally
-                                Manifest.addEnvironment({
-                                        name: env.name,
-                                        type: env.type,
-                                });
+				// 5) Update manifest locally
+				Manifest.addEnvironment({
+					name: env.name,
+					type: env.type,
+				});
 
-                                log.ok(`✅ Environment ${chalk.bold(env.name)} added to .ghostable/ghostable.yaml`);
+				log.ok(`✅ Environment ${chalk.bold(env.name)} added to .ghostable/ghostable.yaml`);
 			} catch (error) {
 				createSpinner.fail('Failed creating environment.');
 				log.error(toErrorMessage(error));
