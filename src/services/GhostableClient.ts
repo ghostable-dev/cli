@@ -48,6 +48,30 @@ import {
 } from '@/types';
 
 type LoginResponse = { token?: string; two_factor?: boolean };
+type BrowserLoginStartResponse = {
+	ticket?: string;
+	login_url?: string;
+	poll_interval?: number;
+	poll_url?: string;
+	expires_at?: string;
+};
+type BrowserLoginPollResponse = {
+	token?: string;
+	status?: 'pending' | 'approved' | 'expired' | 'cancelled';
+};
+
+export type BrowserLoginSession = {
+	ticket: string;
+	loginUrl: string;
+	pollIntervalSeconds?: number;
+	pollUrl?: string;
+	expiresAt?: string;
+};
+
+export type BrowserLoginStatus = {
+	token?: string;
+	status?: 'pending' | 'approved' | 'expired' | 'cancelled';
+};
 type ListResp<T> = { data?: T[] };
 
 export class GhostableClient {
@@ -69,6 +93,28 @@ export class GhostableClient {
 		});
 		if (!res.token) throw new Error('Authentication failed');
 		return res.token;
+	}
+
+	async startBrowserLogin(): Promise<BrowserLoginSession> {
+		const res = await this.http.post<BrowserLoginStartResponse>('/cli/login/start', {});
+		if (!res.ticket || !res.login_url) {
+			throw new Error('Browser login is not available.');
+		}
+		return {
+			ticket: res.ticket,
+			loginUrl: res.login_url,
+			pollIntervalSeconds: res.poll_interval,
+			pollUrl: res.poll_url,
+			expiresAt: res.expires_at,
+		};
+	}
+
+	async pollBrowserLogin(ticket: string): Promise<BrowserLoginStatus> {
+		const res = await this.http.post<BrowserLoginPollResponse>('/cli/login/poll', { ticket });
+		return {
+			token: res.token,
+			status: res.status,
+		};
 	}
 
 	async organizations(): Promise<Organization[]> {
