@@ -6,6 +6,8 @@ import { GhostableClient } from '../services/GhostableClient.js';
 import { config } from '../config/index.js';
 
 import { initSodium, deriveKeys, aeadDecrypt, scopeFromAAD, hmacSHA256 } from '../crypto.js';
+import { deriveEnvKEK, deriveOrgKEK, deriveProjKEK } from '@/crypto';
+import type { AAD } from '@/types';
 import { loadOrCreateKeys } from '../keys.js';
 import { toErrorMessage } from './errors.js';
 
@@ -107,7 +109,7 @@ export function createGhostableClient(token: string, apiBase?: string): Ghostabl
  * (child wins on merge is handled by the caller’s ordering/source)
  */
 type DecryptOptions = {
-	masterSeedB64?: string;
+        masterSeedB64?: string;
 };
 
 export async function decryptBundle(
@@ -116,8 +118,39 @@ export async function decryptBundle(
 ): Promise<DecryptionResult> {
 	await initSodium();
 
-	const masterSeedB64 = await resolveMasterSeed(options?.masterSeedB64);
-	const masterSeed = Buffer.from(masterSeedB64.replace(/^b64:/, ''), 'base64');
+        const masterSeedB64 = await resolveMasterSeed(options?.masterSeedB64);
+        const masterSeed = Buffer.from(masterSeedB64.replace(/^b64:/, ''), 'base64');
+
+        const orgKeyCache = new Map<string, Uint8Array>();
+        const projKeyCache = new Map<string, Uint8Array>();
+        const envKeyCache = new Map<string, Uint8Array>();
+
+        const resolveEnvKey = (aad: AAD | undefined): Uint8Array | null => {
+                if (!aad) return null;
+                const { org, project, env } = aad;
+                if (!org || !project || !env) return null;
+
+                const envScope = `${org}/${project}/${env}`;
+                const cachedEnv = envKeyCache.get(envScope);
+                if (cachedEnv) return cachedEnv;
+
+                let orgKey = orgKeyCache.get(org);
+                if (!orgKey) {
+                        orgKey = deriveOrgKEK(masterSeed, org);
+                        orgKeyCache.set(org, orgKey);
+                }
+
+                const projScope = `${org}/${project}`;
+                let projKey = projKeyCache.get(projScope);
+                if (!projKey) {
+                        projKey = deriveProjKEK(orgKey, project);
+                        projKeyCache.set(projScope, projKey);
+                }
+
+                const envKey = deriveEnvKEK(projKey, env);
+                envKeyCache.set(envScope, envKey);
+                return envKey;
+        };
 
 	const secrets: DecryptedSecret[] = [];
 	const warnings: string[] = [];
@@ -127,8 +160,14 @@ export async function decryptBundle(
 	const decoder = new TextDecoder();
 
 	for (const entry of bundle.secrets) {
-		const scope = scopeFromAAD(entry.aad);
-		const { encKey, hmacKey } = deriveKeys(masterSeed, scope);
+                const envKey = resolveEnvKey(entry.aad);
+                if (!envKey) {
+                        warnings.push(`Missing metadata to derive key for ${entry.name}; skipping`);
+                        continue;
+                }
+
+                const scope = scopeFromAAD(entry.aad);
+                const { encKey, hmacKey } = deriveKeys(envKey, scope);
 
 		try {
 			const plaintext = aeadDecrypt(encKey, {
