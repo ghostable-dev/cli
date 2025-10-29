@@ -61,12 +61,11 @@ export function registerEnvListCommand(program: Command) {
 				ID: e.id,
 				Name: e.name,
 				Type: e.type,
-				Base: e.baseId ?? '',
 			}));
 
 			// 5) Print without index column: key by env name
 			const keyed = Object.fromEntries(
-				rows.map((r) => [r.Name || r.ID, { ID: r.ID, Type: r.Type, Base: r.Base }]),
+				rows.map((r) => [r.Name || r.ID, { ID: r.ID, Type: r.Type }]),
 			);
 			console.table(keyed);
 		});
