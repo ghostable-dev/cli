@@ -48,25 +48,25 @@ export function registerLoginCommand(program: Command) {
 			let token: string | null = null;
 			let browserAttempted = false;
 
-                        try {
-                                browserAttempted = true;
-                                token = await runBrowserAuthFlow({
-                                        handlers: {
-                                                start: () => client.startBrowserLogin(),
-                                                poll: (ticket) => client.pollBrowserLogin(ticket),
-                                        },
-                                        copy: {
-                                                intro: 'We need to open your browser to complete login.',
-                                                open: '🌐 Opening Ghostable in your browser to authenticate…',
-                                                manual: 'If the browser does not open automatically, visit:',
-                                                waiting: 'Waiting for browser authentication…',
-                                                expired: 'Authentication link expired. Please try again.',
-                                                cancelled: 'Authentication was cancelled.',
-                                                success: 'Authenticated.',
-                                        },
-                                        unsupportedMessageSubstrings: ['Browser login'],
-                                });
-                        } catch (error) {
+			try {
+				browserAttempted = true;
+				token = await runBrowserAuthFlow({
+					handlers: {
+						start: () => client.startBrowserLogin(),
+						poll: (ticket) => client.pollBrowserLogin(ticket),
+					},
+					copy: {
+						intro: 'We need to open your browser to complete login.',
+						open: '🌐 Opening Ghostable in your browser to authenticate…',
+						manual: 'If the browser does not open automatically, visit:',
+						waiting: 'Waiting for browser authentication…',
+						expired: 'Authentication link expired. Please try again.',
+						cancelled: 'Authentication was cancelled.',
+						success: 'Authenticated.',
+					},
+					unsupportedMessageSubstrings: ['Browser login'],
+				});
+			} catch (error) {
 				browserAttempted = true;
 				log.warn('⚠️ Browser login failed. Falling back to email/password prompts.');
 				const message = toErrorMessage(error);
@@ -92,9 +92,9 @@ export function registerLoginCommand(program: Command) {
 				process.exit(1);
 			}
 
-                        try {
-                                await finalizeAuthentication(token, client, session);
-                        } catch (error) {
+			try {
+				await finalizeAuthentication(token, client, session);
+			} catch (error) {
 				log.error(toErrorMessage(error) || 'Login failed');
 				process.exit(1);
 			}
