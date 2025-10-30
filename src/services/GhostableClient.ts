@@ -57,7 +57,7 @@ type BrowserLoginStartResponse = {
 };
 type BrowserLoginPollResponse = {
 	token?: string;
-	status?: 'pending' | 'approved' | 'expired' | 'cancelled';
+	status?: 'pending' | 'approved' | 'expired' | 'cancelled' | 'verification_required';
 };
 
 export type BrowserLoginSession = {
@@ -70,7 +70,7 @@ export type BrowserLoginSession = {
 
 export type BrowserLoginStatus = {
 	token?: string;
-	status?: 'pending' | 'approved' | 'expired' | 'cancelled';
+	status?: 'pending' | 'approved' | 'expired' | 'cancelled' | 'verification_required';
 };
 type ListResp<T> = { data?: T[] };
 

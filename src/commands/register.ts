@@ -5,7 +5,7 @@ import { GhostableClient } from '../services/GhostableClient.js';
 import { log } from '../support/logger.js';
 import { toErrorMessage } from '../support/errors.js';
 import { finalizeAuthentication } from './auth/shared.js';
-import { runBrowserAuthFlow } from './auth/browser-flow.js';
+import { BrowserAuthFlowResult, runBrowserAuthFlow } from './auth/browser-flow.js';
 
 export function registerRegisterCommand(program: Command) {
 	program
@@ -18,7 +18,7 @@ export function registerRegisterCommand(program: Command) {
 
 			let token: string | null = null;
 			try {
-				token = await runBrowserAuthFlow({
+				const result: BrowserAuthFlowResult = await runBrowserAuthFlow({
 					handlers: {
 						start: () => client.startBrowserRegistration(),
 						poll: (ticket) => client.pollBrowserRegistration(ticket),
@@ -31,9 +31,26 @@ export function registerRegisterCommand(program: Command) {
 						expired: 'Registration link expired. Please try again.',
 						cancelled: 'Registration was cancelled.',
 						success: 'Account created. Completing setup…',
+						verificationRequired:
+							'Registration complete. Please verify your email address to continue.',
 					},
 					unsupportedMessageSubstrings: ['Browser registration'],
 				});
+				if (result.kind === 'token') {
+					token = result.token;
+				} else if (result.kind === 'verification_required') {
+					log.info(
+						'✅ Account created. Check your inbox to verify your email address, then run `ghostable login` to finish setup.',
+					);
+					process.exit(0);
+				} else if (result.kind === 'unsupported') {
+					log.error(
+						'Browser registration is not available. Visit the Ghostable dashboard to create an account.',
+					);
+					process.exit(1);
+				} else {
+					process.exit(1);
+				}
 			} catch (error) {
 				const message = toErrorMessage(error);
 				if (message) {
@@ -43,11 +60,8 @@ export function registerRegisterCommand(program: Command) {
 				}
 				process.exit(1);
 			}
-
 			if (!token) {
-				log.error(
-					'Browser registration is not available. Visit the Ghostable dashboard to create an account.',
-				);
+				log.error('Registration failed.');
 				process.exit(1);
 			}
 
