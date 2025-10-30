@@ -63,11 +63,12 @@ type BrowserLoginPollResponse = {
 };
 
 export type BrowserLoginSession = {
-	ticket: string;
-	loginUrl: string;
-	pollIntervalSeconds?: number;
-	pollUrl?: string;
-	expiresAt?: string;
+        ticket: string;
+        browserUrl: string;
+        loginUrl?: string;
+        pollIntervalSeconds?: number;
+        pollUrl?: string;
+        expiresAt?: string;
 };
 
 export type BrowserLoginStatus = {
@@ -97,19 +98,20 @@ export class GhostableClient {
 		return res.token;
 	}
 
-	async startBrowserLogin(): Promise<BrowserLoginSession> {
-		const res = await this.http.post<BrowserLoginStartResponse>('/cli/login/start', {});
-		if (!res.ticket || !res.login_url) {
-			throw new Error('Browser login is not available.');
-		}
-		return {
-			ticket: res.ticket,
-			loginUrl: res.login_url,
-			pollIntervalSeconds: res.poll_interval,
-			pollUrl: res.poll_url,
-			expiresAt: res.expires_at,
-		};
-	}
+        async startBrowserLogin(): Promise<BrowserLoginSession> {
+                const res = await this.http.post<BrowserLoginStartResponse>('/cli/login/start', {});
+                if (!res.ticket || !res.login_url) {
+                        throw new Error('Browser login is not available.');
+                }
+                return {
+                        ticket: res.ticket,
+                        browserUrl: res.login_url,
+                        loginUrl: res.login_url,
+                        pollIntervalSeconds: res.poll_interval,
+                        pollUrl: res.poll_url,
+                        expiresAt: res.expires_at,
+                };
+        }
 
 	async pollBrowserLogin(ticket: string): Promise<BrowserLoginStatus> {
 		const res = await this.http.post<BrowserLoginPollResponse>('/cli/login/poll', { ticket });
@@ -127,7 +129,8 @@ export class GhostableClient {
                 }
                 return {
                         ticket: res.ticket,
-                        loginUrl: registrationUrl,
+                        browserUrl: registrationUrl,
+                        loginUrl: res.login_url ?? registrationUrl,
                         pollIntervalSeconds: res.poll_interval,
                         pollUrl: res.poll_url,
                         expiresAt: res.expires_at,

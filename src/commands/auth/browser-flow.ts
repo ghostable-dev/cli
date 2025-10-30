@@ -59,20 +59,28 @@ export async function runBrowserAuthFlow(options: BrowserFlowOptions): Promise<s
 		throw error;
 	}
 
-	log.info(copy.intro);
-	await input({ message: 'Press ENTER to continue...', default: '' });
-	log.info(copy.open);
-	try {
-		await open(session.loginUrl, { wait: false });
-	} catch (error) {
-		const message = toErrorMessage(error);
-		if (message) {
-			log.warn(`⚠️ Unable to automatically open the browser: ${message}`);
-		} else {
-			log.warn('⚠️ Unable to automatically open the browser.');
-		}
-	}
-	log.info(`${copy.manual}\n${session.loginUrl}`);
+        log.info(copy.intro);
+        await input({ message: 'Press ENTER to continue...', default: '' });
+        log.info(copy.open);
+        try {
+                const browserUrl = session.browserUrl ?? session.loginUrl;
+                if (!browserUrl) {
+                        throw new Error('Browser authentication is not available.');
+                }
+                await open(browserUrl, { wait: false });
+        } catch (error) {
+                const message = toErrorMessage(error);
+                if (message) {
+                        log.warn(`⚠️ Unable to automatically open the browser: ${message}`);
+                } else {
+                        log.warn('⚠️ Unable to automatically open the browser.');
+                }
+        }
+        const manualUrl = session.browserUrl ?? session.loginUrl;
+        if (!manualUrl) {
+                throw new Error('Browser authentication is not available.');
+        }
+        log.info(`${copy.manual}\n${manualUrl}`);
 
 	const spinner = ora(copy.waiting).start();
 	const pollIntervalMs = Math.max(

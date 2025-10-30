@@ -87,6 +87,7 @@ describe('GhostableClient.startBrowserRegistration', () => {
                 expect(post).toHaveBeenCalledWith('/cli/register/start', {});
                 expect(session).toEqual({
                         ticket: 'ticket-1',
+                        browserUrl: 'https://ghostable.example/register',
                         loginUrl: 'https://ghostable.example/register',
                         pollIntervalSeconds: 4,
                         pollUrl: 'https://ghostable.example/poll',
@@ -103,6 +104,7 @@ describe('GhostableClient.startBrowserRegistration', () => {
 
                 const session = await client.startBrowserRegistration();
 
+                expect(session.browserUrl).toBe('https://ghostable.example/login');
                 expect(session.loginUrl).toBe('https://ghostable.example/login');
         });
 });
