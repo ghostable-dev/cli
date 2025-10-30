@@ -49,11 +49,13 @@ import {
 
 type LoginResponse = { token?: string; two_factor?: boolean };
 type BrowserLoginStartResponse = {
-	ticket?: string;
-	login_url?: string;
-	poll_interval?: number;
-	poll_url?: string;
-	expires_at?: string;
+        ticket?: string;
+        login_url?: string;
+        register_url?: string;
+        registration_url?: string;
+        poll_interval?: number;
+        poll_url?: string;
+        expires_at?: string;
 };
 type BrowserLoginPollResponse = {
 	token?: string;
@@ -117,19 +119,20 @@ export class GhostableClient {
 		};
 	}
 
-	async startBrowserRegistration(): Promise<BrowserLoginSession> {
-		const res = await this.http.post<BrowserLoginStartResponse>('/cli/register/start', {});
-		if (!res.ticket || !res.login_url) {
-			throw new Error('Browser registration is not available.');
-		}
-		return {
-			ticket: res.ticket,
-			loginUrl: res.login_url,
-			pollIntervalSeconds: res.poll_interval,
-			pollUrl: res.poll_url,
-			expiresAt: res.expires_at,
-		};
-	}
+        async startBrowserRegistration(): Promise<BrowserLoginSession> {
+                const res = await this.http.post<BrowserLoginStartResponse>('/cli/register/start', {});
+                const registrationUrl = res.register_url ?? res.registration_url ?? res.login_url;
+                if (!res.ticket || !registrationUrl) {
+                        throw new Error('Browser registration is not available.');
+                }
+                return {
+                        ticket: res.ticket,
+                        loginUrl: registrationUrl,
+                        pollIntervalSeconds: res.poll_interval,
+                        pollUrl: res.poll_url,
+                        expiresAt: res.expires_at,
+                };
+        }
 
 	async pollBrowserRegistration(ticket: string): Promise<BrowserLoginStatus> {
 		const res = await this.http.post<BrowserLoginPollResponse>('/cli/register/poll', {

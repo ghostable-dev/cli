@@ -70,3 +70,39 @@ describe('GhostableClient.sendEnvelope', () => {
 		});
 	});
 });
+
+describe('GhostableClient.startBrowserRegistration', () => {
+        it('uses register_url when provided', async () => {
+                const post = vi.fn(async () => ({
+                        ticket: 'ticket-1',
+                        register_url: 'https://ghostable.example/register',
+                        poll_interval: 4,
+                        poll_url: 'https://ghostable.example/poll',
+                        expires_at: '2024-01-01T00:00:00.000Z',
+                }));
+                const client = new GhostableClient({ post } as unknown as HttpClient);
+
+                const session = await client.startBrowserRegistration();
+
+                expect(post).toHaveBeenCalledWith('/cli/register/start', {});
+                expect(session).toEqual({
+                        ticket: 'ticket-1',
+                        loginUrl: 'https://ghostable.example/register',
+                        pollIntervalSeconds: 4,
+                        pollUrl: 'https://ghostable.example/poll',
+                        expiresAt: '2024-01-01T00:00:00.000Z',
+                });
+        });
+
+        it('falls back to login_url for backward compatibility', async () => {
+                const post = vi.fn(async () => ({
+                        ticket: 'ticket-2',
+                        login_url: 'https://ghostable.example/login',
+                }));
+                const client = new GhostableClient({ post } as unknown as HttpClient);
+
+                const session = await client.startBrowserRegistration();
+
+                expect(session.loginUrl).toBe('https://ghostable.example/login');
+        });
+});
