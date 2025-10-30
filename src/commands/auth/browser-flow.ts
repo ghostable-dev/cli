@@ -102,17 +102,20 @@ export async function runBrowserAuthFlow(options: BrowserFlowOptions): Promise<B
 
 		try {
 			const status = await handlers.poll(session.ticket);
-			if (status.token) {
-				spinner.succeed(copy.success);
-				return { kind: 'token', token: status.token };
-			}
-			if (status.status && status.status !== 'pending') {
-				if (status.status === 'verification_required') {
-					spinner.info(copy.verificationRequired ?? DEFAULT_VERIFICATION_MESSAGE);
-					return { kind: 'verification_required' };
-				}
+                        if (status.token) {
+                                spinner.succeed(copy.success);
+                                return { kind: 'token', token: status.token };
+                        }
+                        if (status.status && status.status !== 'pending') {
+                                if (
+                                        status.status === 'verification_required' ||
+                                        (status.status === 'approved' && !status.token)
+                                ) {
+                                        spinner.info(copy.verificationRequired ?? DEFAULT_VERIFICATION_MESSAGE);
+                                        return { kind: 'verification_required' };
+                                }
 
-				if (status.status === 'expired') {
+                                if (status.status === 'expired') {
 					spinner.fail(copy.expired);
 					return { kind: 'expired' };
 				}
