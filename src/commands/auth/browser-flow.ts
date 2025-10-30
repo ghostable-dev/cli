@@ -32,7 +32,15 @@ export type BrowserFlowCopy = {
 	expired: string;
 	cancelled: string;
 	success: string;
+	verificationRequired?: string;
 };
+
+export type BrowserAuthFlowResult =
+	| { kind: 'token'; token: string }
+	| { kind: 'unsupported' }
+	| { kind: 'expired' }
+	| { kind: 'cancelled' }
+	| { kind: 'verification_required' };
 
 export type BrowserFlowOptions = {
 	handlers: BrowserFlowHandlers;
@@ -40,7 +48,10 @@ export type BrowserFlowOptions = {
 	unsupportedMessageSubstrings?: string[];
 };
 
-export async function runBrowserAuthFlow(options: BrowserFlowOptions): Promise<string | null> {
+const DEFAULT_VERIFICATION_MESSAGE =
+	'Email verification required. Check your inbox, verify your address, and then sign in again from the CLI.';
+
+export async function runBrowserAuthFlow(options: BrowserFlowOptions): Promise<BrowserAuthFlowResult> {
 	const { handlers, copy, unsupportedMessageSubstrings = [] } = options;
 
 	let session: BrowserLoginSession;
@@ -48,13 +59,13 @@ export async function runBrowserAuthFlow(options: BrowserFlowOptions): Promise<s
 		session = await handlers.start();
 	} catch (error) {
 		if (error instanceof HttpError && BROWSER_UNAVAILABLE_STATUSES.includes(error.status)) {
-			return null;
+			return { kind: 'unsupported' };
 		}
 		if (
 			error instanceof Error &&
 			unsupportedMessageSubstrings.some((text) => error.message.includes(text))
 		) {
-			return null;
+			return { kind: 'unsupported' };
 		}
 		throw error;
 	}
@@ -84,7 +95,7 @@ export async function runBrowserAuthFlow(options: BrowserFlowOptions): Promise<s
 	while (true) {
 		if (expiresAt && Date.now() >= expiresAt) {
 			spinner.fail(copy.expired);
-			return null;
+			return { kind: 'expired' };
 		}
 
 		await delay(pollIntervalMs);
@@ -93,12 +104,21 @@ export async function runBrowserAuthFlow(options: BrowserFlowOptions): Promise<s
 			const status = await handlers.poll(session.ticket);
 			if (status.token) {
 				spinner.succeed(copy.success);
-				return status.token;
+				return { kind: 'token', token: status.token };
 			}
 			if (status.status && status.status !== 'pending') {
-				const message = status.status === 'expired' ? copy.expired : copy.cancelled;
-				spinner.fail(message);
-				return null;
+				if (status.status === 'verification_required') {
+					spinner.info(copy.verificationRequired ?? DEFAULT_VERIFICATION_MESSAGE);
+					return { kind: 'verification_required' };
+				}
+
+				if (status.status === 'expired') {
+					spinner.fail(copy.expired);
+					return { kind: 'expired' };
+				}
+
+				spinner.fail(copy.cancelled);
+				return { kind: 'cancelled' };
 			}
 		} catch (error) {
 			spinner.fail(toErrorMessage(error) || 'Authentication failed');

@@ -7,7 +7,7 @@ import { GhostableClient } from '../services/GhostableClient.js';
 import { log } from '../support/logger.js';
 import { toErrorMessage } from '../support/errors.js';
 import { finalizeAuthentication } from './auth/shared.js';
-import { runBrowserAuthFlow } from './auth/browser-flow.js';
+import { BrowserAuthFlowResult, runBrowserAuthFlow } from './auth/browser-flow.js';
 
 async function passwordLoginFlow(client: GhostableClient, apiBase: string): Promise<string> {
 	const email = await input({
@@ -50,7 +50,7 @@ export function registerLoginCommand(program: Command) {
 
 			try {
 				browserAttempted = true;
-				token = await runBrowserAuthFlow({
+				const result: BrowserAuthFlowResult = await runBrowserAuthFlow({
 					handlers: {
 						start: () => client.startBrowserLogin(),
 						poll: (ticket) => client.pollBrowserLogin(ticket),
@@ -66,6 +66,11 @@ export function registerLoginCommand(program: Command) {
 					},
 					unsupportedMessageSubstrings: ['Browser login'],
 				});
+				if (result.kind === 'token') {
+					token = result.token;
+				} else if (result.kind === 'unsupported') {
+					browserAttempted = false;
+				}
 			} catch (error) {
 				browserAttempted = true;
 				log.warn('⚠️ Browser login failed. Falling back to email/password prompts.');
