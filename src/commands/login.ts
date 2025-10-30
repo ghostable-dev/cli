@@ -36,6 +36,8 @@ async function attemptBrowserLogin(client: GhostableClient): Promise<string | nu
 		throw error;
 	}
 
+	log.info('We need to open your browser to complete login.');
+	await input({ message: 'Press ENTER to continue...', default: '' });
 	log.info('🌐 Opening Ghostable in your browser to authenticate…');
 	try {
 		await open(session.loginUrl, { wait: false });
