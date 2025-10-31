@@ -347,22 +347,33 @@ export class GhostableClient {
 		return (res.data ?? []).map(deploymentTokenFromJSON);
 	}
 
-	async createDeployToken(
-		projectId: string,
-		input: { environmentId: string; name: string; publicKey: string },
-	): Promise<DeploymentTokenWithSecret> {
-		const res = await this.http.post<CreateDeploymentTokenResponseJson>(
-			this.deployTokenPath(projectId),
-			{
-				name: input.name,
-				environment_id: input.environmentId,
-				public_key: input.publicKey,
-			} satisfies CreateDeploymentTokenRequestJson,
-		);
-		const token = deploymentTokenFromJSON(res.data);
-		const secret = res.meta?.secret?.token;
-		return { token, secret };
-	}
+        async createDeployToken(
+                projectId: string,
+                input: { environmentId: string; name: string; publicKey: string },
+        ): Promise<DeploymentTokenWithSecret> {
+                const res = await this.http.post<CreateDeploymentTokenResponseJson>(
+                        this.deployTokenPath(projectId),
+                        {
+                                name: input.name,
+                                environment_id: input.environmentId,
+                                public_key: input.publicKey,
+                        } satisfies CreateDeploymentTokenRequestJson,
+                );
+                const token = deploymentTokenFromJSON(res.data);
+                const plainTextSecret = res.meta?.secret ?? res.meta?.api_token?.plain_text;
+                const apiToken = res.meta?.api_token
+                        ? {
+                                  plainText: res.meta.api_token.plain_text,
+                                  id: res.meta.api_token.id,
+                                  name: res.meta.api_token.name,
+                                  tokenSuffix: res.meta.api_token.token_suffix,
+                                  expiresAt: res.meta.api_token.expires_at
+                                          ? new Date(res.meta.api_token.expires_at)
+                                          : null,
+                          }
+                        : undefined;
+                return { token, secret: plainTextSecret, apiToken };
+        }
 
 	async rotateDeployToken(
 		projectId: string,
