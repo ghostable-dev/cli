@@ -1,13 +1,19 @@
 import { sha256 } from '@noble/hashes/sha256';
+import { XChaCha20Poly1305 } from '@stablelib/xchacha20poly1305';
 
 import { randomBytes } from '../crypto.js';
 import { loadKeytar, type Keytar } from '../support/keyring.js';
 import { EnvelopeService } from './EnvelopeService.js';
 import type { GhostableClient } from './GhostableClient.js';
 
-import { KeyService, type DeviceIdentity } from '@/crypto';
-import { isDeploymentTokenActive } from '@/domain';
-import type { CreateEnvironmentKeyRequest } from '@/types';
+import { KeyService, type DeviceIdentity, type EncryptedEnvelope } from '@/crypto';
+import { isDeploymentTokenActive } from '../domain/DeploymentToken.js';
+import { encryptedEnvelopeFromJSON, encryptedEnvelopeToJSON } from '../types/api/crypto.js';
+import type {
+	CreateEnvironmentKeyRequest,
+	EnvironmentKeyEnvelope,
+} from '../types/api/environment.js';
+import { CIPHER_ALG } from '../types/crypto.js';
 
 function toHex(bytes: Uint8Array): string {
 	return Buffer.from(bytes).toString('hex');
@@ -60,6 +66,55 @@ export class EnvironmentKeyService {
 
 	private static normalizeFingerprint(value?: string | null): string {
 		return value ?? '';
+	}
+
+	private static encodeRecipientEnvelope(envelope: EncryptedEnvelope): string {
+		const json = encryptedEnvelopeToJSON(envelope);
+		const raw = Buffer.from(JSON.stringify(json), 'utf8');
+		return raw.toString('base64');
+	}
+
+	private static decodeRecipientEnvelope(payloadB64: string): EncryptedEnvelope {
+		try {
+			const raw = Buffer.from(payloadB64, 'base64').toString('utf8');
+			const parsed = JSON.parse(raw);
+			return encryptedEnvelopeFromJSON(parsed);
+		} catch (error) {
+			const reason = error instanceof Error ? error.message : String(error);
+			throw new Error(`Failed to decode environment key recipient payload: ${reason}`);
+		}
+	}
+
+	private static encryptEnvironmentKeyCiphertext(key: Uint8Array): {
+		dek: Uint8Array;
+		ciphertextB64: string;
+		nonceB64: string;
+		alg: string;
+	} {
+		const dek = randomBytes(32);
+		const nonce = randomBytes(24);
+		const cipher = new XChaCha20Poly1305(dek);
+		const ciphertext = cipher.seal(nonce, key);
+		return {
+			dek,
+			ciphertextB64: encodeKey(ciphertext),
+			nonceB64: encodeKey(nonce),
+			alg: CIPHER_ALG,
+		};
+	}
+
+	private static decryptEnvironmentKeyCiphertext(
+		envelope: EnvironmentKeyEnvelope,
+		dek: Uint8Array,
+	): Uint8Array {
+		const nonce = decodeKey(envelope.nonceB64);
+		const ciphertext = decodeKey(envelope.ciphertextB64);
+		const cipher = new XChaCha20Poly1305(dek);
+		const plaintext = cipher.open(nonce, ciphertext);
+		if (!plaintext) {
+			throw new Error('Failed to decrypt environment key payload.');
+		}
+		return plaintext;
 	}
 
 	private async loadLocal(
@@ -124,19 +179,23 @@ export class EnvironmentKeyService {
 				};
 			}
 
-			const envelope = remote.envelopes.find(
-				(item) => item.recipientType === 'device' && item.recipientId === identity.deviceId,
-			);
+			const envelope = remote.envelope;
 			if (!envelope) {
+				throw new Error('Environment key envelope is unavailable.');
+			}
+
+			const recipient = envelope.recipients.find(
+				(item) => item.type === 'device' && item.id === identity.deviceId,
+			);
+			if (!recipient) {
 				throw new Error(
 					'Environment key is not shared with this device. Contact your administrator to request access.',
 				);
 			}
 
-			const plaintext = await KeyService.decryptOnThisDevice(
-				envelope.envelope,
-				identity.deviceId,
-			);
+			const dekEnvelope = EnvironmentKeyService.decodeRecipientEnvelope(recipient.edekB64);
+			const dek = await KeyService.decryptOnThisDevice(dekEnvelope, identity.deviceId);
+			const plaintext = EnvironmentKeyService.decryptEnvironmentKeyCiphertext(envelope, dek);
 			await this.saveLocal(projectId, envName, {
 				keyB64: encodeKey(plaintext),
 				version: remote.version,
@@ -178,24 +237,26 @@ export class EnvironmentKeyService {
 		const deployTokens = await client.listDeployTokens(projectId, envName);
 		if (!devices.length && !deployTokens.length) return;
 
-		const envelopes: CreateEnvironmentKeyRequest['envelopes'] = [];
+		const encrypted = EnvironmentKeyService.encryptEnvironmentKeyCiphertext(key);
+		const recipients: CreateEnvironmentKeyRequest['envelope']['recipients'] = [];
+		const meta = {
+			project_id: projectId,
+			environment: envName,
+			key_fingerprint: fingerprint,
+		} as const;
 		for (const device of devices) {
 			if (!device.publicKey) continue;
 			const envelope = await EnvelopeService.encrypt({
 				sender: identity,
 				recipientPublicKey: device.publicKey,
-				plaintext: key,
-				meta: {
-					project_id: projectId,
-					environment: envName,
-					key_fingerprint: fingerprint,
-				},
+				plaintext: encrypted.dek,
+				meta,
 			});
 
-			envelopes.push({
-				kind: 'device',
+			recipients.push({
+				type: 'device',
 				id: device.id,
-				envelope,
+				edekB64: EnvironmentKeyService.encodeRecipientEnvelope(envelope),
 			});
 		}
 
@@ -204,27 +265,28 @@ export class EnvironmentKeyService {
 			const envelope = await EnvelopeService.encrypt({
 				sender: identity,
 				recipientPublicKey: token.publicKey,
-				plaintext: key,
-				meta: {
-					project_id: projectId,
-					environment: envName,
-					key_fingerprint: fingerprint,
-				},
+				plaintext: encrypted.dek,
+				meta,
 			});
 
-			envelopes.push({
-				kind: 'deployment',
+			recipients.push({
+				type: 'deployment',
 				id: token.id,
-				envelope,
+				edekB64: EnvironmentKeyService.encodeRecipientEnvelope(envelope),
 			});
 		}
 
-		if (!envelopes.length) return;
+		if (!recipients.length) return;
 
 		const response = await client.createEnvironmentKey(projectId, envName, {
 			version,
 			fingerprint,
-			envelopes,
+			envelope: {
+				ciphertextB64: encrypted.ciphertextB64,
+				nonceB64: encrypted.nonceB64,
+				alg: encrypted.alg,
+				recipients,
+			},
 			createdByDeviceId: identity.deviceId,
 		});
 
