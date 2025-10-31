@@ -3,6 +3,7 @@ import { Command } from 'commander';
 import { log } from '../../support/logger.js';
 import { toErrorMessage } from '../../support/errors.js';
 import { requireAuthedClient, requireProjectContext, selectEnvironment } from './common.js';
+import type { DeploymentToken } from '@/domain';
 
 export function configureListCommand(parent: Command) {
 	parent
@@ -16,7 +17,7 @@ export function configureListCommand(parent: Command) {
 
 			let tokens;
 			try {
-				tokens = await client.listDeployTokens(projectId, environment.id);
+				tokens = await client.listDeployTokens(projectId, environment.name);
 			} catch (error) {
 				log.error(`❌ Failed to load deployment tokens: ${toErrorMessage(error)}`);
 				process.exit(1);
@@ -27,16 +28,23 @@ export function configureListCommand(parent: Command) {
 				return;
 			}
 
-			const rows = tokens.map((token) => ({
-				ID: token.id,
-				Name: token.name,
-				Environment: token.environmentName,
-				Status: token.status,
-				Fingerprint: token.fingerprint ?? '—',
-				'Last used': token.lastUsedAt ? token.lastUsedAt.toISOString() : 'never',
-				Created: token.createdAt.toISOString(),
-			}));
-
-			console.table(rows);
+			renderTable(tokens);
 		});
+
+	function renderTable(tokens: DeploymentToken[]): void {
+		
+		const keyed = Object.fromEntries(
+			tokens.map((token) => [
+				token.id,
+				{
+					Name: token.name,
+					Status: token.status,
+					'Last Used': token.lastUsedAt ? token.lastUsedAt.toISOString() : 'never',
+					Created: token.createdAt.toISOString(),
+				},
+			]),
+		);
+
+		console.table(keyed);
+	}
 }
