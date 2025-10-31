@@ -1,7 +1,9 @@
+import { XChaCha20Poly1305 } from '@stablelib/xchacha20poly1305';
 import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import type { DeviceIdentity } from '../../src/crypto/types/DeviceIdentity.js';
 import type { EnvironmentKey, EncryptedEnvelope } from '../../src/types/index.js';
+import { encryptedEnvelopeToJSON } from '../../src/types/api/crypto.js';
 
 type GhostableClientCtor =
 	(typeof import('../../src/services/GhostableClient.js'))['GhostableClient'];
@@ -98,33 +100,53 @@ describe('EnvironmentKeyService.ensureEnvironmentKey', () => {
 		keytarMock.getPassword.mockResolvedValue(JSON.stringify(cached));
 		keytarMock.setPassword.mockResolvedValue();
 
-		const envelope: EncryptedEnvelope = {
-			id: 'env-1',
+		const dek = Uint8Array.from({ length: 32 }, (_, index) => (index + 1) % 256);
+		const nextKey = new Uint8Array([5, 6, 7]);
+		const nonce = new Uint8Array(24).fill(1);
+		const cipher = new XChaCha20Poly1305(dek);
+		const ciphertext = cipher.seal(nonce, nextKey);
+
+		const edekEnvelope: EncryptedEnvelope = {
+			id: 'recipient-env',
 			version: 'v1',
+			alg: 'XChaCha20-Poly1305+HKDF-SHA256',
 			toDevicePublicKey: 'recipient',
 			fromEphemeralPublicKey: 'ephemeral',
-			nonceB64: 'nonce',
-			ciphertextB64: 'ciphertext',
+			nonceB64: 'recipient-nonce',
+			ciphertextB64: 'recipient-ciphertext',
 			createdAtIso: '2024-01-01T00:00:00.000Z',
 		};
 
 		const remote: EnvironmentKey = {
+			id: 'key-1',
 			version: 3,
 			fingerprint: 'remote-fingerprint',
 			createdAtIso: null,
 			rotatedAtIso: null,
 			createdByDeviceId: 'device-999',
-			envelopes: [
-				{
-					deviceId: identity.deviceId,
-					envelope,
-					expiresAtIso: null,
-				},
-			],
+			envelope: {
+				id: 'env-1',
+				ciphertextB64: Buffer.from(ciphertext).toString('base64'),
+				nonceB64: Buffer.from(nonce).toString('base64'),
+				alg: 'xchacha20-poly1305',
+				createdAtIso: '2024-01-02T00:00:00.000Z',
+				updatedAtIso: null,
+				revokedAtIso: null,
+				recipients: [
+					{
+						type: 'device',
+						id: identity.deviceId,
+						edekB64: Buffer.from(
+							JSON.stringify(encryptedEnvelopeToJSON(edekEnvelope)),
+						).toString('base64'),
+						seenAtIso: null,
+					},
+				],
+			},
 		};
 
 		client.getEnvironmentKey.mockResolvedValue(remote);
-		decryptOnThisDeviceMock.mockResolvedValue(new Uint8Array([5, 6, 7]));
+		decryptOnThisDeviceMock.mockResolvedValue(dek);
 
 		const service = await EnvironmentKeyService.create();
 		const result = await service.ensureEnvironmentKey({
@@ -138,16 +160,19 @@ describe('EnvironmentKeyService.ensureEnvironmentKey', () => {
 		expect(result.version).toBe(3);
 		expect(result.fingerprint).toBe('remote-fingerprint');
 		expect(Buffer.from(result.key).toString('base64')).toBe(
-			Buffer.from([5, 6, 7]).toString('base64'),
+			Buffer.from(nextKey).toString('base64'),
 		);
 
-		expect(decryptOnThisDeviceMock).toHaveBeenCalledWith(envelope, identity.deviceId);
+		expect(decryptOnThisDeviceMock).toHaveBeenCalledTimes(1);
+		const [edekArg, deviceIdArg] = decryptOnThisDeviceMock.mock.calls[0];
+		expect(deviceIdArg).toBe(identity.deviceId);
+		expect(edekArg).toEqual(edekEnvelope);
 
 		expect(keytarMock.setPassword).toHaveBeenCalledTimes(1);
 		const [, account, payload] = keytarMock.setPassword.mock.calls[0];
 		expect(account).toBe('proj-9:staging');
 		expect(JSON.parse(payload)).toEqual({
-			keyB64: Buffer.from([5, 6, 7]).toString('base64'),
+			keyB64: Buffer.from(nextKey).toString('base64'),
 			version: 3,
 			fingerprint: 'remote-fingerprint',
 		});

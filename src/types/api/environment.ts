@@ -1,7 +1,4 @@
 import type { AAD, CipherAlg, Claims } from '@/types';
-import type { EncryptedEnvelope } from '@/crypto';
-import type { EncryptedEnvelopeJson } from '@/types';
-import { encryptedEnvelopeFromJSON, encryptedEnvelopeToJSON } from '@/types';
 
 /**
  * Environment shape returned by Ghostable’s API.
@@ -178,89 +175,116 @@ export function environmentKeySummaryFromJSON(
 	};
 }
 
-export type EnvironmentKeyEnvelopeJson = {
-	id?: string;
-	version?: string | null;
-	alg?: string | null;
-	device_id?: string | null;
-	deployment_id?: string | null;
-	ciphertext_b64: string;
-	nonce_b64: string;
-	from_ephemeral_public_key: string;
-	to_device_public_key?: string | null;
-	created_at?: string | null;
-	expires_at?: string | null;
-	meta?: Record<string, string>;
-	aad_b64?: string | null;
-	sender_kid?: string | null;
-	signature_b64?: string | null;
-};
-
 export type EnvironmentKeyRecipientType = 'device' | 'deployment';
 
-export type EnvironmentKeyEnvelope = {
-	recipientType: EnvironmentKeyRecipientType;
-	recipientId: string;
-	envelope: EncryptedEnvelope;
-	expiresAtIso?: string | null;
+export type EnvironmentKeyEnvelopeRecipientJson = {
+	type: EnvironmentKeyRecipientType;
+	id: string;
+	edek_b64: string;
+	seen_at?: string | null;
 };
 
-export type EnvironmentKeyJson = {
-	version: number;
-	fingerprint?: string | null;
+export type EnvironmentKeyEnvelopeAttributesJson = {
+	ciphertext_b64: string;
+	nonce_b64: string;
+	alg?: string | null;
 	created_at?: string | null;
-	rotated_at?: string | null;
-	created_by_device_id?: string | null;
-	envelopes: EnvironmentKeyEnvelopeJson[];
+	updated_at?: string | null;
+	revoked_at?: string | null;
+	recipients?: EnvironmentKeyEnvelopeRecipientJson[] | null;
+};
+
+export type EnvironmentKeyEnvelopeResourceJson = {
+	id: string;
+	type: string;
+	attributes: EnvironmentKeyEnvelopeAttributesJson;
+};
+
+export type EnvironmentKeyResourceJson = {
+	id: string;
+	type: string;
+	attributes: {
+		version: number;
+		fingerprint?: string | null;
+		created_at?: string | null;
+		rotated_at?: string | null;
+		created_by_device_id?: string | null;
+	};
+	relationships?: {
+		envelope?: {
+			data: EnvironmentKeyEnvelopeResourceJson | null;
+		};
+	};
+};
+
+export type EnvironmentKeyRecipient = {
+	type: EnvironmentKeyRecipientType;
+	id: string;
+	edekB64: string;
+	seenAtIso: string | null;
+};
+
+export type EnvironmentKeyEnvelope = {
+	id: string;
+	ciphertextB64: string;
+	nonceB64: string;
+	alg: string | null;
+	createdAtIso: string | null;
+	updatedAtIso: string | null;
+	revokedAtIso: string | null;
+	recipients: EnvironmentKeyRecipient[];
 };
 
 export type EnvironmentKey = {
+	id: string | null;
 	version: number;
 	fingerprint: string;
 	createdAtIso: string | null;
 	rotatedAtIso: string | null;
 	createdByDeviceId: string | null;
-	envelopes: EnvironmentKeyEnvelope[];
+	envelope: EnvironmentKeyEnvelope | null;
+};
+
+export type EnvironmentKeyResponseJson = {
+	data: EnvironmentKeyResourceJson | null;
+};
+
+export type EnvironmentKeyResponse = {
+	data: EnvironmentKey | null;
+};
+
+export type EnvironmentKeyRecipientUploadJson = {
+	type: EnvironmentKeyRecipientType;
+	id: string;
+	edek_b64: string;
 };
 
 export type EnvironmentKeyEnvelopeUploadJson = {
-	device_id?: string | null;
-	deployment_id?: string | null;
 	ciphertext_b64: string;
 	nonce_b64: string;
-	from_ephemeral_public_key: string;
-	to_device_public_key?: string | null;
-	created_at?: string | null;
-	expires_at?: string | null;
-	meta?: Record<string, string>;
-	aad_b64?: string | null;
-	sender_kid?: string | null;
-	signature_b64?: string | null;
 	alg?: string | null;
-	version?: string | null;
-	id?: string | null;
+	recipients?: EnvironmentKeyRecipientUploadJson[] | null;
 };
 
-export type EnvironmentKeyEnvelopeUpload =
-	| {
-			kind: 'device';
-			id: string;
-			envelope: EncryptedEnvelope;
-			expiresAtIso?: string | null;
-	  }
-	| {
-			kind: 'deployment';
-			id: string;
-			envelope: EncryptedEnvelope;
-			expiresAtIso?: string | null;
-	  };
+export type EnvironmentKeyRecipientUpload = {
+	type: EnvironmentKeyRecipientType;
+	id: string;
+	edekB64: string;
+};
+
+export type EnvironmentKeyEnvelopeUpload = {
+	ciphertextB64: string;
+	nonceB64: string;
+	alg?: string | null;
+	recipients: EnvironmentKeyRecipientUpload[];
+};
 
 export type CreateEnvironmentKeyRequestJson = {
 	fingerprint: string;
 	version?: number;
 	created_by_device_id?: string | null;
 	rotated_at?: string | null;
-	envelopes: EnvironmentKeyEnvelopeUploadJson[];
+	envelope: EnvironmentKeyEnvelopeUploadJson;
 };
 
 export type CreateEnvironmentKeyRequest = {
@@ -268,56 +292,47 @@ export type CreateEnvironmentKeyRequest = {
 	version?: number;
 	createdByDeviceId?: string | null;
 	rotatedAtIso?: string | null;
-	envelopes: EnvironmentKeyEnvelopeUpload[];
+	envelope: EnvironmentKeyEnvelopeUpload;
 };
 
-export type EnvironmentKeyResponseJson = {
-	data: EnvironmentKeyJson | null;
-};
-
-export type EnvironmentKeyResponse = {
-	data: EnvironmentKey | null;
-};
-
-function toEncryptedEnvelopeJson(envelope: EnvironmentKeyEnvelopeJson): EncryptedEnvelopeJson {
+function environmentKeyRecipientFromJSON(
+	json: EnvironmentKeyEnvelopeRecipientJson,
+): EnvironmentKeyRecipient {
 	return {
-		id: envelope.id ?? '',
-		version: envelope.version ?? 'v1',
-		alg: envelope.alg ?? undefined,
-		to_device_public_key: envelope.to_device_public_key ?? '',
-		from_ephemeral_public_key: envelope.from_ephemeral_public_key,
-		nonce_b64: envelope.nonce_b64,
-		ciphertext_b64: envelope.ciphertext_b64,
-		created_at: envelope.created_at ?? new Date().toISOString(),
-		expires_at: envelope.expires_at ?? undefined,
-		meta: envelope.meta,
-		aad_b64: envelope.aad_b64 ?? undefined,
-		sender_kid: envelope.sender_kid ?? undefined,
-		signature_b64: envelope.signature_b64 ?? undefined,
+		type: json.type,
+		id: json.id,
+		edekB64: json.edek_b64,
+		seenAtIso: json.seen_at ?? null,
 	};
 }
 
-export function environmentKeyEnvelopeFromJSON(
-	json: EnvironmentKeyEnvelopeJson,
+function environmentKeyEnvelopeFromJSON(
+	resource: EnvironmentKeyEnvelopeResourceJson,
 ): EnvironmentKeyEnvelope {
-	const recipientId = json.deployment_id ?? json.device_id ?? '';
-	const recipientType: EnvironmentKeyRecipientType = json.deployment_id ? 'deployment' : 'device';
+	const attrs = resource.attributes;
 	return {
-		recipientType,
-		recipientId,
-		envelope: encryptedEnvelopeFromJSON(toEncryptedEnvelopeJson(json)),
-		expiresAtIso: json.expires_at ?? null,
+		id: resource.id,
+		ciphertextB64: attrs.ciphertext_b64,
+		nonceB64: attrs.nonce_b64,
+		alg: attrs.alg ?? null,
+		createdAtIso: attrs.created_at ?? null,
+		updatedAtIso: attrs.updated_at ?? null,
+		revokedAtIso: attrs.revoked_at ?? null,
+		recipients: (attrs.recipients ?? []).map(environmentKeyRecipientFromJSON),
 	};
 }
 
-export function environmentKeyFromJSON(json: EnvironmentKeyJson): EnvironmentKey {
+export function environmentKeyFromJSON(resource: EnvironmentKeyResourceJson): EnvironmentKey {
+	const attrs = resource.attributes;
+	const envelopeResource = resource.relationships?.envelope?.data ?? null;
 	return {
-		version: json.version,
-		fingerprint: json.fingerprint ?? '',
-		createdAtIso: json.created_at ?? null,
-		rotatedAtIso: json.rotated_at ?? null,
-		createdByDeviceId: json.created_by_device_id ?? null,
-		envelopes: (json.envelopes ?? []).map(environmentKeyEnvelopeFromJSON),
+		id: resource.id ?? null,
+		version: attrs.version,
+		fingerprint: attrs.fingerprint ?? '',
+		createdAtIso: attrs.created_at ?? null,
+		rotatedAtIso: attrs.rotated_at ?? null,
+		createdByDeviceId: attrs.created_by_device_id ?? null,
+		envelope: envelopeResource ? environmentKeyEnvelopeFromJSON(envelopeResource) : null,
 	};
 }
 
@@ -329,31 +344,25 @@ export function environmentKeyResponseFromJSON(
 	};
 }
 
-export function environmentKeyEnvelopeUploadToJSON(
-	upload: EnvironmentKeyEnvelopeUpload,
-): EnvironmentKeyEnvelopeUploadJson {
-	const json = encryptedEnvelopeToJSON(upload.envelope);
-	const base: EnvironmentKeyEnvelopeUploadJson = {
-		ciphertext_b64: json.ciphertext_b64,
-		nonce_b64: json.nonce_b64,
-		from_ephemeral_public_key: json.from_ephemeral_public_key,
-		to_device_public_key: json.to_device_public_key,
-		created_at: json.created_at,
-		...(upload.expiresAtIso !== undefined ? { expires_at: upload.expiresAtIso } : {}),
-		...(json.meta ? { meta: json.meta } : {}),
-		...(json.aad_b64 ? { aad_b64: json.aad_b64 } : {}),
-		...(json.sender_kid ? { sender_kid: json.sender_kid } : {}),
-		...(json.signature_b64 ? { signature_b64: json.signature_b64 } : {}),
-		...(json.alg ? { alg: json.alg } : {}),
-		...(json.version ? { version: json.version } : {}),
-		...(json.id ? { id: json.id } : {}),
+export function environmentKeyRecipientUploadToJSON(
+	recipient: EnvironmentKeyRecipientUpload,
+): EnvironmentKeyRecipientUploadJson {
+	return {
+		type: recipient.type,
+		id: recipient.id,
+		edek_b64: recipient.edekB64,
 	};
+}
 
-	if (upload.kind === 'deployment') {
-		return { ...base, deployment_id: upload.id };
-	}
-
-	return { ...base, device_id: upload.id };
+export function environmentKeyEnvelopeUploadToJSON(
+	envelope: EnvironmentKeyEnvelopeUpload,
+): EnvironmentKeyEnvelopeUploadJson {
+	return {
+		ciphertext_b64: envelope.ciphertextB64,
+		nonce_b64: envelope.nonceB64,
+		...(envelope.alg ? { alg: envelope.alg } : {}),
+		recipients: envelope.recipients.map(environmentKeyRecipientUploadToJSON),
+	};
 }
 
 export function createEnvironmentKeyRequestToJSON(
@@ -364,7 +373,7 @@ export function createEnvironmentKeyRequestToJSON(
 		...(request.version !== undefined ? { version: request.version } : {}),
 		...(request.createdByDeviceId ? { created_by_device_id: request.createdByDeviceId } : {}),
 		...(request.rotatedAtIso ? { rotated_at: request.rotatedAtIso } : {}),
-		envelopes: request.envelopes.map(environmentKeyEnvelopeUploadToJSON),
+		envelope: environmentKeyEnvelopeUploadToJSON(request.envelope),
 	};
 }
 
