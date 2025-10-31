@@ -147,6 +147,7 @@ export async function runEnvPush(opts: PushOptions): Promise<void> {
 				key: keyInfo.key,
 				version: keyInfo.version,
 				fingerprint: keyInfo.fingerprint,
+				created: true,
 			});
 		}
 

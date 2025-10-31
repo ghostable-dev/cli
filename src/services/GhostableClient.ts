@@ -17,6 +17,7 @@ import type { EncryptedEnvelope, OneTimePrekey, SignedPrekey } from '@/crypto';
 
 import type {
 	ConsumeEnvelopeResponseJson,
+	CreateEnvironmentKeyEnvelopeRequest,
 	CreateEnvironmentKeyRequest,
 	DeviceDeleteResponseJson,
 	DeviceDocumentJson,
@@ -48,6 +49,7 @@ import type {
 	RotateDeploymentTokenResponseJson,
 } from '@/types';
 import {
+	createEnvironmentKeyEnvelopeRequestToJSON,
 	createEnvironmentKeyRequestToJSON,
 	devicePrekeyBundleFromJSON,
 	encryptedEnvelopeToJSON,
@@ -316,6 +318,19 @@ export class GhostableClient {
 			throw new Error('Environment key creation failed');
 		}
 		return response;
+	}
+
+	async createEnvironmentKeyEnvelope(
+		projectId: string,
+		envName: string,
+		request: CreateEnvironmentKeyEnvelopeRequest,
+	): Promise<void> {
+		const p = encodeURIComponent(projectId);
+		const e = encodeURIComponent(envName);
+		await this.http.post<unknown>(
+			`/projects/${p}/environments/${e}/key/envelopes`,
+			createEnvironmentKeyEnvelopeRequestToJSON(request),
+		);
 	}
 
 	private deployTokenPath(projectId: string, tokenId?: string): string {

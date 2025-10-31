@@ -197,6 +197,7 @@ export function registerVarPushCommand(program: Command) {
 						key: keyInfo.key,
 						version: keyInfo.version,
 						fingerprint: keyInfo.fingerprint,
+						created: true,
 					});
 				}
 			} catch (error) {

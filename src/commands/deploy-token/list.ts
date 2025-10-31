@@ -32,7 +32,6 @@ export function configureListCommand(parent: Command) {
 		});
 
 	function renderTable(tokens: DeploymentToken[]): void {
-		
 		const keyed = Object.fromEntries(
 			tokens.map((token) => [
 				token.id,

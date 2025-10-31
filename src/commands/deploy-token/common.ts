@@ -132,6 +132,7 @@ export async function reshareEnvironmentKey(opts: {
 			key: keyInfo.key,
 			version: keyInfo.version,
 			fingerprint: keyInfo.fingerprint,
+			created: keyInfo.created,
 		});
 	} catch (error) {
 		log.error(`❌ Failed to share environment key: ${toErrorMessage(error)}`);
