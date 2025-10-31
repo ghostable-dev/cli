@@ -182,7 +182,8 @@ export type EnvironmentKeyEnvelopeJson = {
 	id?: string;
 	version?: string | null;
 	alg?: string | null;
-	device_id: string;
+	device_id?: string | null;
+	deployment_id?: string | null;
 	ciphertext_b64: string;
 	nonce_b64: string;
 	from_ephemeral_public_key: string;
@@ -195,10 +196,13 @@ export type EnvironmentKeyEnvelopeJson = {
 	signature_b64?: string | null;
 };
 
+export type EnvironmentKeyRecipientType = 'device' | 'deployment';
+
 export type EnvironmentKeyEnvelope = {
-	deviceId: string;
+	recipientType: EnvironmentKeyRecipientType;
+	recipientId: string;
 	envelope: EncryptedEnvelope;
-	expiresAtIso: string | null;
+	expiresAtIso?: string | null;
 };
 
 export type EnvironmentKeyJson = {
@@ -220,7 +224,8 @@ export type EnvironmentKey = {
 };
 
 export type EnvironmentKeyEnvelopeUploadJson = {
-	device_id: string;
+	device_id?: string | null;
+	deployment_id?: string | null;
 	ciphertext_b64: string;
 	nonce_b64: string;
 	from_ephemeral_public_key: string;
@@ -236,11 +241,19 @@ export type EnvironmentKeyEnvelopeUploadJson = {
 	id?: string | null;
 };
 
-export type EnvironmentKeyEnvelopeUpload = {
-	deviceId: string;
-	envelope: EncryptedEnvelope;
-	expiresAtIso?: string | null;
-};
+export type EnvironmentKeyEnvelopeUpload =
+	| {
+			kind: 'device';
+			id: string;
+			envelope: EncryptedEnvelope;
+			expiresAtIso?: string | null;
+	  }
+	| {
+			kind: 'deployment';
+			id: string;
+			envelope: EncryptedEnvelope;
+			expiresAtIso?: string | null;
+	  };
 
 export type CreateEnvironmentKeyRequestJson = {
 	fingerprint: string;
@@ -287,8 +300,11 @@ function toEncryptedEnvelopeJson(envelope: EnvironmentKeyEnvelopeJson): Encrypte
 export function environmentKeyEnvelopeFromJSON(
 	json: EnvironmentKeyEnvelopeJson,
 ): EnvironmentKeyEnvelope {
+	const recipientId = json.deployment_id ?? json.device_id ?? '';
+	const recipientType: EnvironmentKeyRecipientType = json.deployment_id ? 'deployment' : 'device';
 	return {
-		deviceId: json.device_id,
+		recipientType,
+		recipientId,
 		envelope: encryptedEnvelopeFromJSON(toEncryptedEnvelopeJson(json)),
 		expiresAtIso: json.expires_at ?? null,
 	};
@@ -317,8 +333,7 @@ export function environmentKeyEnvelopeUploadToJSON(
 	upload: EnvironmentKeyEnvelopeUpload,
 ): EnvironmentKeyEnvelopeUploadJson {
 	const json = encryptedEnvelopeToJSON(upload.envelope);
-	return {
-		device_id: upload.deviceId,
+	const base: EnvironmentKeyEnvelopeUploadJson = {
 		ciphertext_b64: json.ciphertext_b64,
 		nonce_b64: json.nonce_b64,
 		from_ephemeral_public_key: json.from_ephemeral_public_key,
@@ -333,6 +348,12 @@ export function environmentKeyEnvelopeUploadToJSON(
 		...(json.version ? { version: json.version } : {}),
 		...(json.id ? { id: json.id } : {}),
 	};
+
+	if (upload.kind === 'deployment') {
+		return { ...base, deployment_id: upload.id };
+	}
+
+	return { ...base, device_id: upload.id };
 }
 
 export function createEnvironmentKeyRequestToJSON(
