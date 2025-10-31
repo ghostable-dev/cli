@@ -6,6 +6,7 @@ import { EnvelopeService } from './EnvelopeService.js';
 import type { GhostableClient } from './GhostableClient.js';
 
 import { KeyService, type DeviceIdentity } from '@/crypto';
+import { isDeploymentTokenActive } from '@/domain';
 import type { CreateEnvironmentKeyRequest } from '@/types';
 
 function toHex(bytes: Uint8Array): string {
@@ -123,7 +124,9 @@ export class EnvironmentKeyService {
 				};
 			}
 
-			const envelope = remote.envelopes.find((item) => item.deviceId === identity.deviceId);
+			const envelope = remote.envelopes.find(
+				(item) => item.recipientType === 'device' && item.recipientId === identity.deviceId,
+			);
 			if (!envelope) {
 				throw new Error(
 					'Environment key is not shared with this device. Contact your administrator to request access.',
@@ -172,7 +175,8 @@ export class EnvironmentKeyService {
 		const { client, projectId, envName, identity, key, version, fingerprint } = opts;
 
 		const devices = await client.listDevices(projectId, envName);
-		if (!devices.length) return;
+		const deployTokens = await client.listDeployTokens(projectId, envName);
+		if (!devices.length && !deployTokens.length) return;
 
 		const envelopes: CreateEnvironmentKeyRequest['envelopes'] = [];
 		for (const device of devices) {
@@ -189,7 +193,28 @@ export class EnvironmentKeyService {
 			});
 
 			envelopes.push({
-				deviceId: device.id,
+				kind: 'device',
+				id: device.id,
+				envelope,
+			});
+		}
+
+		for (const token of deployTokens) {
+			if (!token.publicKey || !isDeploymentTokenActive(token)) continue;
+			const envelope = await EnvelopeService.encrypt({
+				sender: identity,
+				recipientPublicKey: token.publicKey,
+				plaintext: key,
+				meta: {
+					project_id: projectId,
+					environment: envName,
+					key_fingerprint: fingerprint,
+				},
+			});
+
+			envelopes.push({
+				kind: 'deployment',
+				id: token.id,
 				envelope,
 			});
 		}

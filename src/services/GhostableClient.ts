@@ -2,6 +2,7 @@ import { HttpClient } from '../http/HttpClient.js';
 import { HttpError } from '../http/errors.js';
 
 import {
+	DeploymentToken,
 	Device,
 	DeviceEnvelope,
 	Environment,
@@ -38,6 +39,13 @@ import type {
 	QueueEnvelopeResponseJson,
 	SignedEnvironmentSecretBatchUploadRequest,
 	SignedEnvironmentSecretUploadRequest,
+	CreateDeploymentTokenRequestJson,
+	CreateDeploymentTokenResponseJson,
+	DeploymentTokenListResponseJson,
+	DeploymentTokenWithSecret,
+	RevokeDeploymentTokenResponseJson,
+	RotateDeploymentTokenRequestJson,
+	RotateDeploymentTokenResponseJson,
 } from '@/types';
 import {
 	createEnvironmentKeyRequestToJSON,
@@ -45,6 +53,7 @@ import {
 	encryptedEnvelopeToJSON,
 	environmentKeyResponseFromJSON,
 	environmentKeysFromJSON,
+	deploymentTokenFromJSON,
 } from '@/types';
 
 type LoginResponse = { token?: string; two_factor?: boolean };
@@ -307,6 +316,57 @@ export class GhostableClient {
 			throw new Error('Environment key creation failed');
 		}
 		return response;
+	}
+
+	private deployTokenPath(projectId: string, tokenId?: string): string {
+		const p = encodeURIComponent(projectId);
+		const suffix = tokenId ? `/${encodeURIComponent(tokenId)}` : '';
+		return `/projects/${p}/deploy-tokens${suffix}`;
+	}
+
+	async listDeployTokens(projectId: string, envName?: string): Promise<DeploymentToken[]> {
+		const qs = envName ? `?environment=${encodeURIComponent(envName)}` : '';
+		const res = await this.http.get<DeploymentTokenListResponseJson>(
+			`${this.deployTokenPath(projectId)}${qs}`,
+		);
+		return (res.data ?? []).map(deploymentTokenFromJSON);
+	}
+
+	async createDeployToken(
+		projectId: string,
+		input: { environmentId: string; name: string; publicKey: string },
+	): Promise<DeploymentTokenWithSecret> {
+		const res = await this.http.post<CreateDeploymentTokenResponseJson>(
+			this.deployTokenPath(projectId),
+			{
+				name: input.name,
+				environment_id: input.environmentId,
+				public_key: input.publicKey,
+			} satisfies CreateDeploymentTokenRequestJson,
+		);
+		const token = deploymentTokenFromJSON(res.data);
+		const secret = res.meta?.secret?.token;
+		return { token, secret };
+	}
+
+	async rotateDeployToken(
+		projectId: string,
+		tokenId: string,
+		input: { publicKey: string },
+	): Promise<DeploymentToken> {
+		const res = await this.http.post<RotateDeploymentTokenResponseJson>(
+			`${this.deployTokenPath(projectId, tokenId)}/rotate`,
+			{ public_key: input.publicKey } satisfies RotateDeploymentTokenRequestJson,
+		);
+		return deploymentTokenFromJSON(res.data);
+	}
+
+	async revokeDeployToken(projectId: string, tokenId: string): Promise<DeploymentToken> {
+		const res = await this.http.post<RevokeDeploymentTokenResponseJson>(
+			`${this.deployTokenPath(projectId, tokenId)}/revoke`,
+			{},
+		);
+		return deploymentTokenFromJSON(res.data);
 	}
 
 	async deploy(opts?: {

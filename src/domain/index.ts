@@ -7,3 +7,4 @@ export * from './Organization.js';
 export * from './Project.js';
 export * from './Device.js';
 export * from './DeviceEnvelope.js';
+export * from './DeploymentToken.js';
