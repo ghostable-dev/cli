@@ -5,6 +5,8 @@ import { SessionService } from '../services/SessionService.js';
 import { GhostableClient } from '../services/GhostableClient.js';
 import { config } from '../config/index.js';
 
+import { sha256 } from '@noble/hashes/sha256';
+
 import { initSodium, deriveKeys, aeadDecrypt, scopeFromAAD, hmacSHA256 } from '../crypto.js';
 import { deriveEnvKEK, deriveOrgKEK, deriveProjKEK } from '@/crypto';
 import type { AAD } from '@/types';
@@ -121,22 +123,27 @@ export async function decryptBundle(
 	const masterSeedB64 = await resolveMasterSeed(options?.masterSeedB64);
 	const masterSeed = Buffer.from(masterSeedB64.replace(/^b64:/, ''), 'base64');
 
-	const orgKeyCache = new Map<string, Uint8Array>();
-	const projKeyCache = new Map<string, Uint8Array>();
-	const envKeyCache = new Map<string, Uint8Array>();
+        const orgKeyCache = new Map<string, Uint8Array>();
+        const projKeyCache = new Map<string, Uint8Array>();
+        const envKeyCache = new Map<string, { key: Uint8Array; fingerprint: string }>();
 
-	const resolveEnvKey = (aad: AAD | undefined): Uint8Array | null => {
-		if (!aad) return null;
-		const { org, project, env } = aad;
-		if (!org || !project || !env) return null;
+        const fingerprintOf = (key: Uint8Array): string => {
+                const digest = sha256(key);
+                return Buffer.from(digest).toString('hex');
+        };
 
-		const envScope = `${org}/${project}/${env}`;
-		const cachedEnv = envKeyCache.get(envScope);
-		if (cachedEnv) return cachedEnv;
+        const resolveEnvKey = (aad: AAD | undefined): { key: Uint8Array; fingerprint: string } | null => {
+                if (!aad) return null;
+                const { org, project, env } = aad;
+                if (!org || !project || !env) return null;
 
-		let orgKey = orgKeyCache.get(org);
-		if (!orgKey) {
-			orgKey = deriveOrgKEK(masterSeed, org);
+                const envScope = `${org}/${project}/${env}`;
+                const cachedEnv = envKeyCache.get(envScope);
+                if (cachedEnv) return cachedEnv;
+
+                let orgKey = orgKeyCache.get(org);
+                if (!orgKey) {
+                        orgKey = deriveOrgKEK(masterSeed, org);
 			orgKeyCache.set(org, orgKey);
 		}
 
@@ -147,10 +154,12 @@ export async function decryptBundle(
 			projKeyCache.set(projScope, projKey);
 		}
 
-		const envKey = deriveEnvKEK(projKey, env);
-		envKeyCache.set(envScope, envKey);
-		return envKey;
-	};
+                const envKey = deriveEnvKEK(projKey, env);
+                const fingerprint = fingerprintOf(envKey);
+                const cached = { key: envKey, fingerprint };
+                envKeyCache.set(envScope, cached);
+                return cached;
+        };
 
 	const secrets: DecryptedSecret[] = [];
 	const warnings: string[] = [];
@@ -160,14 +169,25 @@ export async function decryptBundle(
 	const decoder = new TextDecoder();
 
 	for (const entry of bundle.secrets) {
-		const envKey = resolveEnvKey(entry.aad);
-		if (!envKey) {
-			warnings.push(`Missing metadata to derive key for ${entry.name}; skipping`);
-			continue;
-		}
+                const envKey = resolveEnvKey(entry.aad);
+                if (!envKey) {
+                        warnings.push(`Missing metadata to derive key for ${entry.name}; skipping`);
+                        continue;
+                }
 
-		const scope = scopeFromAAD(entry.aad);
-		const { encKey, hmacKey } = deriveKeys(envKey, scope);
+                if (entry.envKekFingerprint) {
+                        const expectedFingerprint = entry.envKekFingerprint.toLowerCase();
+                        if (expectedFingerprint !== envKey.fingerprint) {
+                                warnings.push(
+                                        `Environment key mismatch for ${entry.name}; expected fingerprint ${expectedFingerprint}, got ${envKey.fingerprint}. ` +
+                                                'Re-share the environment key with this deployment token.',
+                                );
+                                continue;
+                        }
+                }
+
+                const scope = scopeFromAAD(entry.aad);
+                const { encKey, hmacKey } = deriveKeys(envKey.key, scope);
 
 		try {
 			const plaintext = aeadDecrypt(encKey, {
@@ -180,7 +200,7 @@ export async function decryptBundle(
 			const value = decoder.decode(plaintext);
 
 			if (entry.claims?.hmac) {
-				const digest = hmacSHA256(hmacKey, encoder.encode(value));
+                        const digest = hmacSHA256(hmacKey, encoder.encode(value));
 				if (digest !== entry.claims.hmac) {
 					warnings.push(`HMAC mismatch for ${entry.name}; skipping`);
 					continue;
@@ -189,11 +209,17 @@ export async function decryptBundle(
 
 			secrets.push({ entry, value });
 		} catch {
-			warnings.push(`Could not decrypt ${entry.name}; skipping`);
-		}
-	}
+                        warnings.push(`Could not decrypt ${entry.name}; skipping`);
+                }
+        }
 
-	return { secrets, warnings };
+        if (!secrets.length && bundle.secrets.length) {
+                warnings.push(
+                        'No secrets could be decrypted with the provided master seed. Ensure the deployment token has access to the latest environment key (try `ghostable deploy-token create --env <ENV>` or ask an administrator to re-share the key).',
+                );
+        }
+
+        return { secrets, warnings };
 }
 
 export function resolveDeployMasterSeed(): string {
