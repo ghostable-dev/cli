@@ -377,6 +377,25 @@ export function createEnvironmentKeyRequestToJSON(
 	};
 }
 
+export type CreateEnvironmentKeyEnvelopeRequestJson = {
+	fingerprint: string;
+	envelope: EnvironmentKeyEnvelopeUploadJson;
+};
+
+export type CreateEnvironmentKeyEnvelopeRequest = {
+	fingerprint: string;
+	envelope: EnvironmentKeyEnvelopeUpload;
+};
+
+export function createEnvironmentKeyEnvelopeRequestToJSON(
+	request: CreateEnvironmentKeyEnvelopeRequest,
+): CreateEnvironmentKeyEnvelopeRequestJson {
+	return {
+		fingerprint: request.fingerprint,
+		envelope: environmentKeyEnvelopeUploadToJSON(request.envelope),
+	};
+}
+
 /**
  * Validator claims attached by the client during upload.
  */

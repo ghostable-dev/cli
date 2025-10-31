@@ -10,6 +10,7 @@ import { KeyService, type DeviceIdentity, type EncryptedEnvelope } from '@/crypt
 import { isDeploymentTokenActive } from '../domain/DeploymentToken.js';
 import { encryptedEnvelopeFromJSON, encryptedEnvelopeToJSON } from '../types/api/crypto.js';
 import type {
+	CreateEnvironmentKeyEnvelopeRequest,
 	CreateEnvironmentKeyRequest,
 	EnvironmentKeyEnvelope,
 } from '../types/api/environment.js';
@@ -230,8 +231,9 @@ export class EnvironmentKeyService {
 		key: Uint8Array;
 		version: number;
 		fingerprint: string;
+		created: boolean;
 	}): Promise<void> {
-		const { client, projectId, envName, identity, key, version, fingerprint } = opts;
+		const { client, projectId, envName, identity, key, version, fingerprint, created } = opts;
 
 		const devices = await client.listDevices(projectId, envName);
 		const deployTokens = await client.listDeployTokens(projectId, envName);
@@ -278,22 +280,38 @@ export class EnvironmentKeyService {
 
 		if (!recipients.length) return;
 
-		const response = await client.createEnvironmentKey(projectId, envName, {
-			version,
+		const envelope: CreateEnvironmentKeyRequest['envelope'] = {
+			ciphertextB64: encrypted.ciphertextB64,
+			nonceB64: encrypted.nonceB64,
+			alg: encrypted.alg,
+			recipients,
+		};
+
+		if (created) {
+			const response = await client.createEnvironmentKey(projectId, envName, {
+				version,
+				fingerprint,
+				envelope,
+				createdByDeviceId: identity.deviceId,
+			});
+
+			await this.saveLocal(projectId, envName, {
+				keyB64: encodeKey(key),
+				version: response.version,
+				fingerprint: EnvironmentKeyService.normalizeFingerprint(response.fingerprint),
+			});
+			return;
+		}
+
+		await client.createEnvironmentKeyEnvelope(projectId, envName, {
 			fingerprint,
-			envelope: {
-				ciphertextB64: encrypted.ciphertextB64,
-				nonceB64: encrypted.nonceB64,
-				alg: encrypted.alg,
-				recipients,
-			},
-			createdByDeviceId: identity.deviceId,
-		});
+			envelope,
+		} satisfies CreateEnvironmentKeyEnvelopeRequest);
 
 		await this.saveLocal(projectId, envName, {
 			keyB64: encodeKey(key),
-			version: response.version,
-			fingerprint: EnvironmentKeyService.normalizeFingerprint(response.fingerprint),
+			version,
+			fingerprint: EnvironmentKeyService.normalizeFingerprint(fingerprint),
 		});
 	}
 }
