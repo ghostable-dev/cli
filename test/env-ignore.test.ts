@@ -88,15 +88,13 @@ vi.mock('../src/services/SessionService.js', () => ({
 }));
 
 const client = {
-        pull: vi.fn(async () => remoteBundle),
-        uploadSecret: vi.fn(),
-        push: vi.fn(),
-        getEnvironmentKey: vi.fn(async () => null),
-        createEnvironmentKey: vi.fn(),
-        listDevices: vi.fn(async () => []),
-        getEnvironments: vi.fn(async () => [
-                { id: 'env-prod', name: 'prod', type: 'production' },
-        ]),
+	pull: vi.fn(async () => remoteBundle),
+	uploadSecret: vi.fn(),
+	push: vi.fn(),
+	getEnvironmentKey: vi.fn(async () => null),
+	createEnvironmentKey: vi.fn(),
+	listDevices: vi.fn(async () => []),
+	getEnvironments: vi.fn(async () => [{ id: 'env-prod', name: 'prod', type: 'production' }]),
 };
 
 vi.mock('../src/services/GhostableClient.js', () => ({
@@ -241,10 +239,10 @@ beforeEach(() => {
 	client.pull.mockClear();
 	client.uploadSecret.mockClear();
 	client.push.mockClear();
-        client.getEnvironmentKey.mockClear();
-        client.createEnvironmentKey.mockClear();
-        client.listDevices.mockClear();
-        client.getEnvironments.mockClear();
+	client.getEnvironmentKey.mockClear();
+	client.createEnvironmentKey.mockClear();
+	client.listDevices.mockClear();
+	client.getEnvironments.mockClear();
 	buildSecretPayloadCalls.splice(0, buildSecretPayloadCalls.length);
 	buildSecretPayloadMock.mockClear();
 	ensureEnvironmentKeyMock.mockClear();

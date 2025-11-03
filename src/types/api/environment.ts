@@ -106,20 +106,20 @@ export type EnvironmentSecretJson = EnvironmentSecretCommon & {
  * Bundle of environment secrets merged across inheritance layers.
  */
 export type EnvironmentSecretBundleJson = {
-        /** Target environment name (e.g., "local"). */
-        env: string;
+	/** Target environment name (e.g., "local"). */
+	env: string;
 
-        /** Chain of inherited environments (parent → child). */
-        chain: string[];
+	/** Chain of inherited environments (parent → child). */
+	chain: string[];
 
-        /** List of encrypted secrets across the chain. */
-        secrets: EnvironmentSecretJson[];
+	/** List of encrypted secrets across the chain. */
+	secrets: EnvironmentSecretJson[];
 
-        /** Optional environment key metadata (fingerprint, envelope, recipients, etc.). */
-        environment_key?: EnvironmentKeyResourceJson | null;
+	/** Optional environment key metadata (fingerprint, envelope, recipients, etc.). */
+	environment_key?: EnvironmentKeyResourceJson | null;
 
-        /** Optional camel-cased variant returned by some APIs. */
-        environmentKey?: EnvironmentKey | null;
+	/** Optional camel-cased variant returned by some APIs. */
+	environmentKey?: EnvironmentKey | null;
 };
 
 /**
@@ -191,14 +191,14 @@ export type EnvironmentKeyEnvelopeRecipientJson = {
 };
 
 export type EnvironmentKeyEnvelopeAttributesJson = {
-        ciphertext_b64: string;
-        nonce_b64: string;
-        alg?: string | null;
-        created_at?: string | null;
-        updated_at?: string | null;
-        revoked_at?: string | null;
-        recipients?: EnvironmentKeyEnvelopeRecipientJson[] | null;
-        from_ephemeral_public_key?: string | null;
+	ciphertext_b64: string;
+	nonce_b64: string;
+	alg?: string | null;
+	created_at?: string | null;
+	updated_at?: string | null;
+	revoked_at?: string | null;
+	recipients?: EnvironmentKeyEnvelopeRecipientJson[] | null;
+	from_ephemeral_public_key?: string | null;
 };
 
 export type EnvironmentKeyEnvelopeResourceJson = {
@@ -232,15 +232,15 @@ export type EnvironmentKeyRecipient = {
 };
 
 export type EnvironmentKeyEnvelope = {
-        id: string;
-        ciphertextB64: string;
-        nonceB64: string;
-        alg: string | null;
-        createdAtIso: string | null;
-        updatedAtIso: string | null;
-        revokedAtIso: string | null;
-        recipients: EnvironmentKeyRecipient[];
-        fromEphemeralPublicKey: string | null;
+	id: string;
+	ciphertextB64: string;
+	nonceB64: string;
+	alg: string | null;
+	createdAtIso: string | null;
+	updatedAtIso: string | null;
+	revokedAtIso: string | null;
+	recipients: EnvironmentKeyRecipient[];
+	fromEphemeralPublicKey: string | null;
 };
 
 export type EnvironmentKey = {
@@ -315,20 +315,20 @@ function environmentKeyRecipientFromJSON(
 }
 
 function environmentKeyEnvelopeFromJSON(
-        resource: EnvironmentKeyEnvelopeResourceJson,
+	resource: EnvironmentKeyEnvelopeResourceJson,
 ): EnvironmentKeyEnvelope {
-        const attrs = resource.attributes;
-        return {
-                id: resource.id,
-                ciphertextB64: attrs.ciphertext_b64,
-                nonceB64: attrs.nonce_b64,
-                alg: attrs.alg ?? null,
-                createdAtIso: attrs.created_at ?? null,
-                updatedAtIso: attrs.updated_at ?? null,
-                revokedAtIso: attrs.revoked_at ?? null,
-                recipients: (attrs.recipients ?? []).map(environmentKeyRecipientFromJSON),
-                fromEphemeralPublicKey: attrs.from_ephemeral_public_key ?? null,
-        };
+	const attrs = resource.attributes;
+	return {
+		id: resource.id,
+		ciphertextB64: attrs.ciphertext_b64,
+		nonceB64: attrs.nonce_b64,
+		alg: attrs.alg ?? null,
+		createdAtIso: attrs.created_at ?? null,
+		updatedAtIso: attrs.updated_at ?? null,
+		revokedAtIso: attrs.revoked_at ?? null,
+		recipients: (attrs.recipients ?? []).map(environmentKeyRecipientFromJSON),
+		fromEphemeralPublicKey: attrs.from_ephemeral_public_key ?? null,
+	};
 }
 
 export function environmentKeyFromJSON(resource: EnvironmentKeyResourceJson): EnvironmentKey {
