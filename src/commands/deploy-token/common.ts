@@ -10,7 +10,7 @@ import { DeviceIdentityService } from '../../services/DeviceIdentityService.js';
 import { EnvironmentKeyService } from '../../services/EnvironmentKeyService.js';
 
 import type { DeviceIdentity } from '@/crypto';
-import type { Environment } from '@/domain';
+import type { DeploymentToken, Environment } from '@/domain';
 
 export type ProjectContext = {
 	projectId: string;
@@ -102,12 +102,14 @@ export async function requireDeviceIdentity(): Promise<DeviceIdentity> {
 }
 
 export async function reshareEnvironmentKey(opts: {
-	client: GhostableClient;
-	projectId: string;
-	envName: string;
-	identity: DeviceIdentity;
+        client: GhostableClient;
+        projectId: string;
+        envId: string;
+        envName: string;
+        identity: DeviceIdentity;
+        extraDeployTokens?: DeploymentToken[];
 }): Promise<void> {
-	const { client, projectId, envName, identity } = opts;
+        const { client, projectId, envId, envName, identity, extraDeployTokens } = opts;
 
 	let keyService: EnvironmentKeyService;
 	try {
@@ -118,22 +120,24 @@ export async function reshareEnvironmentKey(opts: {
 	}
 
 	try {
-		const keyInfo = await keyService.ensureEnvironmentKey({
-			client,
-			projectId,
-			envName,
-			identity,
-		});
-		await keyService.publishKeyEnvelopes({
-			client,
-			projectId,
-			envName,
-			identity,
-			key: keyInfo.key,
-			version: keyInfo.version,
-			fingerprint: keyInfo.fingerprint,
-			created: keyInfo.created,
-		});
+                const keyInfo = await keyService.ensureEnvironmentKey({
+                        client,
+                        projectId,
+                        envName,
+                        identity,
+                });
+                await keyService.publishKeyEnvelopes({
+                        client,
+                        projectId,
+                        envId,
+                        envName,
+                        identity,
+                        key: keyInfo.key,
+                        version: keyInfo.version,
+                        fingerprint: keyInfo.fingerprint,
+                        created: keyInfo.created,
+                        extraDeployTokens,
+                });
 	} catch (error) {
 		log.error(`❌ Failed to share environment key: ${toErrorMessage(error)}`);
 		process.exit(1);

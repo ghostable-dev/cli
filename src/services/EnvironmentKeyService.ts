@@ -8,6 +8,7 @@ import type { GhostableClient } from './GhostableClient.js';
 
 import { KeyService, type DeviceIdentity, type EncryptedEnvelope } from '@/crypto';
 import { isDeploymentTokenActive } from '../domain/DeploymentToken.js';
+import type { DeploymentToken } from '@/domain';
 import { encryptedEnvelopeFromJSON, encryptedEnvelopeToJSON } from '../types/api/crypto.js';
 import type {
 	CreateEnvironmentKeyEnvelopeRequest,
@@ -223,21 +224,42 @@ export class EnvironmentKeyService {
 		return { key: keyBytes, version, fingerprint, created: true };
 	}
 
-	async publishKeyEnvelopes(opts: {
-		client: GhostableClient;
-		projectId: string;
-		envName: string;
-		identity: DeviceIdentity;
-		key: Uint8Array;
-		version: number;
-		fingerprint: string;
-		created: boolean;
-	}): Promise<void> {
-		const { client, projectId, envName, identity, key, version, fingerprint, created } = opts;
+        async publishKeyEnvelopes(opts: {
+                client: GhostableClient;
+                projectId: string;
+                envId: string;
+                envName: string;
+                identity: DeviceIdentity;
+                key: Uint8Array;
+                version: number;
+                fingerprint: string;
+                created: boolean;
+                extraDeployTokens?: DeploymentToken[];
+        }): Promise<void> {
+                const {
+                        client,
+                        projectId,
+                        envId,
+                        envName,
+                        identity,
+                        key,
+                        version,
+                        fingerprint,
+                        created,
+                        extraDeployTokens,
+                } = opts;
 
-		const devices = await client.listDevices(projectId, envName);
-		const deployTokens = await client.listDeployTokens(projectId, envName);
-		if (!devices.length && !deployTokens.length) return;
+                const devices = await client.listDevices(projectId, envName);
+                const deployTokens = await client.listDeployTokens(projectId, envId);
+                const deployTokensById = new Map<string, DeploymentToken>();
+                for (const token of deployTokens) {
+                        deployTokensById.set(token.id, token);
+                }
+                for (const token of extraDeployTokens ?? []) {
+                        deployTokensById.set(token.id, token);
+                }
+                const allDeployTokens = Array.from(deployTokensById.values());
+                if (!devices.length && !allDeployTokens.length) return;
 
 		const encrypted = EnvironmentKeyService.encryptEnvironmentKeyCiphertext(key);
 		const recipients: CreateEnvironmentKeyRequest['envelope']['recipients'] = [];
@@ -262,7 +284,7 @@ export class EnvironmentKeyService {
 			});
 		}
 
-		for (const token of deployTokens) {
+                for (const token of allDeployTokens) {
 			if (!token.publicKey || !isDeploymentTokenActive(token)) continue;
 			const envelope = await EnvelopeService.encrypt({
 				sender: identity,

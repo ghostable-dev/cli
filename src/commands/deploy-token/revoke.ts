@@ -64,12 +64,13 @@ export function configureRevokeCommand(parent: Command) {
 				await client.revokeDeployToken(projectId, target.id);
 				spinner.text = 'Re-encrypting environment key for remaining identities…';
 				const deviceIdentity = await requireDeviceIdentity();
-				await reshareEnvironmentKey({
-					client,
-					projectId,
-					envName: environment.name,
-					identity: deviceIdentity,
-				});
+                                await reshareEnvironmentKey({
+                                        client,
+                                        projectId,
+                                        envId: environment.id,
+                                        envName: environment.name,
+                                        identity: deviceIdentity,
+                                });
 				spinner.succeed('Deployment token revoked.');
 				log.ok(`🛑 Revoked token ${target.id}`);
 			} catch (error) {
