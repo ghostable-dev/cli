@@ -62,12 +62,14 @@ export function configureCreateCommand(parent: Command) {
 
 				spinner.text = 'Updating environment key shares…';
 				const deviceIdentity = await requireDeviceIdentity();
-				await reshareEnvironmentKey({
-					client,
-					projectId,
-					envName: environment.name,
-					identity: deviceIdentity,
-				});
+                                await reshareEnvironmentKey({
+                                        client,
+                                        projectId,
+                                        envId: environment.id,
+                                        envName: environment.name,
+                                        identity: deviceIdentity,
+                                        extraDeployTokens: [created.token],
+                                });
 
                                 spinner.succeed('Deployment token created.');
                                 log.ok(`✅ Token ID: ${created.token.id}`);

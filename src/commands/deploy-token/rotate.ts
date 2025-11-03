@@ -77,12 +77,13 @@ export function configureRotateCommand(parent: Command) {
 
 				spinner.text = 'Updating environment key shares…';
 				const deviceIdentity = await requireDeviceIdentity();
-				await reshareEnvironmentKey({
-					client,
-					projectId,
-					envName: environment.name,
-					identity: deviceIdentity,
-				});
+                                await reshareEnvironmentKey({
+                                        client,
+                                        projectId,
+                                        envId: environment.id,
+                                        envName: environment.name,
+                                        identity: deviceIdentity,
+                                });
 
 				spinner.succeed('Deployment token rotated.');
 				if (options.out) {
