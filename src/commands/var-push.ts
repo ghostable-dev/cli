@@ -145,8 +145,27 @@ export function registerVarPushCommand(program: Command) {
 
 			const target = entries.find((entry) => entry.name === keyName)!;
 
-			const sessionToken = token;
-			const client = GhostableClient.unauthenticated(config.apiBase).withToken(sessionToken);
+                        const sessionToken = token;
+                        const client = GhostableClient.unauthenticated(config.apiBase).withToken(sessionToken);
+
+                        let envId: string;
+                        try {
+                                const environments = await client.getEnvironments(projectId);
+                                const normalized = envName!.toLowerCase();
+                                const match = environments.find((env) => env.name.toLowerCase() === normalized);
+                                if (!match) {
+                                        log.error(
+                                                `❌ Environment '${envName}' was not found for project ${projectName}.`,
+                                        );
+                                        process.exit(1);
+                                        return;
+                                }
+                                envId = match.id;
+                        } catch (error) {
+                                log.error(`❌ Failed to load environments: ${toErrorMessage(error)}`);
+                                process.exit(1);
+                                return;
+                        }
 
 			await initSodium();
 			const keyBundle = await loadOrCreateKeys();
@@ -188,13 +207,14 @@ export function registerVarPushCommand(program: Command) {
 					identity,
 				});
 
-				if (keyInfo.created) {
-					await envKeyService.publishKeyEnvelopes({
-						client,
-						projectId,
-						envName: envName!,
-						identity,
-						key: keyInfo.key,
+                                if (keyInfo.created) {
+                                        await envKeyService.publishKeyEnvelopes({
+                                                client,
+                                                projectId,
+                                                envId,
+                                                envName: envName!,
+                                                identity,
+                                                key: keyInfo.key,
 						version: keyInfo.version,
 						fingerprint: keyInfo.fingerprint,
 						created: true,

@@ -106,7 +106,24 @@ export async function runEnvPush(opts: PushOptions): Promise<void> {
 		);
 	}
 
-	const client = GhostableClient.unauthenticated(config.apiBase).withToken(token);
+        const client = GhostableClient.unauthenticated(config.apiBase).withToken(token);
+
+        let envId: string;
+        try {
+                const environments = await client.getEnvironments(projectId);
+                const normalized = envName!.toLowerCase();
+                const match = environments.find((env) => env.name.toLowerCase() === normalized);
+                if (!match) {
+                        log.error(`❌ Environment '${envName}' was not found for project ${projectName}.`);
+                        process.exit(1);
+                        return;
+                }
+                envId = match.id;
+        } catch (error) {
+                log.error(`❌ Failed to load environments: ${toErrorMessage(error)}`);
+                process.exit(1);
+                return;
+        }
 
 	let identityService: DeviceIdentityService;
 	try {
@@ -137,15 +154,16 @@ export async function runEnvPush(opts: PushOptions): Promise<void> {
 			identity,
 		});
 
-		if (keyInfo.created) {
-			spinner.text = 'Sharing environment key with team devices…';
-			await envKeyService.publishKeyEnvelopes({
-				client,
-				projectId,
-				envName: envName!,
-				identity,
-				key: keyInfo.key,
-				version: keyInfo.version,
+                if (keyInfo.created) {
+                        spinner.text = 'Sharing environment key with team devices…';
+                        await envKeyService.publishKeyEnvelopes({
+                                client,
+                                projectId,
+                                envId,
+                                envName: envName!,
+                                identity,
+                                key: keyInfo.key,
+                                version: keyInfo.version,
 				fingerprint: keyInfo.fingerprint,
 				created: true,
 			});
