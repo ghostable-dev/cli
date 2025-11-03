@@ -121,194 +121,212 @@ export async function decryptBundle(
 	bundle: EnvironmentSecretBundle,
 	options?: DecryptOptions,
 ): Promise<DecryptionResult> {
-        await initSodium();
+	await initSodium();
 
-        const masterSeedB64 = await resolveMasterSeed(options?.masterSeedB64);
-        const masterSeed = Buffer.from(masterSeedB64.replace(/^b64:/, ''), 'base64');
-        const masterSeedBytes = new Uint8Array(masterSeed);
+	const masterSeedB64 = await resolveMasterSeed(options?.masterSeedB64);
+	const masterSeed = Buffer.from(masterSeedB64.replace(/^b64:/, ''), 'base64');
+	const masterSeedBytes = new Uint8Array(masterSeed);
 
-        const orgKeyCache = new Map<string, Uint8Array>();
-        const projKeyCache = new Map<string, Uint8Array>();
-        const envKeyCache = new Map<string, { key: Uint8Array; fingerprint: string }>();
-        const envelopeAttemptedScopes = new Set<string>();
-        const envelopeWarningKeys = new Set<string>();
+	const orgKeyCache = new Map<string, Uint8Array>();
+	const projKeyCache = new Map<string, Uint8Array>();
+	const envKeyCache = new Map<string, { key: Uint8Array; fingerprint: string }>();
+	const envelopeAttemptedScopes = new Set<string>();
+	const envelopeWarningKeys = new Set<string>();
 
-        const secrets: DecryptedSecret[] = [];
-        const warnings: string[] = [];
+	const secrets: DecryptedSecret[] = [];
+	const warnings: string[] = [];
 
-        const decodeBase64 = (value: string): Uint8Array => {
-                const normalized = value.replace(/^b64:/, '');
-                return new Uint8Array(Buffer.from(normalized, 'base64'));
-        };
+	const decodeBase64 = (value: string): Uint8Array => {
+		const normalized = value.replace(/^b64:/, '');
+		return new Uint8Array(Buffer.from(normalized, 'base64'));
+	};
 
-        const fingerprintOf = (key: Uint8Array): string => {
-                const digest = sha256(key);
-                return Buffer.from(digest).toString('hex');
-        };
+	const fingerprintOf = (key: Uint8Array): string => {
+		const digest = sha256(key);
+		return Buffer.from(digest).toString('hex');
+	};
 
-        const warnOnce = (key: string, message: string) => {
-                if (envelopeWarningKeys.has(key)) return;
-                envelopeWarningKeys.add(key);
-                warnings.push(message);
-        };
+	const warnOnce = (key: string, message: string) => {
+		if (envelopeWarningKeys.has(key)) return;
+		envelopeWarningKeys.add(key);
+		warnings.push(message);
+	};
 
-        const hkdfInfo = new TextEncoder().encode('ghostable:edek:v1');
+	const hkdfInfo = new TextEncoder().encode('ghostable:edek:v1');
 
-        type DeploymentRecipientPayload = {
-                ciphertext_b64: string;
-                nonce_b64: string;
-                alg?: string | null;
-                aad_b64?: string | null;
-        };
+	type DeploymentRecipientPayload = {
+		ciphertext_b64: string;
+		nonce_b64: string;
+		alg?: string | null;
+		aad_b64?: string | null;
+	};
 
-        const tryEnvKeyFromEnvelope = (aad: AAD | undefined): { key: Uint8Array; fingerprint: string } | null => {
-                if (!aad) return null;
-                const { org, project, env } = aad;
-                if (!org || !project || !env) return null;
+	const tryEnvKeyFromEnvelope = (
+		aad: AAD | undefined,
+	): { key: Uint8Array; fingerprint: string } | null => {
+		if (!aad) return null;
+		const { org, project, env } = aad;
+		if (!org || !project || !env) return null;
 
-                const envScope = `${org}/${project}/${env}`;
-                const cachedEnv = envKeyCache.get(envScope);
-                if (cachedEnv) return cachedEnv;
+		const envScope = `${org}/${project}/${env}`;
+		const cachedEnv = envKeyCache.get(envScope);
+		if (cachedEnv) return cachedEnv;
 
-                if (envelopeAttemptedScopes.has(envScope)) return null;
-                envelopeAttemptedScopes.add(envScope);
+		if (envelopeAttemptedScopes.has(envScope)) return null;
+		envelopeAttemptedScopes.add(envScope);
 
-                const envelope = bundle.environmentKey?.envelope;
-                if (!envelope) return null;
+		const envelope = bundle.environmentKey?.envelope;
+		if (!envelope) return null;
 
-                const ephemeralB64 = envelope.fromEphemeralPublicKey;
-                if (!ephemeralB64) {
-                        warnOnce(
-                                'missing-ephemeral',
-                                'Environment key envelope is missing the ephemeral public key required to decrypt with this deployment token.',
-                        );
-                        return null;
-                }
+		const ephemeralB64 = envelope.fromEphemeralPublicKey;
+		if (!ephemeralB64) {
+			warnOnce(
+				'missing-ephemeral',
+				'Environment key envelope is missing the ephemeral public key required to decrypt with this deployment token.',
+			);
+			return null;
+		}
 
-                const recipient = envelope.recipients.find((item) => item.type === 'deployment');
-                if (!recipient) {
-                        warnOnce(
-                                'missing-recipient',
-                                'Environment key is not yet shared with this deployment token. Re-share it to enable decryption.',
-                        );
-                        return null;
-                }
+		const recipient = envelope.recipients.find((item) => item.type === 'deployment');
+		if (!recipient) {
+			warnOnce(
+				'missing-recipient',
+				'Environment key is not yet shared with this deployment token. Re-share it to enable decryption.',
+			);
+			return null;
+		}
 
-                let payload: DeploymentRecipientPayload;
-                try {
-                        const raw = Buffer.from(recipient.edekB64.replace(/^b64:/, ''), 'base64').toString('utf8');
-                        payload = JSON.parse(raw) as DeploymentRecipientPayload;
-                } catch (error) {
-                        const reason = error instanceof Error ? error.message : String(error);
-                        warnOnce('payload-decode', `Failed to decode deployment token envelope payload: ${reason}.`);
-                        return null;
-                }
+		let payload: DeploymentRecipientPayload;
+		try {
+			const raw = Buffer.from(recipient.edekB64.replace(/^b64:/, ''), 'base64').toString(
+				'utf8',
+			);
+			payload = JSON.parse(raw) as DeploymentRecipientPayload;
+		} catch (error) {
+			const reason = error instanceof Error ? error.message : String(error);
+			warnOnce(
+				'payload-decode',
+				`Failed to decode deployment token envelope payload: ${reason}.`,
+			);
+			return null;
+		}
 
-                if (!payload?.ciphertext_b64 || !payload?.nonce_b64) {
-                        warnOnce('payload-missing', 'Deployment token envelope payload is missing ciphertext or nonce.');
-                        return null;
-                }
+		if (!payload?.ciphertext_b64 || !payload?.nonce_b64) {
+			warnOnce(
+				'payload-missing',
+				'Deployment token envelope payload is missing ciphertext or nonce.',
+			);
+			return null;
+		}
 
-                const alg = (payload.alg ?? envelope.alg ?? '').toLowerCase();
-                if (alg && alg !== 'xchacha20-poly1305') {
-                        const originalAlg = payload.alg ?? envelope.alg ?? alg;
-                        warnOnce('payload-alg', `Unsupported deployment token envelope algorithm "${originalAlg}".`);
-                        return null;
-                }
+		const alg = (payload.alg ?? envelope.alg ?? '').toLowerCase();
+		if (alg && alg !== 'xchacha20-poly1305') {
+			const originalAlg = payload.alg ?? envelope.alg ?? alg;
+			warnOnce(
+				'payload-alg',
+				`Unsupported deployment token envelope algorithm "${originalAlg}".`,
+			);
+			return null;
+		}
 
-                let sharedSecret: Uint8Array;
-                try {
-                        const pubKey = decodeBase64(ephemeralB64);
-                        sharedSecret = x25519.getSharedSecret(masterSeedBytes, pubKey);
-                } catch {
-                        warnOnce('shared-secret', 'Failed to derive shared secret for deployment token envelope.');
-                        return null;
-                }
+		let sharedSecret: Uint8Array;
+		try {
+			const pubKey = decodeBase64(ephemeralB64);
+			sharedSecret = x25519.getSharedSecret(masterSeedBytes, pubKey);
+		} catch {
+			warnOnce(
+				'shared-secret',
+				'Failed to derive shared secret for deployment token envelope.',
+			);
+			return null;
+		}
 
-                let edekKey: Uint8Array;
-                try {
-                        edekKey = hkdf(sha256, sharedSecret, undefined, hkdfInfo, 32);
-                } catch {
-                        warnOnce('hkdf', 'Failed to derive deployment token EDEK key.');
-                        return null;
-                }
+		let edekKey: Uint8Array;
+		try {
+			edekKey = hkdf(sha256, sharedSecret, undefined, hkdfInfo, 32);
+		} catch {
+			warnOnce('hkdf', 'Failed to derive deployment token EDEK key.');
+			return null;
+		}
 
-                const nonce = decodeBase64(payload.nonce_b64);
-                const ciphertext = decodeBase64(payload.ciphertext_b64);
-                const aadBytes = payload.aad_b64 ? decodeBase64(payload.aad_b64) : undefined;
+		const nonce = decodeBase64(payload.nonce_b64);
+		const ciphertext = decodeBase64(payload.ciphertext_b64);
+		const aadBytes = payload.aad_b64 ? decodeBase64(payload.aad_b64) : undefined;
 
-                try {
-                        const cipher = xchacha20poly1305(edekKey, nonce, aadBytes);
-                        const plaintext = cipher.decrypt(ciphertext);
-                        const fingerprint = fingerprintOf(plaintext);
-                        const cached = { key: plaintext, fingerprint };
-                        envKeyCache.set(envScope, cached);
-                        return cached;
-                } catch {
-                        warnOnce(
-                                'decrypt',
-                                'Failed to decrypt environment key for deployment token; falling back to keychain derivation.',
-                        );
-                        return null;
-                }
-        };
+		try {
+			const cipher = xchacha20poly1305(edekKey, nonce, aadBytes);
+			const plaintext = cipher.decrypt(ciphertext);
+			const fingerprint = fingerprintOf(plaintext);
+			const cached = { key: plaintext, fingerprint };
+			envKeyCache.set(envScope, cached);
+			return cached;
+		} catch {
+			warnOnce(
+				'decrypt',
+				'Failed to decrypt environment key for deployment token; falling back to keychain derivation.',
+			);
+			return null;
+		}
+	};
 
-        const resolveEnvKey = (aad: AAD | undefined): { key: Uint8Array; fingerprint: string } | null => {
-                if (!aad) return null;
-                const { org, project, env } = aad;
-                if (!org || !project || !env) return null;
+	const resolveEnvKey = (
+		aad: AAD | undefined,
+	): { key: Uint8Array; fingerprint: string } | null => {
+		if (!aad) return null;
+		const { org, project, env } = aad;
+		if (!org || !project || !env) return null;
 
-                const envScope = `${org}/${project}/${env}`;
-                const cachedEnv = envKeyCache.get(envScope);
-                if (cachedEnv) return cachedEnv;
+		const envScope = `${org}/${project}/${env}`;
+		const cachedEnv = envKeyCache.get(envScope);
+		if (cachedEnv) return cachedEnv;
 
-                const envelopeKey = tryEnvKeyFromEnvelope(aad);
-                if (envelopeKey) return envelopeKey;
+		const envelopeKey = tryEnvKeyFromEnvelope(aad);
+		if (envelopeKey) return envelopeKey;
 
-                let orgKey = orgKeyCache.get(org);
-                if (!orgKey) {
-                        orgKey = deriveOrgKEK(masterSeed, org);
-                        orgKeyCache.set(org, orgKey);
-                }
+		let orgKey = orgKeyCache.get(org);
+		if (!orgKey) {
+			orgKey = deriveOrgKEK(masterSeed, org);
+			orgKeyCache.set(org, orgKey);
+		}
 
-                const projScope = `${org}/${project}`;
-                let projKey = projKeyCache.get(projScope);
-                if (!projKey) {
-                        projKey = deriveProjKEK(orgKey, project);
-                        projKeyCache.set(projScope, projKey);
-                }
+		const projScope = `${org}/${project}`;
+		let projKey = projKeyCache.get(projScope);
+		if (!projKey) {
+			projKey = deriveProjKEK(orgKey, project);
+			projKeyCache.set(projScope, projKey);
+		}
 
-                const envKey = deriveEnvKEK(projKey, env);
-                const fingerprint = fingerprintOf(envKey);
-                const cached = { key: envKey, fingerprint };
-                envKeyCache.set(envScope, cached);
-                return cached;
-        };
+		const envKey = deriveEnvKEK(projKey, env);
+		const fingerprint = fingerprintOf(envKey);
+		const cached = { key: envKey, fingerprint };
+		envKeyCache.set(envScope, cached);
+		return cached;
+	};
 
-        // reuse encoders
-        const encoder = new TextEncoder();
-        const decoder = new TextDecoder();
+	// reuse encoders
+	const encoder = new TextEncoder();
+	const decoder = new TextDecoder();
 
 	for (const entry of bundle.secrets) {
-                const envKey = resolveEnvKey(entry.aad);
-                if (!envKey) {
-                        warnings.push(`Missing metadata to derive key for ${entry.name}; skipping`);
-                        continue;
-                }
+		const envKey = resolveEnvKey(entry.aad);
+		if (!envKey) {
+			warnings.push(`Missing metadata to derive key for ${entry.name}; skipping`);
+			continue;
+		}
 
-                if (entry.envKekFingerprint) {
-                        const expectedFingerprint = entry.envKekFingerprint.toLowerCase();
-                        if (expectedFingerprint !== envKey.fingerprint) {
-                                warnings.push(
-                                        `Environment key mismatch for ${entry.name}; expected fingerprint ${expectedFingerprint}, got ${envKey.fingerprint}. ` +
-                                                'Re-share the environment key with this deployment token.',
-                                );
-                                continue;
-                        }
-                }
+		if (entry.envKekFingerprint) {
+			const expectedFingerprint = entry.envKekFingerprint.toLowerCase();
+			if (expectedFingerprint !== envKey.fingerprint) {
+				warnings.push(
+					`Environment key mismatch for ${entry.name}; expected fingerprint ${expectedFingerprint}, got ${envKey.fingerprint}. ` +
+						'Re-share the environment key with this deployment token.',
+				);
+				continue;
+			}
+		}
 
-                const scope = scopeFromAAD(entry.aad);
-                const { encKey, hmacKey } = deriveKeys(envKey.key, scope);
+		const scope = scopeFromAAD(entry.aad);
+		const { encKey, hmacKey } = deriveKeys(envKey.key, scope);
 
 		try {
 			const plaintext = aeadDecrypt(encKey, {
@@ -321,7 +339,7 @@ export async function decryptBundle(
 			const value = decoder.decode(plaintext);
 
 			if (entry.claims?.hmac) {
-                        const digest = hmacSHA256(hmacKey, encoder.encode(value));
+				const digest = hmacSHA256(hmacKey, encoder.encode(value));
 				if (digest !== entry.claims.hmac) {
 					warnings.push(`HMAC mismatch for ${entry.name}; skipping`);
 					continue;
@@ -330,17 +348,17 @@ export async function decryptBundle(
 
 			secrets.push({ entry, value });
 		} catch {
-                        warnings.push(`Could not decrypt ${entry.name}; skipping`);
-                }
-        }
+			warnings.push(`Could not decrypt ${entry.name}; skipping`);
+		}
+	}
 
-        if (!secrets.length && bundle.secrets.length) {
-                warnings.push(
-                        'No secrets could be decrypted with the provided master seed. Ensure the deployment token has access to the latest environment key (try `ghostable deploy-token create --env <ENV>` or ask an administrator to re-share the key).',
-                );
-        }
+	if (!secrets.length && bundle.secrets.length) {
+		warnings.push(
+			'No secrets could be decrypted with the provided master seed. Ensure the deployment token has access to the latest environment key (try `ghostable deploy-token create --env <ENV>` or ask an administrator to re-share the key).',
+		);
+	}
 
-        return { secrets, warnings };
+	return { secrets, warnings };
 }
 
 export function resolveDeployMasterSeed(): string {

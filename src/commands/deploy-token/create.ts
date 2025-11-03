@@ -62,52 +62,52 @@ export function configureCreateCommand(parent: Command) {
 
 				spinner.text = 'Updating environment key shares…';
 				const deviceIdentity = await requireDeviceIdentity();
-                                await reshareEnvironmentKey({
-                                        client,
-                                        projectId,
-                                        envId: environment.id,
-                                        envName: environment.name,
-                                        identity: deviceIdentity,
-                                        extraDeployTokens: [created.token],
-                                });
+				await reshareEnvironmentKey({
+					client,
+					projectId,
+					envId: environment.id,
+					envName: environment.name,
+					identity: deviceIdentity,
+					extraDeployTokens: [created.token],
+				});
 
-                                spinner.succeed('Deployment token created.');
-                                log.ok(`✅ Token ID: ${created.token.id}`);
-                                log.ok(`🌱 Environment: ${environment.name}`);
+				spinner.succeed('Deployment token created.');
+				log.ok(`✅ Token ID: ${created.token.id}`);
+				log.ok(`🌱 Environment: ${environment.name}`);
 
-                                const apiTokenPlainText = created.apiToken?.plainText ?? created.secret;
-                                if (apiTokenPlainText) {
-                                        log.line();
-                                        log.info('Add this one-time API token to your CI as GHOSTABLE_CI_TOKEN:');
-                                        log.text(apiTokenPlainText);
-                                        log.warn('⚠️ Store this token securely — it cannot be retrieved again.');
+				const apiTokenPlainText = created.apiToken?.plainText ?? created.secret;
+				if (apiTokenPlainText) {
+					log.line();
+					log.info('Add this one-time API token to your CI as GHOSTABLE_CI_TOKEN:');
+					log.text(apiTokenPlainText);
+					log.warn('⚠️ Store this token securely — it cannot be retrieved again.');
 
-                                        if (created.apiToken?.tokenSuffix) {
-                                                log.info(
-                                                        `🔐 Token suffix (for reference in the dashboard): ${created.apiToken.tokenSuffix}`,
-                                                );
-                                        }
+					if (created.apiToken?.tokenSuffix) {
+						log.info(
+							`🔐 Token suffix (for reference in the dashboard): ${created.apiToken.tokenSuffix}`,
+						);
+					}
 
-                                        if (created.apiToken?.expiresAt) {
-                                                log.info(
-                                                        `⏰ API token expires at ${created.apiToken.expiresAt.toISOString()}`,
-                                                );
-                                        }
-                                }
+					if (created.apiToken?.expiresAt) {
+						log.info(
+							`⏰ API token expires at ${created.apiToken.expiresAt.toISOString()}`,
+						);
+					}
+				}
 
-                                log.line();
-                                if (options.out) {
-                                        const resolved = path.resolve(options.out);
-                                        fs.mkdirSync(path.dirname(resolved), { recursive: true });
-                                        fs.writeFileSync(resolved, `${privateKeyB64}\n`, { mode: 0o600 });
-                                        log.ok(`🔑 Private key written to ${resolved}`);
-                                        log.info(
-                                                'Set GHOSTABLE_MASTER_SEED in your CI to the contents of this private key file.',
-                                        );
-                                } else {
-                                        log.info('Set GHOSTABLE_MASTER_SEED in your CI to this private key (Base64):');
-                                        log.text(privateKeyB64);
-                                }
+				log.line();
+				if (options.out) {
+					const resolved = path.resolve(options.out);
+					fs.mkdirSync(path.dirname(resolved), { recursive: true });
+					fs.writeFileSync(resolved, `${privateKeyB64}\n`, { mode: 0o600 });
+					log.ok(`🔑 Private key written to ${resolved}`);
+					log.info(
+						'Set GHOSTABLE_MASTER_SEED in your CI to the contents of this private key file.',
+					);
+				} else {
+					log.info('Set GHOSTABLE_MASTER_SEED in your CI to this private key (Base64):');
+					log.text(privateKeyB64);
+				}
 			} catch (error) {
 				spinner.fail('Failed to create deployment token.');
 				log.error(toErrorMessage(error));

@@ -224,42 +224,42 @@ export class EnvironmentKeyService {
 		return { key: keyBytes, version, fingerprint, created: true };
 	}
 
-        async publishKeyEnvelopes(opts: {
-                client: GhostableClient;
-                projectId: string;
-                envId: string;
-                envName: string;
-                identity: DeviceIdentity;
-                key: Uint8Array;
-                version: number;
-                fingerprint: string;
-                created: boolean;
-                extraDeployTokens?: DeploymentToken[];
-        }): Promise<void> {
-                const {
-                        client,
-                        projectId,
-                        envId,
-                        envName,
-                        identity,
-                        key,
-                        version,
-                        fingerprint,
-                        created,
-                        extraDeployTokens,
-                } = opts;
+	async publishKeyEnvelopes(opts: {
+		client: GhostableClient;
+		projectId: string;
+		envId: string;
+		envName: string;
+		identity: DeviceIdentity;
+		key: Uint8Array;
+		version: number;
+		fingerprint: string;
+		created: boolean;
+		extraDeployTokens?: DeploymentToken[];
+	}): Promise<void> {
+		const {
+			client,
+			projectId,
+			envId,
+			envName,
+			identity,
+			key,
+			version,
+			fingerprint,
+			created,
+			extraDeployTokens,
+		} = opts;
 
-                const devices = await client.listDevices(projectId, envName);
-                const deployTokens = await client.listDeployTokens(projectId, envId);
-                const deployTokensById = new Map<string, DeploymentToken>();
-                for (const token of deployTokens) {
-                        deployTokensById.set(token.id, token);
-                }
-                for (const token of extraDeployTokens ?? []) {
-                        deployTokensById.set(token.id, token);
-                }
-                const allDeployTokens = Array.from(deployTokensById.values());
-                if (!devices.length && !allDeployTokens.length) return;
+		const devices = await client.listDevices(projectId, envName);
+		const deployTokens = await client.listDeployTokens(projectId, envId);
+		const deployTokensById = new Map<string, DeploymentToken>();
+		for (const token of deployTokens) {
+			deployTokensById.set(token.id, token);
+		}
+		for (const token of extraDeployTokens ?? []) {
+			deployTokensById.set(token.id, token);
+		}
+		const allDeployTokens = Array.from(deployTokensById.values());
+		if (!devices.length && !allDeployTokens.length) return;
 
 		const encrypted = EnvironmentKeyService.encryptEnvironmentKeyCiphertext(key);
 		const recipients: CreateEnvironmentKeyRequest['envelope']['recipients'] = [];
@@ -284,7 +284,7 @@ export class EnvironmentKeyService {
 			});
 		}
 
-                for (const token of allDeployTokens) {
+		for (const token of allDeployTokens) {
 			if (!token.publicKey || !isDeploymentTokenActive(token)) continue;
 			const envelope = await EnvelopeService.encrypt({
 				sender: identity,

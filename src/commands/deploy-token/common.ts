@@ -102,14 +102,14 @@ export async function requireDeviceIdentity(): Promise<DeviceIdentity> {
 }
 
 export async function reshareEnvironmentKey(opts: {
-        client: GhostableClient;
-        projectId: string;
-        envId: string;
-        envName: string;
-        identity: DeviceIdentity;
-        extraDeployTokens?: DeploymentToken[];
+	client: GhostableClient;
+	projectId: string;
+	envId: string;
+	envName: string;
+	identity: DeviceIdentity;
+	extraDeployTokens?: DeploymentToken[];
 }): Promise<void> {
-        const { client, projectId, envId, envName, identity, extraDeployTokens } = opts;
+	const { client, projectId, envId, envName, identity, extraDeployTokens } = opts;
 
 	let keyService: EnvironmentKeyService;
 	try {
@@ -120,24 +120,24 @@ export async function reshareEnvironmentKey(opts: {
 	}
 
 	try {
-                const keyInfo = await keyService.ensureEnvironmentKey({
-                        client,
-                        projectId,
-                        envName,
-                        identity,
-                });
-                await keyService.publishKeyEnvelopes({
-                        client,
-                        projectId,
-                        envId,
-                        envName,
-                        identity,
-                        key: keyInfo.key,
-                        version: keyInfo.version,
-                        fingerprint: keyInfo.fingerprint,
-                        created: keyInfo.created,
-                        extraDeployTokens,
-                });
+		const keyInfo = await keyService.ensureEnvironmentKey({
+			client,
+			projectId,
+			envName,
+			identity,
+		});
+		await keyService.publishKeyEnvelopes({
+			client,
+			projectId,
+			envId,
+			envName,
+			identity,
+			key: keyInfo.key,
+			version: keyInfo.version,
+			fingerprint: keyInfo.fingerprint,
+			created: keyInfo.created,
+			extraDeployTokens,
+		});
 	} catch (error) {
 		log.error(`❌ Failed to share environment key: ${toErrorMessage(error)}`);
 		process.exit(1);

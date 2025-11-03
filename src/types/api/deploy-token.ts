@@ -43,17 +43,17 @@ export type RotateDeploymentTokenRequestJson = {
 };
 
 export type CreateDeploymentTokenResponseJson = {
-        data: DeploymentTokenJson;
-        meta?: {
-                secret?: string;
-                api_token?: {
-                        plain_text: string;
-                        id: string;
-                        name: string;
-                        token_suffix: string;
-                        expires_at?: string | null;
-                };
-        };
+	data: DeploymentTokenJson;
+	meta?: {
+		secret?: string;
+		api_token?: {
+			plain_text: string;
+			id: string;
+			name: string;
+			token_suffix: string;
+			expires_at?: string | null;
+		};
+	};
 };
 
 export type RotateDeploymentTokenResponseJson = {
@@ -65,17 +65,17 @@ export type RevokeDeploymentTokenResponseJson = {
 };
 
 export type DeploymentApiTokenMeta = {
-        plainText: string;
-        id: string;
-        name: string;
-        tokenSuffix: string;
-        expiresAt: Date | null;
+	plainText: string;
+	id: string;
+	name: string;
+	tokenSuffix: string;
+	expiresAt: Date | null;
 };
 
 export type DeploymentTokenWithSecret = {
-        token: DeploymentToken;
-        secret?: string;
-        apiToken?: DeploymentApiTokenMeta;
+	token: DeploymentToken;
+	secret?: string;
+	apiToken?: DeploymentApiTokenMeta;
 };
 
 export function deploymentTokenFromJSON(json: DeploymentTokenJson): DeploymentToken {
