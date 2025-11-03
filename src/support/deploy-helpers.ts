@@ -7,8 +7,8 @@ import { config } from '../config/index.js';
 
 import { sha256 } from '@noble/hashes/sha256';
 import { hkdf } from '@noble/hashes/hkdf';
-import { x25519 } from '@noble/curves/ed25519';
-import { xchacha20poly1305 } from '@noble/ciphers/chacha';
+import { x25519 } from '@noble/curves/ed25519.js';
+import { xchacha20poly1305 } from '@noble/ciphers/chacha.js';
 
 import { initSodium, deriveKeys, aeadDecrypt, scopeFromAAD, hmacSHA256 } from '../crypto.js';
 import { deriveEnvKEK, deriveOrgKEK, deriveProjKEK } from '@/crypto';
@@ -235,10 +235,10 @@ export async function decryptBundle(
 
                 const nonce = decodeBase64(payload.nonce_b64);
                 const ciphertext = decodeBase64(payload.ciphertext_b64);
-                const aad = payload.aad_b64 ? decodeBase64(payload.aad_b64) : undefined;
+                const aadBytes = payload.aad_b64 ? decodeBase64(payload.aad_b64) : undefined;
 
                 try {
-                        const cipher = xchacha20poly1305(edekKey, nonce, aad);
+                        const cipher = xchacha20poly1305(edekKey, nonce, aadBytes);
                         const plaintext = cipher.decrypt(ciphertext);
                         const fingerprint = fingerprintOf(plaintext);
                         const cached = { key: plaintext, fingerprint };
