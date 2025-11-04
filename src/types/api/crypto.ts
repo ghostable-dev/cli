@@ -1,18 +1,4 @@
-import type { EncryptedEnvelope, OneTimePrekey, SignedPrekey } from '@/crypto';
-import type {
-	DevicePrekeyBundleJson,
-	DeviceSignedPrekeyJson,
-	DeviceOneTimePrekeyJson,
-} from './device.js';
-
-export type SignedPrekeyJson = DeviceSignedPrekeyJson;
-
-export type OneTimePrekeyJson = DeviceOneTimePrekeyJson;
-
-export type DevicePrekeyBundle = {
-	signedPrekey: SignedPrekey | null;
-	oneTimePrekeys: OneTimePrekey[];
-};
+import type { EncryptedEnvelope } from '@/crypto';
 
 export type EncryptedEnvelopeJson = {
 	id: string;
@@ -29,38 +15,6 @@ export type EncryptedEnvelopeJson = {
 	sender_kid?: string;
 	signature_b64?: string;
 };
-
-export function signedPrekeyFromJSON(json: SignedPrekeyJson): SignedPrekey {
-	return {
-		id: json.id,
-		publicKey: json.public_key,
-		signatureFromSigningKey: json.signature,
-		createdAtIso: json.created_at,
-		expiresAtIso: json.expires_at ?? undefined,
-		fingerprint: json.fingerprint,
-		revoked: false,
-	};
-}
-
-export function oneTimePrekeyFromJSON(json: OneTimePrekeyJson): OneTimePrekey {
-	return {
-		id: json.id,
-		publicKey: json.public_key,
-		createdAtIso: json.created_at,
-		expiresAtIso: json.expires_at ?? undefined,
-		fingerprint: json.fingerprint,
-		consumedAtIso: undefined,
-		consumedBy: undefined,
-		revoked: false,
-	};
-}
-
-export function devicePrekeyBundleFromJSON(json: DevicePrekeyBundleJson): DevicePrekeyBundle {
-	return {
-		signedPrekey: json.signed_prekey ? signedPrekeyFromJSON(json.signed_prekey) : null,
-		oneTimePrekeys: json.one_time_prekeys.map(oneTimePrekeyFromJSON),
-	};
-}
 
 export function encryptedEnvelopeFromJSON(json: EncryptedEnvelopeJson): EncryptedEnvelope {
 	return {

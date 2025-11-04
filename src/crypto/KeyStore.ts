@@ -1,4 +1,5 @@
 import keytarModule from 'keytar';
+import { KEYCHAIN_SERVICE_ENVIRONMENT } from '../constants/keychain.js';
 import { toBase64, fromBase64 } from './utils.js';
 import { KeyStore } from './types/KeyStore.js';
 
@@ -7,6 +8,21 @@ type KeytarLike = {
 	setPassword(service: string, account: string, password: string): Promise<void>;
 	deletePassword(service: string, account: string): Promise<boolean>;
 };
+
+type KeytarTarget = {
+	service: string;
+	account: string;
+};
+
+type KeytarTargetResolver = (name: string) => KeytarTarget;
+
+function passThroughResolver(service: string): KeytarTargetResolver {
+	if (!service) throw new TypeError('service must not be empty');
+	return (name: string) => ({
+		service,
+		account: name,
+	});
+}
 
 /**
  * In-memory key store for testing or development.
@@ -40,29 +56,48 @@ export class MemoryKeyStore implements KeyStore {
  */
 export class KeytarKeyStore implements KeyStore {
 	private readonly keytar: KeytarLike;
+	private readonly resolve: KeytarTargetResolver;
 
 	constructor(
-		private readonly service = 'ghostable-cli',
+		serviceOrResolver: string | KeytarTargetResolver = KEYCHAIN_SERVICE_ENVIRONMENT,
 		keytarImpl: KeytarLike = keytarModule,
 	) {
-		if (!service) throw new TypeError('service must not be empty');
+		if (!serviceOrResolver) throw new TypeError('service must not be empty');
+		this.resolve =
+			typeof serviceOrResolver === 'function'
+				? serviceOrResolver
+				: passThroughResolver(serviceOrResolver);
 		this.keytar = keytarImpl;
+	}
+
+	private resolveTarget(name: string): KeytarTarget {
+		const target = this.resolve(name);
+		if (!target?.service) {
+			throw new Error('Keytar service name resolver returned an invalid service.');
+		}
+		if (!target.account) {
+			throw new Error('Keytar service name resolver returned an invalid account.');
+		}
+		return target;
 	}
 
 	async getKey(name: string): Promise<Uint8Array | null> {
 		if (!name) throw new TypeError('name must not be empty');
-		const value = await this.keytar.getPassword(this.service, name);
+		const { service, account } = this.resolveTarget(name);
+		const value = await this.keytar.getPassword(service, account);
 		return value ? fromBase64(value) : null;
 	}
 
 	async setKey(name: string, value: Uint8Array): Promise<void> {
 		if (!name) throw new TypeError('name must not be empty');
 		if (!(value instanceof Uint8Array)) throw new TypeError('value must be a Uint8Array');
-		await this.keytar.setPassword(this.service, name, toBase64(value));
+		const { service, account } = this.resolveTarget(name);
+		await this.keytar.setPassword(service, account, toBase64(value));
 	}
 
 	async deleteKey(name: string): Promise<void> {
 		if (!name) throw new TypeError('name must not be empty');
-		await this.keytar.deletePassword(this.service, name);
+		const { service, account } = this.resolveTarget(name);
+		await this.keytar.deletePassword(service, account);
 	}
 }

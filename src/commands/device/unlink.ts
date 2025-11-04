@@ -11,18 +11,6 @@ async function clearLocalDeviceState(
 	identity: LinkedIdentity,
 ): Promise<void> {
 	await service.clearIdentity(identity.deviceId);
-
-	const currentSigned = await service.loadSignedPrekey();
-	if (currentSigned) {
-		await service.clearSignedPrekey(currentSigned.id);
-	}
-	await service.clearSignedPrekey();
-
-	const cachedPrekeys = await service.loadOneTimePrekeys();
-	if (cachedPrekeys.length) {
-		await service.dropOneTimePrekeys(cachedPrekeys.map((p) => p.id));
-	}
-	await service.saveOneTimePrekeys([]);
 }
 
 export function configureUnlinkCommand(device: Command) {

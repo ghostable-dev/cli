@@ -31,37 +31,6 @@ export type DeviceDeleteResponseJson = {
 	meta?: { success?: boolean };
 };
 
-export type PublishSignedPrekeyResponseJson = {
-	fingerprint: string;
-	updated_at: string;
-};
-
-export type PublishOneTimePrekeysResponseJson = {
-	queued: number;
-};
-
-export type DeviceSignedPrekeyJson = {
-	id: string;
-	public_key: string;
-	signature: string;
-	fingerprint: string;
-	expires_at?: string | null;
-	created_at: string;
-};
-
-export type DeviceOneTimePrekeyJson = {
-	id: string;
-	public_key: string;
-	fingerprint: string;
-	expires_at?: string | null;
-	created_at: string;
-};
-
-export type DevicePrekeyBundleJson = {
-	signed_prekey: DeviceSignedPrekeyJson | null;
-	one_time_prekeys: DeviceOneTimePrekeyJson[];
-};
-
 export type QueueEnvelopeResponseJson = {
 	id: string;
 	queued: boolean;

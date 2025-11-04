@@ -13,7 +13,7 @@ import {
 	Project,
 } from '@/domain';
 import type { DeviceStatus } from '@/domain';
-import type { EncryptedEnvelope, OneTimePrekey, SignedPrekey } from '@/crypto';
+import type { EncryptedEnvelope } from '@/crypto';
 
 import type {
 	ConsumeEnvelopeResponseJson,
@@ -23,8 +23,6 @@ import type {
 	DeviceDocumentJson,
 	DeviceEnvelopeJson,
 	DeviceResourceJson,
-	DevicePrekeyBundle,
-	DevicePrekeyBundleJson,
 	EnvironmentJson,
 	EnvironmentKey,
 	EnvironmentKeyResponseJson,
@@ -34,8 +32,6 @@ import type {
 	EnvironmentSuggestedNameJson,
 	EnvironmentTypeJson,
 	OrganizationJson,
-	PublishOneTimePrekeysResponseJson,
-	PublishSignedPrekeyResponseJson,
 	ProjectJson,
 	QueueEnvelopeResponseJson,
 	SignedEnvironmentSecretBatchUploadRequest,
@@ -51,7 +47,6 @@ import type {
 import {
 	createEnvironmentKeyEnvelopeRequestToJSON,
 	createEnvironmentKeyRequestToJSON,
-	devicePrekeyBundleFromJSON,
 	encryptedEnvelopeToJSON,
 	environmentKeyResponseFromJSON,
 	environmentKeysFromJSON,
@@ -445,43 +440,6 @@ export class GhostableClient {
 			revokedAt: attrs.revoked_at ? new Date(attrs.revoked_at) : null,
 			success: json.meta?.success ?? false,
 		};
-	}
-
-	async publishSignedPrekey(
-		deviceId: string,
-		prekey: SignedPrekey,
-	): Promise<{ fingerprint: string; updatedAt: Date }> {
-		const json = await this.http.post<PublishSignedPrekeyResponseJson>(
-			`${this.devicePath(deviceId)}/signed-prekey`,
-			{
-				public_key: prekey.publicKey,
-				signature: prekey.signatureFromSigningKey,
-				expires_at: prekey.expiresAtIso ?? null,
-			},
-		);
-		return { fingerprint: json.fingerprint, updatedAt: new Date(json.updated_at) };
-	}
-
-	async publishOneTimePrekeys(deviceId: string, prekeys: OneTimePrekey[]): Promise<number> {
-		if (!prekeys.length) throw new Error('At least one prekey is required');
-		const json = await this.http.post<PublishOneTimePrekeysResponseJson>(
-			`${this.devicePath(deviceId)}/one-time-prekeys`,
-			{
-				prekeys: prekeys.map((prekey) => ({
-					id: prekey.id,
-					public_key: prekey.publicKey,
-					expires_at: prekey.expiresAtIso ?? null,
-				})),
-			},
-		);
-		return json.queued;
-	}
-
-	async getDevicePrekeys(deviceId: string): Promise<DevicePrekeyBundle> {
-		const json = await this.http.get<DevicePrekeyBundleJson>(
-			`${this.devicePath(deviceId)}/prekeys`,
-		);
-		return devicePrekeyBundleFromJSON(json);
 	}
 
 	async sendEnvelope(

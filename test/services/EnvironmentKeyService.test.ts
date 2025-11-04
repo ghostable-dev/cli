@@ -4,6 +4,7 @@ import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { DeviceIdentity } from '../../src/crypto/types/DeviceIdentity.js';
 import type { EnvironmentKey, EncryptedEnvelope } from '../../src/types/index.js';
 import { encryptedEnvelopeToJSON } from '../../src/types/api/crypto.js';
+import { KEYCHAIN_SERVICE_ENVIRONMENT } from '../../src/constants/keychain.js';
 
 type GhostableClientCtor =
 	(typeof import('../../src/services/GhostableClient.js'))['GhostableClient'];
@@ -86,7 +87,7 @@ describe('EnvironmentKeyService.ensureEnvironmentKey', () => {
 
 		expect(keytarMock.setPassword).toHaveBeenCalledTimes(1);
 		const [serviceName, account, payload] = keytarMock.setPassword.mock.calls[0];
-		expect(serviceName).toBe('ghostable-cli-env');
+		expect(serviceName).toBe(KEYCHAIN_SERVICE_ENVIRONMENT);
 		expect(account).toBe('proj-1:production');
 		expect(JSON.parse(payload)).toEqual(storedKey);
 	});

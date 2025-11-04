@@ -1,6 +1,6 @@
 /**
  * Interface for securely storing and retrieving cryptographic keys.
- * Used to manage private keys (e.g., DeviceIdentity, SignedPrekey) and derived keys (e.g., KEKs, DEKs).
+ * Used to manage private keys (e.g., DeviceIdentity) and derived keys (e.g., KEKs, DEKs).
  * Implementations may use in-memory storage (for testing) or platform-specific keychains (for production).
  */
 export interface KeyStore {

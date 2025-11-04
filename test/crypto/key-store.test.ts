@@ -23,6 +23,7 @@ vi.mock('keytar', () => ({
 }));
 
 import { KeytarKeyStore, MemoryKeyStore } from '../../src/crypto/KeyStore.js';
+import { KEYCHAIN_SERVICE_ENVIRONMENT } from '../../src/constants/keychain.js';
 
 const SAMPLE_KEY = new Uint8Array([1, 2, 3, 4]);
 const SAMPLE_B64 = 'AQIDBA==';
@@ -68,11 +69,18 @@ describe('KeytarKeyStore', () => {
 		keytarStub.getPassword.mockResolvedValueOnce(SAMPLE_B64);
 
 		await store.setKey('example', SAMPLE_KEY);
-		expect(keytarStub.setPassword).toHaveBeenCalledWith('ghostable-cli', 'example', SAMPLE_B64);
+		expect(keytarStub.setPassword).toHaveBeenCalledWith(
+			KEYCHAIN_SERVICE_ENVIRONMENT,
+			'example',
+			SAMPLE_B64,
+		);
 
 		const value = await store.getKey('example');
 		expect(value).toEqual(SAMPLE_KEY);
-		expect(keytarStub.getPassword).toHaveBeenCalledWith('ghostable-cli', 'example');
+		expect(keytarStub.getPassword).toHaveBeenCalledWith(
+			KEYCHAIN_SERVICE_ENVIRONMENT,
+			'example',
+		);
 	});
 
 	it('supports custom service names', async () => {
@@ -83,6 +91,22 @@ describe('KeytarKeyStore', () => {
 			'example',
 			SAMPLE_B64,
 		);
+	});
+
+	it('supports dynamic service resolution per key', async () => {
+		const resolver = vi.fn((name: string) => ({
+			service: `svc-${name}`,
+			account: 'data',
+		}));
+		const store = new KeytarKeyStore(resolver);
+		await store.setKey('dynamic', SAMPLE_KEY);
+		expect(resolver).toHaveBeenCalledWith('dynamic');
+		expect(keytarStub.setPassword).toHaveBeenCalledWith('svc-dynamic', 'data', SAMPLE_B64);
+
+		keytarStub.getPassword.mockResolvedValueOnce(SAMPLE_B64);
+		const value = await store.getKey('dynamic');
+		expect(value).toEqual(SAMPLE_KEY);
+		expect(keytarStub.getPassword).toHaveBeenCalledWith('svc-dynamic', 'data');
 	});
 
 	it('validates input arguments', async () => {

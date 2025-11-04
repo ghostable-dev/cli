@@ -4,5 +4,3 @@ export * from './derive/hkdf.js';
 export * from './types/DeviceIdentity.js';
 export * from './types/EncryptedEnvelope.js';
 export * from './types/KeyStore.js';
-export * from './types/OneTimePrekey.js';
-export * from './types/SignedPrekey.js';

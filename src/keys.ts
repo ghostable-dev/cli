@@ -1,7 +1,6 @@
+import { KEYCHAIN_SERVICE_KEY_BUNDLE } from './constants/keychain.js';
 import { randomBytes, b64 } from './crypto.js';
 import { loadKeytar } from './support/keyring.js';
-
-const SERVICE = 'ghostable-cli'; // keep in sync everywhere
 const DEFAULT_PROFILE = 'default';
 
 export type KeyBundle = {
@@ -24,7 +23,7 @@ export async function saveKeys(bundle: KeyBundle, profile = DEFAULT_PROFILE): Pr
 	if (!keytar) {
 		throw new Error('OS keychain is disabled in this context. Use token/env in deploy flows.');
 	}
-	await keytar.setPassword(SERVICE, profile, JSON.stringify(bundle));
+	await keytar.setPassword(KEYCHAIN_SERVICE_KEY_BUNDLE, profile, JSON.stringify(bundle));
 }
 
 /** Load the bundle for a profile, or create & persist a new one if missing. */
@@ -36,7 +35,7 @@ export async function loadOrCreateKeys(profile = DEFAULT_PROFILE): Promise<KeyBu
 		);
 	}
 
-	const existing = await keytar.getPassword(SERVICE, profile);
+	const existing = await keytar.getPassword(KEYCHAIN_SERVICE_KEY_BUNDLE, profile);
 	if (existing) return JSON.parse(existing) as KeyBundle;
 
 	const masterSeed = randomBytes(32);

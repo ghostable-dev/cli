@@ -25,7 +25,7 @@ export type DeviceIdentity = {
 
 	/**
 	 * Used for digital signatures and attestation with Ed25519.
-	 * Verifies actions like publishing prekeys or signing audit logs.
+	 * Verifies actions like signing audit logs or authenticating envelopes.
 	 */
 	signingKey: {
 		alg: 'Ed25519';

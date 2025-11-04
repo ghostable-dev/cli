@@ -1,7 +1,6 @@
 import { Command } from 'commander';
 import { configureLinkCommand } from './link.js';
 import { configureStatusCommand } from './status.js';
-import { configurePrekeysCommands } from './prekeys.js';
 import { configureUnlinkCommand } from './unlink.js';
 import { configureEnvelopeCommands } from './envelopes.js';
 
@@ -12,7 +11,6 @@ export function registerDeviceCommands(program: Command) {
 
 	configureLinkCommand(device);
 	configureStatusCommand(device);
-	configurePrekeysCommands(device);
 	configureUnlinkCommand(device);
 	configureEnvelopeCommands(device);
 }

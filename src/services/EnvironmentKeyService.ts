@@ -1,14 +1,14 @@
 import { sha256 } from '@noble/hashes/sha256';
 import { XChaCha20Poly1305 } from '@stablelib/xchacha20poly1305';
 
+import { KeyService, type DeviceIdentity, type EncryptedEnvelope } from '@/crypto';
+import { isDeploymentTokenActive } from '../domain/DeploymentToken.js';
+import type { DeploymentToken } from '@/domain';
+import { KEYCHAIN_SERVICE_ENVIRONMENT } from '../constants/keychain.js';
 import { randomBytes } from '../crypto.js';
 import { loadKeytar, type Keytar } from '../support/keyring.js';
 import { EnvelopeService } from './EnvelopeService.js';
 import type { GhostableClient } from './GhostableClient.js';
-
-import { KeyService, type DeviceIdentity, type EncryptedEnvelope } from '@/crypto';
-import { isDeploymentTokenActive } from '../domain/DeploymentToken.js';
-import type { DeploymentToken } from '@/domain';
 import { encryptedEnvelopeFromJSON, encryptedEnvelopeToJSON } from '../types/api/crypto.js';
 import type {
 	CreateEnvironmentKeyEnvelopeRequest,
@@ -43,8 +43,6 @@ export type EnsureEnvironmentKeyResult = {
 };
 
 export class EnvironmentKeyService {
-	private static readonly KEYCHAIN_SERVICE = 'ghostable-cli-env';
-
 	private constructor(private readonly keytar: Keytar) {}
 
 	static async create(): Promise<EnvironmentKeyService> {
@@ -124,7 +122,7 @@ export class EnvironmentKeyService {
 		envName: string,
 	): Promise<StoredEnvironmentKey | null> {
 		const raw = await this.keytar.getPassword(
-			EnvironmentKeyService.KEYCHAIN_SERVICE,
+			KEYCHAIN_SERVICE_ENVIRONMENT,
 			EnvironmentKeyService.account(projectId, envName),
 		);
 		if (!raw) return null;
@@ -143,7 +141,7 @@ export class EnvironmentKeyService {
 		value: StoredEnvironmentKey,
 	): Promise<void> {
 		await this.keytar.setPassword(
-			EnvironmentKeyService.KEYCHAIN_SERVICE,
+			KEYCHAIN_SERVICE_ENVIRONMENT,
 			EnvironmentKeyService.account(projectId, envName),
 			JSON.stringify(value),
 		);

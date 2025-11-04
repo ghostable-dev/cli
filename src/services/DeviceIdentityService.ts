@@ -1,6 +1,11 @@
 import { sha256 } from '@noble/hashes/sha256';
 import { KeyService, KeytarKeyStore } from '@/crypto';
-import type { DeviceIdentity, OneTimePrekey, SignedPrekey } from '@/crypto';
+import type { DeviceIdentity } from '@/crypto';
+import {
+	KEYCHAIN_SERVICE_DEVICE_IDENTITY,
+	keychainServiceForDeviceEncryptionKey,
+	keychainServiceForDeviceSigningKey,
+} from '../constants/keychain.js';
 import { loadKeytar, type Keytar } from '../support/keyring.js';
 
 type StoredIdentity = Omit<DeviceIdentity, 'signingKey' | 'encryptionKey'> & {
@@ -15,14 +20,10 @@ type StoredIdentity = Omit<DeviceIdentity, 'signingKey' | 'encryptionKey'> & {
 	};
 };
 
-type StoredSignedPrekey = Omit<SignedPrekey, 'privateKey'>;
-type StoredOneTimePrekey = Omit<OneTimePrekey, 'privateKey'>;
-
 export class DeviceIdentityService {
-	private static readonly KEYCHAIN_SERVICE = 'ghostable-cli-device';
 	private static readonly ACCOUNT_IDENTITY = 'device:identity';
-	private static readonly ACCOUNT_SIGNED_PREKEY = 'device:signed-prekey';
-	private static readonly ACCOUNT_ONE_TIME_PREKEYS = 'device:one-time-prekeys';
+	private static readonly ACCOUNT_PRIVATE_SIGNING_KEY = 'signing-key';
+	private static readonly ACCOUNT_PRIVATE_ENCRYPTION_KEY = 'encryption-key';
 
 	private constructor(
 		private readonly keytar: Keytar,
@@ -37,9 +38,37 @@ export class DeviceIdentityService {
 			);
 		}
 
-		const keyStore = new KeytarKeyStore(this.KEYCHAIN_SERVICE, keytar);
+		const keyStore = new KeytarKeyStore(DeviceIdentityService.resolveDeviceKeyTarget, keytar);
 		KeyService.initialize(keyStore);
 		return new DeviceIdentityService(keytar, keyStore);
+	}
+
+	private static resolveDeviceKeyTarget(name: string): { service: string; account: string } {
+		const parts = name.split(':');
+		if (parts.length !== 3 || parts[0] !== 'device') {
+			throw new Error(`Unsupported device key identifier: ${name}`);
+		}
+
+		const [, deviceId, keyName] = parts;
+		if (!deviceId) {
+			throw new Error('Device id is required for device key storage.');
+		}
+
+		if (keyName === 'signingKey') {
+			return {
+				service: keychainServiceForDeviceSigningKey(deviceId),
+				account: DeviceIdentityService.ACCOUNT_PRIVATE_SIGNING_KEY,
+			};
+		}
+
+		if (keyName === 'encryptionKey') {
+			return {
+				service: keychainServiceForDeviceEncryptionKey(deviceId),
+				account: DeviceIdentityService.ACCOUNT_PRIVATE_ENCRYPTION_KEY,
+			};
+		}
+
+		throw new Error(`Unsupported device key type: ${keyName}`);
 	}
 
 	static fingerprint(publicKeyB64: string): string {
@@ -49,7 +78,7 @@ export class DeviceIdentityService {
 
 	async loadIdentity(): Promise<DeviceIdentity | null> {
 		const raw = await this.keytar.getPassword(
-			DeviceIdentityService.KEYCHAIN_SERVICE,
+			KEYCHAIN_SERVICE_DEVICE_IDENTITY,
 			DeviceIdentityService.ACCOUNT_IDENTITY,
 		);
 		if (!raw) return null;
@@ -97,7 +126,7 @@ export class DeviceIdentityService {
 		};
 
 		await this.keytar.setPassword(
-			DeviceIdentityService.KEYCHAIN_SERVICE,
+			KEYCHAIN_SERVICE_DEVICE_IDENTITY,
 			DeviceIdentityService.ACCOUNT_IDENTITY,
 			JSON.stringify(stored),
 		);
@@ -128,97 +157,8 @@ export class DeviceIdentityService {
 		}
 
 		await this.keytar.deletePassword(
-			DeviceIdentityService.KEYCHAIN_SERVICE,
+			KEYCHAIN_SERVICE_DEVICE_IDENTITY,
 			DeviceIdentityService.ACCOUNT_IDENTITY,
 		);
-	}
-
-	async loadSignedPrekey(): Promise<SignedPrekey | null> {
-		const raw = await this.keytar.getPassword(
-			DeviceIdentityService.KEYCHAIN_SERVICE,
-			DeviceIdentityService.ACCOUNT_SIGNED_PREKEY,
-		);
-		if (!raw) return null;
-		const parsed = JSON.parse(raw) as StoredSignedPrekey;
-		const priv = await this.keyStore.getKey(`signedPrekey:${parsed.id}`);
-		return {
-			...parsed,
-			privateKey: priv ? Buffer.from(priv).toString('base64') : undefined,
-		};
-	}
-
-	async saveSignedPrekey(prekey: SignedPrekey): Promise<void> {
-		const stored: StoredSignedPrekey = { ...prekey };
-		delete (stored as unknown as { privateKey?: string }).privateKey;
-		await this.keytar.setPassword(
-			DeviceIdentityService.KEYCHAIN_SERVICE,
-			DeviceIdentityService.ACCOUNT_SIGNED_PREKEY,
-			JSON.stringify(stored),
-		);
-	}
-
-	async clearSignedPrekey(prekeyId?: string): Promise<void> {
-		if (prekeyId) {
-			await this.keyStore.deleteKey(`signedPrekey:${prekeyId}`);
-			return;
-		}
-
-		await this.keytar.deletePassword(
-			DeviceIdentityService.KEYCHAIN_SERVICE,
-			DeviceIdentityService.ACCOUNT_SIGNED_PREKEY,
-		);
-	}
-
-	async loadOneTimePrekeys(): Promise<OneTimePrekey[]> {
-		const raw = await this.keytar.getPassword(
-			DeviceIdentityService.KEYCHAIN_SERVICE,
-			DeviceIdentityService.ACCOUNT_ONE_TIME_PREKEYS,
-		);
-		if (!raw) return [];
-
-		const parsed = JSON.parse(raw) as StoredOneTimePrekey[];
-		const enriched: OneTimePrekey[] = [];
-
-		for (const prekey of parsed) {
-			const priv = await this.keyStore.getKey(`oneTimePrekey:${prekey.id}`);
-			enriched.push({
-				...prekey,
-				privateKey: priv ? Buffer.from(priv).toString('base64') : undefined,
-			});
-		}
-
-		return enriched;
-	}
-
-	async saveOneTimePrekeys(prekeys: OneTimePrekey[]): Promise<void> {
-		const stored = prekeys
-			.map((prekey) => {
-				const clone: StoredOneTimePrekey = { ...prekey };
-				delete (clone as unknown as { privateKey?: string }).privateKey;
-				return clone;
-			})
-			.sort((a, b) => (a.createdAtIso ?? '').localeCompare(b.createdAtIso ?? ''));
-
-		await this.keytar.setPassword(
-			DeviceIdentityService.KEYCHAIN_SERVICE,
-			DeviceIdentityService.ACCOUNT_ONE_TIME_PREKEYS,
-			JSON.stringify(stored),
-		);
-	}
-
-	async dropOneTimePrekeys(ids: string[]): Promise<void> {
-		if (!ids.length) return;
-		for (const id of ids) {
-			await this.keyStore.deleteKey(`oneTimePrekey:${id}`);
-		}
-
-		const remaining = (await this.loadOneTimePrekeys()).filter(
-			(prekey) => !ids.includes(prekey.id),
-		);
-		await this.saveOneTimePrekeys(remaining);
-	}
-
-	getKeyStore(): KeytarKeyStore {
-		return this.keyStore;
 	}
 }
