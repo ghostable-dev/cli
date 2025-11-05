@@ -68,11 +68,14 @@ export class KeyService {
 		meta?: Record<string, string>,
 	): Promise<EncryptedEnvelope> {
 		const ephemeralKeypair = x25519.generateKeyPair();
-		const privKey = await this.keyStore.getKey(
+		const hasSenderKey = await this.keyStore.getKey(
 			`device:${senderIdentity.deviceId}:encryptionKey`,
 		);
-		if (!privKey) throw new Error('Sender encryption key not found');
-		const sharedSecret = this.deriveSharedSecret(privKey, fromBase64(recipientPubB64));
+		if (!hasSenderKey) throw new Error('Sender encryption key not found');
+		const sharedSecret = this.deriveSharedSecret(
+			ephemeralKeypair.secretKey,
+			fromBase64(recipientPubB64),
+		);
 		const nonce = randomBytes(24);
 		const cipher = new XChaCha20Poly1305(sharedSecret);
 		const ciphertext = cipher.seal(

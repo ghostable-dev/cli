@@ -35,6 +35,11 @@ type DecryptionResult = {
 	warnings: string[];
 };
 
+const SUPPORTED_DEPLOYMENT_ENVELOPE_ALGS = new Set([
+	'xchacha20-poly1305',
+	'xchacha20-poly1305+hkdf-sha256',
+]);
+
 export async function resolveManifestContext(requestedEnv?: string): Promise<ManifestContext> {
 	let projectId: string;
 	let projectName: string;
@@ -152,13 +157,14 @@ export async function decryptBundle(
 		warnings.push(message);
 	};
 
-	const hkdfInfo = new TextEncoder().encode('ghostable:edek:v1');
+	const hkdfInfo = new TextEncoder().encode('ghostable:v1:envelope');
 
 	type DeploymentRecipientPayload = {
 		ciphertext_b64: string;
 		nonce_b64: string;
 		alg?: string | null;
 		aad_b64?: string | null;
+		meta?: Record<string, string> | null;
 	};
 
 	const tryEnvKeyFromEnvelope = (
@@ -220,7 +226,7 @@ export async function decryptBundle(
 		}
 
 		const alg = (payload.alg ?? envelope.alg ?? '').toLowerCase();
-		if (alg && alg !== 'xchacha20-poly1305') {
+		if (alg && !SUPPORTED_DEPLOYMENT_ENVELOPE_ALGS.has(alg)) {
 			const originalAlg = payload.alg ?? envelope.alg ?? alg;
 			warnOnce(
 				'payload-alg',
@@ -251,19 +257,37 @@ export async function decryptBundle(
 
 		const nonce = decodeBase64(payload.nonce_b64);
 		const ciphertext = decodeBase64(payload.ciphertext_b64);
-		const aadBytes = payload.aad_b64 ? decodeBase64(payload.aad_b64) : undefined;
+		const envNonce = decodeBase64(envelope.nonceB64);
+		const envCiphertext = decodeBase64(envelope.ciphertextB64);
+		const metaBytes =
+			payload.meta && Object.keys(payload.meta).length
+				? new Uint8Array(Buffer.from(JSON.stringify(payload.meta), 'utf8'))
+				: undefined;
+		const aadBytes = payload.aad_b64 ? decodeBase64(payload.aad_b64) : metaBytes;
 
+		let dek: Uint8Array;
 		try {
 			const cipher = xchacha20poly1305(edekKey, nonce, aadBytes);
-			const plaintext = cipher.decrypt(ciphertext);
-			const fingerprint = fingerprintOf(plaintext);
-			const cached = { key: plaintext, fingerprint };
-			envKeyCache.set(envScope, cached);
-			return cached;
+			dek = cipher.decrypt(ciphertext);
 		} catch {
 			warnOnce(
 				'decrypt',
 				'Failed to decrypt environment key for deployment token; falling back to keychain derivation.',
+			);
+			return null;
+		}
+
+		try {
+			const envCipher = xchacha20poly1305(dek, envNonce);
+			const envKey = envCipher.decrypt(envCiphertext);
+			const fingerprint = fingerprintOf(envKey);
+			const cached = { key: envKey, fingerprint };
+			envKeyCache.set(envScope, cached);
+			return cached;
+		} catch {
+			warnOnce(
+				'env-decrypt',
+				'Failed to decrypt environment key payload for deployment token.',
 			);
 			return null;
 		}

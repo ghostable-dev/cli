@@ -86,6 +86,11 @@ const uuidStub = vi.hoisted(() => {
 }) as { v4: ReturnType<typeof vi.fn<() => string>> };
 
 vi.mock('uuid', () => uuidStub);
+const randomStub = vi.hoisted(() => ({
+	randomBytes: vi.fn((length: number) => new Uint8Array(length).fill(4)),
+}));
+
+vi.mock('@stablelib/random', () => randomStub);
 
 type KeyServiceModule = typeof import('../../src/crypto/KeyService.js');
 type KeyStoreModule = typeof import('../../src/crypto/KeyStore.js');
@@ -118,5 +123,23 @@ describe('KeyService', () => {
 		expect(encryption).not.toBeNull();
 		expect(Buffer.from(signing!).toString('base64')).toBe(identity.signingKey.privateKey);
 		expect(Buffer.from(encryption!).toString('base64')).toBe(identity.encryptionKey.privateKey);
+	});
+
+	it('encrypts for a recipient using the ephemeral secret key for shared secret derivation', async () => {
+		const identity = await KeyService.createDeviceIdentity('CLI', 'linux');
+		const recipientPub = Buffer.from(new Uint8Array(32).fill(9)).toString('base64');
+		const payload = new Uint8Array([1, 2, 3, 4]);
+
+		x25519Stub.sharedKey.mockClear();
+
+		const envelope = await KeyService.encryptForDevice(identity, recipientPub, payload);
+
+		expect(x25519Stub.sharedKey).toHaveBeenCalledTimes(1);
+		const [secretArg, pubArg] = x25519Stub.sharedKey.mock.calls[0];
+		expect(Array.from(secretArg)).toEqual(new Array(32).fill(3));
+		expect(Array.from(pubArg)).toEqual(new Array(32).fill(9));
+		expect(envelope.fromEphemeralPublicKey).toBe(
+			Buffer.from(new Uint8Array(32).fill(2)).toString('base64'),
+		);
 	});
 });
