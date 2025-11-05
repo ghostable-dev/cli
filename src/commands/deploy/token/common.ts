@@ -1,12 +1,12 @@
 import { select } from '@inquirer/prompts';
 
-import { config } from '../../config/index.js';
-import { SessionService } from '../../services/SessionService.js';
+import { config } from '../../../config/index.js';
+import { SessionService } from '../../../services/SessionService.js';
 import { GhostableClient } from '@/ghostable';
-import { Manifest } from '../../support/Manifest.js';
-import { log } from '../../support/logger.js';
-import { toErrorMessage } from '../../support/errors.js';
-import { DeviceIdentityService } from '../../services/DeviceIdentityService.js';
+import { Manifest } from '../../../support/Manifest.js';
+import { log } from '../../../support/logger.js';
+import { toErrorMessage } from '../../../support/errors.js';
+import { DeviceIdentityService } from '../../../services/DeviceIdentityService.js';
 import { EnvironmentKeyService } from '@/environment/keys/EnvironmentKeyService.js';
 
 import type { DeviceIdentity } from '@/crypto';

@@ -2,16 +2,16 @@ import { Command } from 'commander';
 import { select, input } from '@inquirer/prompts';
 import ora from 'ora';
 
-import { Manifest } from '../support/Manifest.js';
-import { SessionService } from '../services/SessionService.js';
+import { Manifest } from '../../support/Manifest.js';
+import { SessionService } from '../../services/SessionService.js';
 import { GhostableClient } from '@/ghostable';
-import { config } from '../config/index.js';
-import { log } from '../support/logger.js';
-import { toErrorMessage } from '../support/errors.js';
+import { config } from '../../config/index.js';
+import { log } from '../../support/logger.js';
+import { toErrorMessage } from '../../support/errors.js';
 
 import type { Project } from '@/entities';
 
-export function registerOrganizationListCommand(program: Command) {
+export function registerInitCommand(program: Command) {
 	program
 		.command('init')
 		.description(

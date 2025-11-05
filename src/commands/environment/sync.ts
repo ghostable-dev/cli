@@ -1,6 +1,6 @@
 import { Command } from 'commander';
 
-import { runEnvPush, type PushOptions } from './env-push.js';
+import { runEnvPush, type PushOptions } from './push.js';
 
 export function registerEnvSyncCommand(program: Command) {
 	program

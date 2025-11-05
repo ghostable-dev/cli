@@ -9,16 +9,16 @@ import {
 	readEnvFileSafeWithMetadata,
 	buildPreservedSnapshot,
 } from '@/environment/files/env-files.js';
-import { artisan } from '../support/artisan.js';
+import { artisan } from '../../support/artisan.js';
 import {
 	createGhostableClient,
 	decryptBundle,
 	resolveDeployMasterSeed,
 	resolveToken,
-} from '../support/deploy-helpers.js';
-import { log } from '../support/logger.js';
-import { toErrorMessage } from '../support/errors.js';
-import { resolveWorkDir } from '../support/workdir.js';
+} from '../../support/deploy-helpers.js';
+import { log } from '../../support/logger.js';
+import { toErrorMessage } from '../../support/errors.js';
+import { resolveWorkDir } from '../../support/workdir.js';
 import type { EnvironmentSecretBundle } from '@/entities';
 
 export function registerDeployForgeCommand(program: Command) {

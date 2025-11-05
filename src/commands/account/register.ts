@@ -1,11 +1,11 @@
 import { Command } from 'commander';
-import { config } from '../config/index.js';
-import { SessionService } from '../services/SessionService.js';
+import { config } from '../../config/index.js';
+import { SessionService } from '../../services/SessionService.js';
 import { GhostableClient } from '@/ghostable';
-import { log } from '../support/logger.js';
-import { toErrorMessage } from '../support/errors.js';
-import { finalizeAuthentication } from './auth/shared.js';
-import { BrowserAuthFlowResult, runBrowserAuthFlow } from './auth/browser-flow.js';
+import { log } from '../../support/logger.js';
+import { toErrorMessage } from '../../support/errors.js';
+import { finalizeAuthentication } from '../auth/shared.js';
+import { BrowserAuthFlowResult, runBrowserAuthFlow } from '../auth/browser-flow.js';
 
 export function registerRegisterCommand(program: Command) {
 	program

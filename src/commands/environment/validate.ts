@@ -1,9 +1,9 @@
 import { Command } from 'commander';
 import { select } from '@inquirer/prompts';
 
-import { Manifest } from '../support/Manifest.js';
-import { log } from '../support/logger.js';
-import { toErrorMessage } from '../support/errors.js';
+import { Manifest } from '../../support/Manifest.js';
+import { log } from '../../support/logger.js';
+import { toErrorMessage } from '../../support/errors.js';
 import { resolveEnvFile, readEnvFileSafe } from '@/environment/files/env-files.js';
 import { loadMergedSchema, validateVariables } from '@/environment/validation/schema.js';
 import type { SchemaDefinition } from '@/environment/validation/schema.js';

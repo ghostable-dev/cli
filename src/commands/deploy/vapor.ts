@@ -15,11 +15,11 @@ import {
 	decryptBundle,
 	resolveDeployMasterSeed,
 	resolveToken,
-} from '../support/deploy-helpers.js';
-import { vapor } from '../support/vapor.js';
-import { log } from '../support/logger.js';
-import { toErrorMessage } from '../support/errors.js';
-import { resolveWorkDir } from '../support/workdir.js';
+} from '../../support/deploy-helpers.js';
+import { vapor } from '../../support/vapor.js';
+import { log } from '../../support/logger.js';
+import { toErrorMessage } from '../../support/errors.js';
+import { resolveWorkDir } from '../../support/workdir.js';
 
 import type { EnvironmentSecret, EnvironmentSecretBundle } from '@/entities';
 

@@ -1,13 +1,13 @@
 import { Command } from 'commander';
 import { input, password } from '@inquirer/prompts';
 import ora from 'ora';
-import { config } from '../config/index.js';
-import { SessionService } from '../services/SessionService.js';
+import { config } from '../../config/index.js';
+import { SessionService } from '../../services/SessionService.js';
 import { GhostableClient } from '@/ghostable';
-import { log } from '../support/logger.js';
-import { toErrorMessage } from '../support/errors.js';
-import { finalizeAuthentication } from './auth/shared.js';
-import { BrowserAuthFlowResult, runBrowserAuthFlow } from './auth/browser-flow.js';
+import { log } from '../../support/logger.js';
+import { toErrorMessage } from '../../support/errors.js';
+import { finalizeAuthentication } from '../auth/shared.js';
+import { BrowserAuthFlowResult, runBrowserAuthFlow } from '../auth/browser-flow.js';
 
 async function passwordLoginFlow(client: GhostableClient, apiBase: string): Promise<string> {
 	const email = await input({

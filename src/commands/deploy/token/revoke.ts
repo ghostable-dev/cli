@@ -2,8 +2,8 @@ import { Command } from 'commander';
 import { select } from '@inquirer/prompts';
 import ora from 'ora';
 
-import { log } from '../../support/logger.js';
-import { toErrorMessage } from '../../support/errors.js';
+import { log } from '../../../support/logger.js';
+import { toErrorMessage } from '../../../support/errors.js';
 import {
 	requireAuthedClient,
 	requireDeviceIdentity,

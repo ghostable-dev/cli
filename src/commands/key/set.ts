@@ -1,8 +1,8 @@
 import { Command } from 'commander';
 import { input } from '@inquirer/prompts';
 import chalk from 'chalk';
-import { log } from '../support/logger.js';
-import { toErrorMessage } from '../support/errors.js';
+import { log } from '../../support/logger.js';
+import { toErrorMessage } from '../../support/errors.js';
 import { setMasterSeed } from '@/keychain';
 
 export function registerKeySetCommand(program: Command) {

@@ -3,17 +3,17 @@ import { select } from '@inquirer/prompts';
 import chalk from 'chalk';
 import path from 'node:path';
 
-import { Manifest } from '../support/Manifest.js';
-import { config } from '../config/index.js';
-import { SessionService } from '../services/SessionService.js';
+import { Manifest } from '../../support/Manifest.js';
+import { config } from '../../config/index.js';
+import { SessionService } from '../../services/SessionService.js';
 import { GhostableClient } from '@/ghostable';
-import { log } from '../support/logger.js';
-import { toErrorMessage } from '../support/errors.js';
-import { resolveWorkDir } from '../support/workdir.js';
-import { getIgnoredKeys, filterIgnoredKeys } from '../support/ignore.js';
+import { log } from '../../support/logger.js';
+import { toErrorMessage } from '../../support/errors.js';
+import { resolveWorkDir } from '../../support/workdir.js';
+import { getIgnoredKeys, filterIgnoredKeys } from '../../support/ignore.js';
 
 import { initSodium } from '@/crypto';
-import { decryptBundle } from '../support/deploy-helpers.js';
+import { decryptBundle } from '../../support/deploy-helpers.js';
 import { readEnvFileSafe, resolveEnvFile } from '@/environment/files/env-files.js';
 
 import type { EnvironmentSecretBundle } from '@/entities';

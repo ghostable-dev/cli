@@ -1,9 +1,9 @@
 import { Command } from 'commander';
-import { config } from '../config/index.js';
-import { SessionService } from '../services/SessionService.js';
+import { config } from '../../config/index.js';
+import { SessionService } from '../../services/SessionService.js';
 import { GhostableClient } from '@/ghostable';
-import { Manifest } from '../support/Manifest.js';
-import { log } from '../support/logger.js';
+import { Manifest } from '../../support/Manifest.js';
+import { log } from '../../support/logger.js';
 import type { Environment } from '@/entities';
 
 export function registerEnvListCommand(program: Command) {

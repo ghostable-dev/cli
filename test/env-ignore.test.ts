@@ -232,14 +232,14 @@ vi.mock('../src/support/errors.js', () => ({
 	toErrorMessage: (err: unknown) => String(err),
 }));
 
-let registerEnvDiffCommand: typeof import('../src/commands/env-diff.js').registerEnvDiffCommand;
-let registerEnvPushCommand: typeof import('../src/commands/env-push.js').registerEnvPushCommand;
-let registerEnvPullCommand: typeof import('../src/commands/env-pull.js').registerEnvPullCommand;
+let registerEnvDiffCommand: typeof import('../src/commands/environment/diff.js').registerEnvDiffCommand;
+let registerEnvPushCommand: typeof import('../src/commands/environment/push.js').registerEnvPushCommand;
+let registerEnvPullCommand: typeof import('../src/commands/environment/pull.js').registerEnvPullCommand;
 
 beforeAll(async () => {
-	({ registerEnvDiffCommand } = await import('../src/commands/env-diff.js'));
-	({ registerEnvPushCommand } = await import('../src/commands/env-push.js'));
-	({ registerEnvPullCommand } = await import('../src/commands/env-pull.js'));
+	({ registerEnvDiffCommand } = await import('../src/commands/environment/diff.js'));
+	({ registerEnvPushCommand } = await import('../src/commands/environment/push.js'));
+	({ registerEnvPullCommand } = await import('../src/commands/environment/pull.js'));
 });
 
 beforeEach(() => {

@@ -1,7 +1,7 @@
 import { Command } from 'commander';
 
-import { log } from '../../support/logger.js';
-import { toErrorMessage } from '../../support/errors.js';
+import { log } from '../../../support/logger.js';
+import { toErrorMessage } from '../../../support/errors.js';
 import { requireAuthedClient, requireProjectContext, selectEnvironment } from './common.js';
 import type { DeploymentToken } from '@/entities';
 

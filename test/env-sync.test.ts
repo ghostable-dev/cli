@@ -3,7 +3,7 @@ import { Command } from 'commander';
 
 const runEnvPushMock = vi.hoisted(() => vi.fn());
 
-vi.mock('../src/commands/env-push.js', () => ({
+vi.mock('../src/commands/environment/push.js', () => ({
 	runEnvPush: runEnvPushMock,
 }));
 
@@ -17,7 +17,7 @@ describe('env:sync command', () => {
 		const program = new Command();
 		program.exitOverride();
 
-		const { registerEnvSyncCommand } = await import('../src/commands/env-sync.js');
+		const { registerEnvSyncCommand } = await import('../src/commands/environment/sync.js');
 		registerEnvSyncCommand(program);
 
 		await program.parseAsync(['env:sync', '--env', 'prod'], { from: 'user' });
