@@ -4,7 +4,6 @@ import { HttpError } from './http/errors.js';
 import {
 	DeploymentToken,
 	Device,
-	DeviceEnvelope,
 	Environment,
 	EnvironmentSecretBundle,
 	EnvironmentSuggestedName,
@@ -13,15 +12,12 @@ import {
 	Project,
 } from '@/entities';
 import type { DeviceStatus } from '@/entities';
-import type { EncryptedEnvelope } from '@/crypto';
 
 import type {
-	ConsumeEnvelopeResponseJson,
 	CreateEnvironmentKeyEnvelopeRequest,
 	CreateEnvironmentKeyRequest,
 	DeviceDeleteResponseJson,
 	DeviceDocumentJson,
-	DeviceEnvelopeJson,
 	DeviceResourceJson,
 	EnvironmentJson,
 	EnvironmentKey,
@@ -33,7 +29,6 @@ import type {
 	EnvironmentTypeJson,
 	OrganizationJson,
 	ProjectJson,
-	QueueEnvelopeResponseJson,
 	SignedEnvironmentSecretBatchUploadRequest,
 	SignedEnvironmentSecretUploadRequest,
 	CreateDeploymentTokenRequestJson,
@@ -47,7 +42,6 @@ import type {
 import {
 	createEnvironmentKeyEnvelopeRequestToJSON,
 	createEnvironmentKeyRequestToJSON,
-	encryptedEnvelopeToJSON,
 	environmentKeyResponseFromJSON,
 	environmentKeysFromJSON,
 	deploymentTokenFromJSON,
@@ -440,53 +434,5 @@ export class GhostableClient {
 			revokedAt: attrs.revoked_at ? new Date(attrs.revoked_at) : null,
 			success: json.meta?.success ?? false,
 		};
-	}
-
-	async sendEnvelope(
-		deviceId: string,
-		envelope: EncryptedEnvelope,
-		senderDeviceId?: string,
-	): Promise<{ id: string }> {
-		const json = await this.http.post<{ id: string }>(
-			`${this.devicePath(deviceId)}/envelopes`,
-			{
-				envelope: encryptedEnvelopeToJSON(envelope),
-				sender_device_id: senderDeviceId ?? deviceId,
-			},
-		);
-		return { id: json.id };
-	}
-
-	async queueEnvelope(
-		deviceId: string,
-		payload: { ciphertext: string; senderDeviceId: string },
-	): Promise<{ id: string; queued: boolean }> {
-		const json = await this.http.post<QueueEnvelopeResponseJson>(
-			`${this.devicePath(deviceId)}/envelopes`,
-			{
-				ciphertext: payload.ciphertext,
-				sender_device_id: payload.senderDeviceId,
-			},
-		);
-		return { id: json.id, queued: json.queued };
-	}
-
-	async getEnvelopes(deviceId: string): Promise<DeviceEnvelope[]> {
-		const json = await this.http.get<DeviceEnvelopeJson[]>(
-			`${this.devicePath(deviceId)}/envelopes`,
-		);
-		return json.map((item) => ({
-			id: item.id,
-			ciphertext: item.ciphertext,
-			createdAt: new Date(item.created_at),
-		}));
-	}
-
-	async consumeEnvelope(deviceId: string, envelopeId: string): Promise<boolean> {
-		const json = await this.http.post<ConsumeEnvelopeResponseJson>(
-			`${this.devicePath(deviceId)}/envelopes/${encodeURIComponent(envelopeId)}/consume`,
-			{},
-		);
-		return json.success === true;
 	}
 }

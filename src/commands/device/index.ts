@@ -2,7 +2,6 @@ import { Command } from 'commander';
 import { configureLinkCommand } from './link.js';
 import { configureStatusCommand } from './status.js';
 import { configureUnlinkCommand } from './unlink.js';
-import { configureEnvelopeCommands } from './envelopes.js';
 
 export function registerDeviceCommands(program: Command) {
 	const device = program
@@ -12,7 +11,6 @@ export function registerDeviceCommands(program: Command) {
 	configureLinkCommand(device);
 	configureStatusCommand(device);
 	configureUnlinkCommand(device);
-	configureEnvelopeCommands(device);
 }
 
 export { linkDeviceFlow } from './link.js';

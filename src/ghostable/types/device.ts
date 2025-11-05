@@ -30,18 +30,3 @@ export type DeviceDeleteResponseJson = {
 	};
 	meta?: { success?: boolean };
 };
-
-export type QueueEnvelopeResponseJson = {
-	id: string;
-	queued: boolean;
-};
-
-export type DeviceEnvelopeJson = {
-	id: string;
-	ciphertext: string;
-	created_at: string;
-};
-
-export type ConsumeEnvelopeResponseJson = {
-	success: boolean;
-};
