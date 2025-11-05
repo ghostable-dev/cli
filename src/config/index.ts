@@ -1,5 +1,5 @@
 import 'dotenv/config';
-import { KEYCHAIN_SERVICE_SESSION } from '../constants/keychain.js';
+import { KEYCHAIN_SERVICE_SESSION } from '@/keychain';
 
 export interface AppConfig {
 	apiBase: string;

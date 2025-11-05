@@ -22,7 +22,7 @@ import {
 	DEPLOYMENT_ENVELOPE_HKDF_INFO,
 } from '@/crypto';
 import type { AAD } from '@/crypto';
-import { loadOrCreateKeys } from '../keys.js';
+import { loadOrCreateKeys } from '@/keychain';
 import { toErrorMessage } from './errors.js';
 
 import { EnvironmentSecret, EnvironmentSecretBundle } from '@/domain';

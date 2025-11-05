@@ -5,8 +5,9 @@ import {
 	KEYCHAIN_SERVICE_DEVICE_IDENTITY,
 	keychainServiceForDeviceEncryptionKey,
 	keychainServiceForDeviceSigningKey,
-} from '../constants/keychain.js';
-import { loadKeytar, type Keytar } from '../support/keyring.js';
+	loadKeytar,
+	type Keytar,
+} from '@/keychain';
 
 type StoredIdentity = Omit<DeviceIdentity, 'signingKey' | 'encryptionKey'> & {
 	signingKey: {

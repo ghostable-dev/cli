@@ -15,7 +15,7 @@ import { toErrorMessage } from '../support/errors.js';
 import { getIgnoredKeys, filterIgnoredKeys } from '../support/ignore.js';
 import { resolveEnvFile, readEnvFileSafeWithMetadata } from '../support/env-files.js';
 import { initSodium } from '@/crypto';
-import { loadOrCreateKeys } from '../keys.js';
+import { loadOrCreateKeys } from '@/keychain';
 import { buildSecretPayload } from '../support/secret-payload.js';
 import type { SignedEnvironmentSecretUploadRequest } from '@/types';
 

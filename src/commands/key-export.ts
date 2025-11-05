@@ -2,7 +2,7 @@ import { Command } from 'commander';
 import { select } from '@inquirer/prompts';
 import chalk from 'chalk';
 import { Manifest } from '../support/Manifest.js';
-import { loadOrCreateKeys } from '../keys.js';
+import { loadOrCreateKeys } from '@/keychain';
 import { deriveKeys, b64 } from '@/crypto';
 import { SessionService } from '../services/SessionService.js';
 import { log } from '../support/logger.js';

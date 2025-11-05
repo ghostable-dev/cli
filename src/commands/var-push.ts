@@ -4,7 +4,7 @@ import fs from 'node:fs';
 import chalk from 'chalk';
 
 import { initSodium } from '@/crypto';
-import { loadOrCreateKeys } from '../keys.js';
+import { loadOrCreateKeys } from '@/keychain';
 import { config } from '../config/index.js';
 import { SessionService } from '../services/SessionService.js';
 import { GhostableClient } from '../services/GhostableClient.js';

@@ -1,5 +1,5 @@
 import keytarModule from 'keytar';
-import { KEYCHAIN_SERVICE_ENVIRONMENT } from '../constants/keychain.js';
+import { KEYCHAIN_SERVICE_ENVIRONMENT } from '@/keychain';
 import { toBase64, fromBase64 } from './utils.js';
 import { KeyStore } from './types/KeyStore.js';
 

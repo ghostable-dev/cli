@@ -10,8 +10,7 @@ import {
 } from '@/crypto';
 import { isDeploymentTokenActive } from '../domain/DeploymentToken.js';
 import type { DeploymentToken } from '@/domain';
-import { KEYCHAIN_SERVICE_ENVIRONMENT } from '../constants/keychain.js';
-import { loadKeytar, type Keytar } from '../support/keyring.js';
+import { KEYCHAIN_SERVICE_ENVIRONMENT, loadKeytar, type Keytar } from '@/keychain';
 import { EnvelopeService } from './EnvelopeService.js';
 import type { GhostableClient } from './GhostableClient.js';
 import { encryptedEnvelopeFromJSON, encryptedEnvelopeToJSON } from '../types/api/crypto.js';

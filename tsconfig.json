@@ -12,6 +12,7 @@
         "paths": {
             "@/*": ["src/*"],
             "@/crypto": ["src/crypto/index.ts"],
+            "@/keychain": ["src/keychain/index.ts"],
             "@/types": ["src/types/index.ts"],
             "@/domain": ["src/domain/index.ts"]
         }

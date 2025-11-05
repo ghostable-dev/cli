@@ -1,6 +1,6 @@
-import { KEYCHAIN_SERVICE_KEY_BUNDLE } from './constants/keychain.js';
 import { randomBytes, b64 } from '@/crypto';
-import { loadKeytar } from './support/keyring.js';
+import { KEYCHAIN_SERVICE_KEY_BUNDLE } from './constants.js';
+import { loadKeytar } from './keyring.js';
 const DEFAULT_PROFILE = 'default';
 
 export type KeyBundle = {
