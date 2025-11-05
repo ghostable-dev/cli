@@ -7,7 +7,7 @@ import { Manifest } from '../support/Manifest.js';
 import { config } from '../config/index.js';
 import { SessionService } from '../services/SessionService.js';
 import { GhostableClient } from '../services/GhostableClient.js';
-import { initSodium, deriveKeys, aeadDecrypt, scopeFromAAD } from '../crypto.js';
+import { initSodium, deriveKeys, aeadDecrypt, scopeFromAAD } from '@/crypto';
 import { log } from '../support/logger.js';
 import { toErrorMessage } from '../support/errors.js';
 import { resolveWorkDir } from '../support/workdir.js';

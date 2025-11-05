@@ -7,7 +7,7 @@ import { v4 as uuid } from 'uuid';
 import { toBase64, fromBase64 } from './utils.js';
 import { deriveHKDF } from './derive/hkdf.js';
 import { KeyStore } from './types/KeyStore.js';
-import { DEPLOYMENT_ENVELOPE_HKDF_INFO } from '../constants/crypto.js';
+import { DEPLOYMENT_ENVELOPE_HKDF_INFO } from './constants.js';
 
 import { DeviceIdentity } from './types/DeviceIdentity.js';
 import { EncryptedEnvelope } from './types/EncryptedEnvelope.js';

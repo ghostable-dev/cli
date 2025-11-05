@@ -3,7 +3,7 @@ import { select } from '@inquirer/prompts';
 import chalk from 'chalk';
 import { Manifest } from '../support/Manifest.js';
 import { loadOrCreateKeys } from '../keys.js';
-import { deriveKeys, b64 } from '../crypto.js';
+import { deriveKeys, b64 } from '@/crypto';
 import { SessionService } from '../services/SessionService.js';
 import { log } from '../support/logger.js';
 import { toErrorMessage } from '../support/errors.js';

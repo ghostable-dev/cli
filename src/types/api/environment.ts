@@ -1,4 +1,4 @@
-import type { AAD, CipherAlg, Claims } from '@/types';
+import type { AAD, CipherAlg, Claims } from '@/crypto';
 
 /**
  * Environment shape returned by Ghostable’s API.

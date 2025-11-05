@@ -15,12 +15,12 @@ export type ValidatorRecord = Record<string, unknown>;
  * environment secret during upload.
  *
  * - **hmac** — Base64-encoded HMAC of the plaintext, computed with the
- *   per-scope HMAC key.  The server never sees the key; this value is
+ *   per-scope HMAC key. The server never sees the key; this value is
  *   used client-side for drift / equality detection and tamper checking.
  *
  * - **validators** — Arbitrary validation results the client attaches
  *   before upload (for example `{ non_empty: true }` or regex / length
- *   checks).  These are purely informational metadata and don’t affect
+ *   checks). These are purely informational metadata and don’t affect
  *   encryption.
  */
 export type Claims = {

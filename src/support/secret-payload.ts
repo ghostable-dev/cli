@@ -1,10 +1,6 @@
-import { aeadEncrypt, b64, deriveKeys, edSign, hmacSHA256 } from '../crypto.js';
-import type {
-	AAD,
-	Claims,
-	SecretUploadValidators,
-	SignedEnvironmentSecretUploadRequest,
-} from '@/types';
+import { aeadEncrypt, b64, deriveKeys, edSign, hmacSHA256 } from '@/crypto';
+import type { SecretUploadValidators, SignedEnvironmentSecretUploadRequest } from '@/types';
+import type { AAD, Claims } from '@/crypto';
 
 export async function buildSecretPayload(opts: {
 	org: string;

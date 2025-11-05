@@ -1,5 +1,5 @@
 import { KEYCHAIN_SERVICE_KEY_BUNDLE } from './constants/keychain.js';
-import { randomBytes, b64 } from './crypto.js';
+import { randomBytes, b64 } from '@/crypto';
 import { loadKeytar } from './support/keyring.js';
 const DEFAULT_PROFILE = 'default';
 

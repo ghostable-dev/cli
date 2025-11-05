@@ -3,7 +3,7 @@ import ora from 'ora';
 import path from 'node:path';
 import fs from 'node:fs';
 
-import { b64, randomBytes } from '../crypto.js';
+import { b64, randomBytes } from '@/crypto';
 import {
 	writeEnvFile,
 	readEnvFileSafeWithMetadata,

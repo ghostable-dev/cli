@@ -6,8 +6,8 @@ import { sha256 } from '@noble/hashes/sha256';
 import { sha512 } from '@noble/hashes/sha512';
 import { hmac as nobleHmac } from '@noble/hashes/hmac';
 import { randomBytes as nobleRandom } from '@noble/hashes/utils';
-import { CIPHER_ALG } from '@/types';
-import type { AAD, CipherBundle } from '@/types';
+import { CIPHER_ALG } from './types/Cipher.js';
+import type { AAD, CipherBundle } from './types/Cipher.js';
 
 // wire noble/ed25519 helpers once
 ed.etc.sha512Sync = (m: Uint8Array) => sha512(m);

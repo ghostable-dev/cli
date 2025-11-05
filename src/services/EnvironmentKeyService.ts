@@ -1,11 +1,16 @@
 import { sha256 } from '@noble/hashes/sha256';
 import { XChaCha20Poly1305 } from '@stablelib/xchacha20poly1305';
 
-import { KeyService, type DeviceIdentity, type EncryptedEnvelope } from '@/crypto';
+import {
+	KeyService,
+	CIPHER_ALG,
+	randomBytes,
+	type DeviceIdentity,
+	type EncryptedEnvelope,
+} from '@/crypto';
 import { isDeploymentTokenActive } from '../domain/DeploymentToken.js';
 import type { DeploymentToken } from '@/domain';
 import { KEYCHAIN_SERVICE_ENVIRONMENT } from '../constants/keychain.js';
-import { randomBytes } from '../crypto.js';
 import { loadKeytar, type Keytar } from '../support/keyring.js';
 import { EnvelopeService } from './EnvelopeService.js';
 import type { GhostableClient } from './GhostableClient.js';
@@ -15,7 +20,6 @@ import type {
 	CreateEnvironmentKeyRequest,
 	EnvironmentKeyEnvelope,
 } from '../types/api/environment.js';
-import { CIPHER_ALG } from '../types/crypto.js';
 
 function toHex(bytes: Uint8Array): string {
 	return Buffer.from(bytes).toString('hex');

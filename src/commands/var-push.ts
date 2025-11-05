@@ -3,7 +3,7 @@ import { select } from '@inquirer/prompts';
 import fs from 'node:fs';
 import chalk from 'chalk';
 
-import { initSodium } from '../crypto.js';
+import { initSodium } from '@/crypto';
 import { loadOrCreateKeys } from '../keys.js';
 import { config } from '../config/index.js';
 import { SessionService } from '../services/SessionService.js';
@@ -21,7 +21,7 @@ import {
 import { getIgnoredKeys, filterIgnoredKeys } from '../support/ignore.js';
 import { buildSecretPayload } from '../support/secret-payload.js';
 
-import type { ValidatorRecord } from '@/types';
+import type { ValidatorRecord } from '@/crypto';
 
 export type VarPushOptions = {
 	env?: string;

@@ -1,4 +1,5 @@
-import type { EnvironmentSecretJson, AAD, CipherAlg, Claims } from '@/types';
+import type { EnvironmentSecretJson } from '@/types';
+import type { AAD, CipherAlg, Claims } from '@/crypto';
 
 /**
  * Domain model for a single encrypted environment secret.

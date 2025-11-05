@@ -12,7 +12,7 @@ import { toErrorMessage } from '../support/errors.js';
 import { resolveWorkDir } from '../support/workdir.js';
 import { getIgnoredKeys, filterIgnoredKeys } from '../support/ignore.js';
 
-import { initSodium } from '../crypto.js';
+import { initSodium } from '@/crypto';
 import { decryptBundle } from '../support/deploy-helpers.js';
 import { readEnvFileSafe, resolveEnvFile } from '../support/env-files.js';
 
