@@ -11,8 +11,8 @@ import {
 	EnvironmentType,
 	Organization,
 	Project,
-} from '@/domain';
-import type { DeviceStatus } from '@/domain';
+} from '@/entities';
+import type { DeviceStatus } from '@/entities';
 import type { EncryptedEnvelope } from '@/crypto';
 
 import type {

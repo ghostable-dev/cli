@@ -8,10 +8,10 @@ import {
 	type DeviceIdentity,
 	type EncryptedEnvelope,
 } from '@/crypto';
-import { isDeploymentTokenActive } from '../domain/DeploymentToken.js';
-import type { DeploymentToken } from '@/domain';
+import { isDeploymentTokenActive } from '@/entities';
+import type { DeploymentToken } from '@/entities';
 import { KEYCHAIN_SERVICE_ENVIRONMENT, loadKeytar, type Keytar } from '@/keychain';
-import { EnvelopeService } from './EnvelopeService.js';
+import { EnvelopeService } from '@/services/EnvelopeService.js';
 import { encryptedEnvelopeFromJSON, encryptedEnvelopeToJSON } from '@/ghostable/types/crypto.js';
 import type {
 	CreateEnvironmentKeyEnvelopeRequest,

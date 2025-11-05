@@ -1,6 +1,6 @@
 import type { ProjectJson } from '@/ghostable/types/project.js';
 import type { EnvironmentJson } from '@/ghostable/types/environment.js';
-import { Environment } from '@/domain';
+import { Environment } from './environment/Environment.js';
 
 /**
  * Domain model for a Project.

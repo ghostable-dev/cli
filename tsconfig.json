@@ -14,7 +14,7 @@
             "@/crypto": ["src/crypto/index.ts"],
             "@/keychain": ["src/keychain/index.ts"],
             "@/types": ["src/types/index.ts"],
-            "@/domain": ["src/domain/index.ts"],
+            "@/entities": ["src/entities/index.ts"],
             "@/ghostable": ["src/ghostable/index.ts"],
             "@/ghostable/*": ["src/ghostable/*"]
         }

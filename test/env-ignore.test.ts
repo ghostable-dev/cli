@@ -119,7 +119,7 @@ vi.mock('../src/support/deploy-helpers.js', () => ({
 	decryptBundle: vi.fn(async () => ({ secrets: decryptedSecrets, warnings: [] })),
 }));
 
-vi.mock('../src/support/env-files.js', () => ({
+vi.mock('../src/environment/files/env-files.js', () => ({
 	readEnvFileSafe: vi.fn(() => localEnvVars),
 	resolveEnvFile: vi.fn(() => envFilePath),
 	readEnvFileSafeWithMetadata: vi.fn(() => ({ vars: localEnvVars, snapshots })),
@@ -132,9 +132,8 @@ vi.mock('../src/support/workdir.js', () => ({
 const initSodiumMock = vi.hoisted(() => vi.fn(async () => {}));
 
 vi.mock('@/crypto', async () => {
-	const actual = await vi.importActual<typeof import('../src/crypto/index.js')>(
-		'../src/crypto/index.js',
-	);
+	const actual =
+		await vi.importActual<typeof import('../src/crypto/index.js')>('../src/crypto/index.js');
 	return {
 		...actual,
 		initSodium: initSodiumMock,
@@ -194,7 +193,7 @@ const createEnvironmentKeyServiceMock = vi.fn(async () => ({
 	publishKeyEnvelopes: publishKeyEnvelopesMock,
 }));
 
-vi.mock('../src/services/EnvironmentKeyService.js', () => ({
+vi.mock('../src/environment/keys/EnvironmentKeyService.js', () => ({
 	EnvironmentKeyService: {
 		create: createEnvironmentKeyServiceMock,
 	},

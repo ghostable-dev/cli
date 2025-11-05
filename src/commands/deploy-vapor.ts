@@ -9,7 +9,7 @@ import {
 	writeEnvFile,
 	readEnvFileSafeWithMetadata,
 	buildPreservedSnapshot,
-} from '../support/env-files.js';
+} from '@/environment/files/env-files.js';
 import {
 	createGhostableClient,
 	decryptBundle,
@@ -21,7 +21,7 @@ import { log } from '../support/logger.js';
 import { toErrorMessage } from '../support/errors.js';
 import { resolveWorkDir } from '../support/workdir.js';
 
-import type { EnvironmentSecret, EnvironmentSecretBundle } from '@/domain';
+import type { EnvironmentSecret, EnvironmentSecretBundle } from '@/entities';
 
 export function registerDeployVaporCommand(program: Command) {
 	program

@@ -9,7 +9,9 @@ vi.mock('../src/support/workdir.js', () => ({
 	resolveWorkDir: () => workDir,
 }));
 
-const { loadMergedSchema, validateVariables } = await import('../src/support/env-schema.js');
+const { loadMergedSchema, validateVariables } = await import(
+	'../src/environment/validation/schema.js'
+);
 
 const tmpDirs: string[] = [];
 

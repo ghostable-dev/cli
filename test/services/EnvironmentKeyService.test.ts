@@ -11,7 +11,7 @@ type GhostableClientCtor =
 	(typeof import('../../src/ghostable/GhostableClient.js'))['GhostableClient'];
 
 type EnvironmentKeyServiceCtor =
-	(typeof import('../../src/services/EnvironmentKeyService.js'))['EnvironmentKeyService'];
+	(typeof import('../../src/environment/keys/EnvironmentKeyService.js'))['EnvironmentKeyService'];
 
 const keytarMock = vi.hoisted(() => ({
 	getPassword: vi.fn<[service: string, account: string], Promise<string | null>>(),
@@ -51,7 +51,9 @@ vi.mock('../../src/crypto.js', () => ({
 let EnvironmentKeyService: EnvironmentKeyServiceCtor;
 
 beforeAll(async () => {
-	({ EnvironmentKeyService } = await import('../../src/services/EnvironmentKeyService.js'));
+	({ EnvironmentKeyService } = await import(
+		'../../src/environment/keys/EnvironmentKeyService.js'
+	));
 });
 
 beforeEach(() => {

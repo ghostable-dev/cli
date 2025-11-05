@@ -1,4 +1,4 @@
-import type { DeploymentToken } from '@/domain';
+import type { DeploymentToken } from '@/entities';
 
 export type DeploymentTokenStatusJson = 'active' | 'revoked';
 

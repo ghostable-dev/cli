@@ -14,9 +14,9 @@ import { getIgnoredKeys, filterIgnoredKeys } from '../support/ignore.js';
 
 import { initSodium } from '@/crypto';
 import { decryptBundle } from '../support/deploy-helpers.js';
-import { readEnvFileSafe, resolveEnvFile } from '../support/env-files.js';
+import { readEnvFileSafe, resolveEnvFile } from '@/environment/files/env-files.js';
 
-import type { EnvironmentSecretBundle } from '@/domain';
+import type { EnvironmentSecretBundle } from '@/entities';
 
 type DiffOptions = {
 	token?: string;

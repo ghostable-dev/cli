@@ -25,7 +25,7 @@ import type { AAD } from '@/crypto';
 import { loadOrCreateKeys } from '@/keychain';
 import { toErrorMessage } from './errors.js';
 
-import { EnvironmentSecret, EnvironmentSecretBundle } from '@/domain';
+import { EnvironmentSecret, EnvironmentSecretBundle } from '@/entities';
 
 type ManifestContext = {
 	projectId: string;

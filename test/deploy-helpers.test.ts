@@ -6,7 +6,7 @@ import { x25519 } from '@noble/curves/ed25519.js';
 import { xchacha20poly1305 } from '@noble/ciphers/chacha.js';
 
 import { decryptBundle } from '../src/support/deploy-helpers.js';
-import { EnvironmentSecretBundle } from '../src/domain/EnvironmentSecretBundle.js';
+import { EnvironmentSecretBundle } from '@/entities';
 import { encryptedEnvelopeToJSON } from '../src/ghostable/types/crypto.js';
 import {
 	KeyService,

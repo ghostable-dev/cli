@@ -3,7 +3,7 @@ import { config } from '../config/index.js';
 import { SessionService } from '../services/SessionService.js';
 import { GhostableClient } from '@/ghostable';
 import { log } from '../support/logger.js';
-import type { Organization } from '@/domain';
+import type { Organization } from '@/entities';
 
 export function registerOrganizationListCommand(program: Command) {
 	program

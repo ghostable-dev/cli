@@ -2,9 +2,9 @@ import fs from 'node:fs';
 import path from 'node:path';
 import yaml from 'js-yaml';
 
-import { getRuleValidator } from './env-rules/index.js';
-import type { ParsedRule } from './env-rules/types.js';
-import { resolveWorkDir } from './workdir.js';
+import { getRuleValidator } from './rules/index.js';
+import type { ParsedRule } from './rules/types.js';
+import { resolveWorkDir } from '@/support/workdir.js';
 
 export type SchemaRule = string;
 export type SchemaDefinition = Record<string, SchemaRule[]>;

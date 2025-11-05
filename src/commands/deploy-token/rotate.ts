@@ -15,7 +15,7 @@ import {
 } from './common.js';
 
 import { KeyService, MemoryKeyStore } from '@/crypto';
-import { formatDeploymentTokenLabel } from '@/domain';
+import { formatDeploymentTokenLabel } from '@/entities';
 
 export function configureRotateCommand(parent: Command) {
 	parent

@@ -7,7 +7,7 @@ export default defineConfig({
 			{ find: '@', replacement: path.resolve(__dirname, 'src') },
 			{ find: '@/crypto', replacement: path.resolve(__dirname, 'src/crypto') },
 			{ find: '@/types', replacement: path.resolve(__dirname, 'src/types') },
-			{ find: '@/domain', replacement: path.resolve(__dirname, 'src/domain') },
+			{ find: '@/entities', replacement: path.resolve(__dirname, 'src/entities') },
 			{ find: '@/ghostable', replacement: path.resolve(__dirname, 'src/ghostable') },
 		],
 	},

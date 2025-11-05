@@ -5,7 +5,7 @@ import type { EncryptedEnvelope } from '../../src/crypto/index.js';
 import { encryptedEnvelopeToJSON } from '../../src/ghostable/types/crypto.js';
 
 vi.mock(
-	'@/domain',
+	'@/entities',
 	() => ({
 		Device: { fromResource: vi.fn(), fromJSON: vi.fn() },
 		Environment: { fromJSON: vi.fn() },

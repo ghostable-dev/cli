@@ -9,7 +9,7 @@ import { config } from '../config/index.js';
 import { log } from '../support/logger.js';
 import { toErrorMessage } from '../support/errors.js';
 
-import type { Project } from '@/domain';
+import type { Project } from '@/entities';
 
 export function registerOrganizationListCommand(program: Command) {
 	program

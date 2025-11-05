@@ -3,7 +3,7 @@ import { config } from '../config/index.js';
 import { SessionService } from '../services/SessionService.js';
 import { GhostableClient } from '@/ghostable';
 import { log } from '../support/logger.js';
-import type { Project } from '@/domain';
+import type { Project } from '@/entities';
 
 export function registerProjectListCommand(program: Command) {
 	program

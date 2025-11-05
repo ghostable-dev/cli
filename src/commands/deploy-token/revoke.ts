@@ -12,7 +12,7 @@ import {
 	selectEnvironment,
 } from './common.js';
 
-import { formatDeploymentTokenLabel, isDeploymentTokenActive } from '@/domain';
+import { formatDeploymentTokenLabel, isDeploymentTokenActive } from '@/entities';
 
 export function configureRevokeCommand(parent: Command) {
 	parent

@@ -10,7 +10,7 @@ import { config } from '../config/index.js';
 import { log } from '../support/logger.js';
 import { toErrorMessage } from '../support/errors.js';
 
-import type { EnvironmentType, EnvironmentSuggestedName } from '@/domain';
+import type { EnvironmentType, EnvironmentSuggestedName } from '@/entities';
 
 export function registerEnvInitCommand(program: Command) {
 	program

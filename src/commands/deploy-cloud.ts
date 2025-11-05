@@ -6,7 +6,7 @@ import {
 	writeEnvFile,
 	readEnvFileSafeWithMetadata,
 	buildPreservedSnapshot,
-} from '../support/env-files.js';
+} from '@/environment/files/env-files.js';
 import {
 	createGhostableClient,
 	decryptBundle,
@@ -17,7 +17,7 @@ import { log } from '../support/logger.js';
 import { toErrorMessage } from '../support/errors.js';
 import { resolveWorkDir } from '../support/workdir.js';
 
-import type { EnvironmentSecretBundle } from '@/domain';
+import type { EnvironmentSecretBundle } from '@/entities';
 
 export function registerDeployCloudCommand(program: Command) {
 	program

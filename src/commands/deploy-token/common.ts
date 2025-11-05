@@ -7,10 +7,10 @@ import { Manifest } from '../../support/Manifest.js';
 import { log } from '../../support/logger.js';
 import { toErrorMessage } from '../../support/errors.js';
 import { DeviceIdentityService } from '../../services/DeviceIdentityService.js';
-import { EnvironmentKeyService } from '../../services/EnvironmentKeyService.js';
+import { EnvironmentKeyService } from '@/environment/keys/EnvironmentKeyService.js';
 
 import type { DeviceIdentity } from '@/crypto';
-import type { DeploymentToken, Environment } from '@/domain';
+import type { DeploymentToken, Environment } from '@/entities';
 
 export type ProjectContext = {
 	projectId: string;

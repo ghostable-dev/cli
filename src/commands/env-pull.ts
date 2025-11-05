@@ -9,14 +9,14 @@ import { SessionService } from '../services/SessionService.js';
 import { GhostableClient } from '@/ghostable';
 import { initSodium, deriveKeys, aeadDecrypt, scopeFromAAD } from '@/crypto';
 import { DeviceIdentityService } from '../services/DeviceIdentityService.js';
-import { EnvironmentKeyService } from '../services/EnvironmentKeyService.js';
+import { EnvironmentKeyService } from '@/environment/keys/EnvironmentKeyService.js';
 import { log } from '../support/logger.js';
 import { toErrorMessage } from '../support/errors.js';
 import { resolveWorkDir } from '../support/workdir.js';
 import { getIgnoredKeys, filterIgnoredKeys } from '../support/ignore.js';
-import { readEnvFileSafeWithMetadata } from '../support/env-files.js';
+import { readEnvFileSafeWithMetadata } from '@/environment/files/env-files.js';
 
-import type { EnvironmentSecret, EnvironmentSecretBundle } from '@/domain';
+import type { EnvironmentSecret, EnvironmentSecretBundle } from '@/entities';
 
 type PullOptions = {
 	token?: string;

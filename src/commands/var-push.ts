@@ -9,7 +9,7 @@ import { config } from '../config/index.js';
 import { SessionService } from '../services/SessionService.js';
 import { GhostableClient } from '@/ghostable';
 import { DeviceIdentityService } from '../services/DeviceIdentityService.js';
-import { EnvironmentKeyService } from '../services/EnvironmentKeyService.js';
+import { EnvironmentKeyService } from '@/environment/keys/EnvironmentKeyService.js';
 import { Manifest } from '../support/Manifest.js';
 import { log } from '../support/logger.js';
 import { toErrorMessage } from '../support/errors.js';
@@ -17,7 +17,7 @@ import {
 	resolveEnvFile,
 	readEnvFileSafeWithMetadata,
 	type EnvVarSnapshot,
-} from '../support/env-files.js';
+} from '@/environment/files/env-files.js';
 import { getIgnoredKeys, filterIgnoredKeys } from '../support/ignore.js';
 import { buildSecretPayload } from '../support/secret-payload.js';
 

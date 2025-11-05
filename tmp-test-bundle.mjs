@@ -1,4 +1,4 @@
-import { EnvironmentSecretBundle } from './dist/domain/EnvironmentSecretBundle.js';
+import { EnvironmentSecretBundle } from './dist/entities/environment/EnvironmentSecretBundle.js';
 
 const json = {
     env: 'production',
