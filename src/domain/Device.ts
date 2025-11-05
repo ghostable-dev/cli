@@ -1,4 +1,4 @@
-import type { DeviceResourceJson } from '@/types';
+import type { DeviceResourceJson } from '@/ghostable/types/device.js';
 
 export type DeviceStatus = 'active' | 'revoked';
 

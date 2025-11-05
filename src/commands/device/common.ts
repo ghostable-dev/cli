@@ -1,6 +1,6 @@
 import { config } from '../../config/index.js';
 import { SessionService } from '../../services/SessionService.js';
-import { GhostableClient } from '../../services/GhostableClient.js';
+import { GhostableClient } from '@/ghostable';
 import { log } from '../../support/logger.js';
 import { DeviceIdentityService } from '../../services/DeviceIdentityService.js';
 

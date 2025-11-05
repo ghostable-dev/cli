@@ -2,12 +2,13 @@ import { XChaCha20Poly1305 } from '@stablelib/xchacha20poly1305';
 import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import type { DeviceIdentity } from '../../src/crypto/types/DeviceIdentity.js';
-import type { EnvironmentKey, EncryptedEnvelope } from '../../src/types/index.js';
-import { encryptedEnvelopeToJSON } from '../../src/types/api/crypto.js';
-import { KEYCHAIN_SERVICE_ENVIRONMENT } from '../../src/constants/keychain.js';
+import type { EnvironmentKey } from '../../src/ghostable/types/environment.js';
+import type { EncryptedEnvelope } from '../../src/crypto/index.js';
+import { encryptedEnvelopeToJSON } from '../../src/ghostable/types/crypto.js';
+import { KEYCHAIN_SERVICE_ENVIRONMENT } from '../../src/keychain/constants.js';
 
 type GhostableClientCtor =
-	(typeof import('../../src/services/GhostableClient.js'))['GhostableClient'];
+	(typeof import('../../src/ghostable/GhostableClient.js'))['GhostableClient'];
 
 type EnvironmentKeyServiceCtor =
 	(typeof import('../../src/services/EnvironmentKeyService.js'))['EnvironmentKeyService'];
@@ -17,9 +18,17 @@ const keytarMock = vi.hoisted(() => ({
 	setPassword: vi.fn<[service: string, account: string, password: string], Promise<void>>(),
 }));
 
-vi.mock('../../src/support/keyring.js', () => ({
-	loadKeytar: vi.fn(async () => keytarMock),
-}));
+const loadKeytarMock = vi.hoisted(() => vi.fn(async () => keytarMock));
+
+vi.mock('../../src/keychain/index.js', async () => {
+	const actual = await vi.importActual<typeof import('../../src/keychain/index.js')>(
+		'../../src/keychain/index.js',
+	);
+	return {
+		...actual,
+		loadKeytar: loadKeytarMock,
+	};
+});
 
 const decryptOnThisDeviceMock = vi.hoisted(() =>
 	vi.fn<(typeof import('../../src/crypto/index.js'))['KeyService']['decryptOnThisDevice']>(),
@@ -49,6 +58,7 @@ beforeEach(() => {
 	keytarMock.getPassword.mockReset();
 	keytarMock.setPassword.mockReset();
 	decryptOnThisDeviceMock.mockReset();
+	loadKeytarMock.mockClear();
 });
 
 describe('EnvironmentKeyService.ensureEnvironmentKey', () => {

@@ -2,7 +2,7 @@ import { Command } from 'commander';
 import { select } from '@inquirer/prompts';
 import { config } from '../config/index.js';
 import { SessionService } from '../services/SessionService.js';
-import { GhostableClient } from '../services/GhostableClient.js';
+import { GhostableClient } from '@/ghostable';
 import { log } from '../support/logger.js';
 
 export function registerOrganizationSwitchCommand(program: Command) {

@@ -1,5 +1,8 @@
 import { aeadEncrypt, b64, deriveKeys, edSign, hmacSHA256 } from '@/crypto';
-import type { SecretUploadValidators, SignedEnvironmentSecretUploadRequest } from '@/types';
+import type {
+	SecretUploadValidators,
+	SignedEnvironmentSecretUploadRequest,
+} from '@/ghostable/types/environment.js';
 import type { AAD, Claims } from '@/crypto';
 
 export async function buildSecretPayload(opts: {

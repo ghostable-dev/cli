@@ -1,4 +1,4 @@
-import type { EnvironmentSecretJson } from '@/types';
+import type { EnvironmentSecretJson } from '@/ghostable/types/environment.js';
 import type { AAD, CipherAlg, Claims } from '@/crypto';
 
 /**

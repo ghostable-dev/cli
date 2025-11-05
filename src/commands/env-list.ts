@@ -1,7 +1,7 @@
 import { Command } from 'commander';
 import { config } from '../config/index.js';
 import { SessionService } from '../services/SessionService.js';
-import { GhostableClient } from '../services/GhostableClient.js';
+import { GhostableClient } from '@/ghostable';
 import { Manifest } from '../support/Manifest.js';
 import { log } from '../support/logger.js';
 import type { Environment } from '@/domain';

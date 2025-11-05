@@ -1,5 +1,5 @@
 import { select } from '@inquirer/prompts';
-import type { GhostableClient } from '../../services/GhostableClient.js';
+import type { GhostableClient } from '@/ghostable';
 import type { SessionService } from '../../services/SessionService.js';
 import { log } from '../../support/logger.js';
 import { toErrorMessage } from '../../support/errors.js';

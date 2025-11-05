@@ -4,7 +4,7 @@ import { confirm } from '@inquirer/prompts';
 import { log } from '../../support/logger.js';
 import { DeviceIdentityService } from '../../services/DeviceIdentityService.js';
 import { ensureDeviceService, getAuthedClient, type LinkedIdentity } from './common.js';
-import { HttpError } from '../../http/errors.js';
+import { HttpError } from '@/ghostable';
 
 async function clearLocalDeviceState(
 	service: DeviceIdentityService,

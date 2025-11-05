@@ -7,7 +7,7 @@ import { initSodium } from '@/crypto';
 import { loadOrCreateKeys } from '@/keychain';
 import { config } from '../config/index.js';
 import { SessionService } from '../services/SessionService.js';
-import { GhostableClient } from '../services/GhostableClient.js';
+import { GhostableClient } from '@/ghostable';
 import { DeviceIdentityService } from '../services/DeviceIdentityService.js';
 import { EnvironmentKeyService } from '../services/EnvironmentKeyService.js';
 import { Manifest } from '../support/Manifest.js';

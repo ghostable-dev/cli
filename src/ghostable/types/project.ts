@@ -1,4 +1,4 @@
-import type { EnvironmentJson } from '@/types';
+import type { EnvironmentJson } from './environment.js';
 
 /**
  * Represents a project record returned by Ghostable’s API.

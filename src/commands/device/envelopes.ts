@@ -7,7 +7,10 @@ import { log } from '../../support/logger.js';
 import { DeviceIdentityService } from '../../services/DeviceIdentityService.js';
 import { KeyService } from '@/crypto';
 import { ensureDeviceService, getAuthedClient, type LinkedIdentity } from './common.js';
-import { encryptedEnvelopeFromJSON, encryptedEnvelopeToJSON } from '@/types';
+import {
+	encryptedEnvelopeFromJSON,
+	encryptedEnvelopeToJSON,
+} from '@/ghostable/types/crypto.js';
 
 function encodeEnvelopeForTransport(envelope: ReturnType<typeof encryptedEnvelopeToJSON>): string {
 	return Buffer.from(JSON.stringify(envelope), 'utf8').toString('base64');

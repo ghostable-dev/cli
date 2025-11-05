@@ -12,13 +12,13 @@ import { isDeploymentTokenActive } from '../domain/DeploymentToken.js';
 import type { DeploymentToken } from '@/domain';
 import { KEYCHAIN_SERVICE_ENVIRONMENT, loadKeytar, type Keytar } from '@/keychain';
 import { EnvelopeService } from './EnvelopeService.js';
-import type { GhostableClient } from './GhostableClient.js';
-import { encryptedEnvelopeFromJSON, encryptedEnvelopeToJSON } from '../types/api/crypto.js';
+import { encryptedEnvelopeFromJSON, encryptedEnvelopeToJSON } from '@/ghostable/types/crypto.js';
 import type {
 	CreateEnvironmentKeyEnvelopeRequest,
 	CreateEnvironmentKeyRequest,
 	EnvironmentKeyEnvelope,
-} from '../types/api/environment.js';
+} from '@/ghostable/types/environment.js';
+import type { GhostableClient } from '@/ghostable';
 
 function toHex(bytes: Uint8Array): string {
 	return Buffer.from(bytes).toString('hex');

@@ -1,4 +1,5 @@
-import type { ProjectJson, EnvironmentJson } from '@/types';
+import type { ProjectJson } from '@/ghostable/types/project.js';
+import type { EnvironmentJson } from '@/ghostable/types/environment.js';
 import { Environment } from '@/domain';
 
 /**

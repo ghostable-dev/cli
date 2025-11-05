@@ -1,9 +1,9 @@
-import type {
-	EnvironmentSecretBundleJson,
-	EnvironmentKey,
-	EnvironmentKeyResourceJson,
-} from '@/types';
-import { environmentKeyFromJSON } from '@/types';
+import {
+	environmentKeyFromJSON,
+	type EnvironmentSecretBundleJson,
+	type EnvironmentKey,
+	type EnvironmentKeyResourceJson,
+} from '@/ghostable/types/environment.js';
 import { EnvironmentSecret } from './EnvironmentSecret.js';
 
 /**

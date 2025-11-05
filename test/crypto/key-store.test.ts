@@ -23,7 +23,7 @@ vi.mock('keytar', () => ({
 }));
 
 import { KeytarKeyStore, MemoryKeyStore } from '../../src/crypto/KeyStore.js';
-import { KEYCHAIN_SERVICE_ENVIRONMENT } from '../../src/constants/keychain.js';
+import { KEYCHAIN_SERVICE_ENVIRONMENT } from '../../src/keychain/constants.js';
 
 const SAMPLE_KEY = new Uint8Array([1, 2, 3, 4]);
 const SAMPLE_B64 = 'AQIDBA==';

@@ -7,10 +7,17 @@ import { xchacha20poly1305 } from '@noble/ciphers/chacha.js';
 
 import { decryptBundle } from '../src/support/deploy-helpers.js';
 import { EnvironmentSecretBundle } from '../src/domain/EnvironmentSecretBundle.js';
-import { encryptedEnvelopeToJSON } from '../src/types/api/crypto.js';
-import { KeyService, MemoryKeyStore } from '../src/crypto/index.js';
-import { aeadEncrypt, deriveKeys, hmacSHA256, randomBytes, scopeFromAAD } from '../src/crypto.js';
-import { DEPLOYMENT_ENVELOPE_HKDF_INFO } from '../src/constants/crypto.js';
+import { encryptedEnvelopeToJSON } from '../src/ghostable/types/crypto.js';
+import {
+	KeyService,
+	MemoryKeyStore,
+	aeadEncrypt,
+	deriveKeys,
+	hmacSHA256,
+	randomBytes,
+	scopeFromAAD,
+	DEPLOYMENT_ENVELOPE_HKDF_INFO,
+} from '../src/crypto/index.js';
 
 describe('decryptBundle', () => {
 	it('decrypts secrets shared with deployment tokens using meta AAD', async () => {

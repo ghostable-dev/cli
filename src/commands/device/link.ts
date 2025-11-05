@@ -4,7 +4,7 @@ import ora from 'ora';
 import { input } from '@inquirer/prompts';
 import { log } from '../../support/logger.js';
 import { DeviceIdentityService } from '../../services/DeviceIdentityService.js';
-import type { GhostableClient } from '../../services/GhostableClient.js';
+import type { GhostableClient } from '@/ghostable';
 import { KeyService } from '@/crypto';
 import { ensureDeviceService, getAuthedClient } from './common.js';
 

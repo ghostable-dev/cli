@@ -1,4 +1,4 @@
-import type { OrganizationJson } from '@/types';
+import type { OrganizationJson } from '@/ghostable/types/organization.js';
 
 /**
  * Domain model for an Organization.

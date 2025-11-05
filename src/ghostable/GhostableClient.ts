@@ -1,5 +1,5 @@
-import { HttpClient } from '../http/HttpClient.js';
-import { HttpError } from '../http/errors.js';
+import { HttpClient } from './http/HttpClient.js';
+import { HttpError } from './http/errors.js';
 
 import {
 	DeploymentToken,
@@ -43,7 +43,7 @@ import type {
 	RevokeDeploymentTokenResponseJson,
 	RotateDeploymentTokenRequestJson,
 	RotateDeploymentTokenResponseJson,
-} from '@/types';
+} from './types/index.js';
 import {
 	createEnvironmentKeyEnvelopeRequestToJSON,
 	createEnvironmentKeyRequestToJSON,
@@ -51,7 +51,7 @@ import {
 	environmentKeyResponseFromJSON,
 	environmentKeysFromJSON,
 	deploymentTokenFromJSON,
-} from '@/types';
+} from './types/index.js';
 
 type LoginResponse = { token?: string; two_factor?: boolean };
 type BrowserLoginStartResponse = {

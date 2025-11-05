@@ -1,8 +1,8 @@
 import { beforeAll, describe, expect, it, vi } from 'vitest';
 
-import type { HttpClient } from '../../src/http/HttpClient.js';
+import type { HttpClient } from '../../src/ghostable/http/HttpClient.js';
 import type { EncryptedEnvelope } from '../../src/crypto/index.js';
-import { encryptedEnvelopeToJSON } from '../../src/types/index.js';
+import { encryptedEnvelopeToJSON } from '../../src/ghostable/types/crypto.js';
 
 vi.mock(
 	'@/domain',
@@ -18,20 +18,13 @@ vi.mock(
 	{ virtual: true },
 );
 
-vi.mock('@/types', async () => {
-	const actual = await vi.importActual<typeof import('../../src/types/index.js')>(
-		'../../src/types/index.js',
-	);
-	return actual;
-});
-
 type GhostableClientCtor =
-	(typeof import('../../src/services/GhostableClient.js'))['GhostableClient'];
+	(typeof import('../../src/ghostable/GhostableClient.js'))['GhostableClient'];
 
 let GhostableClient: GhostableClientCtor;
 
 beforeAll(async () => {
-	({ GhostableClient } = await import('../../src/services/GhostableClient.js'));
+	({ GhostableClient } = await import('../../src/ghostable/GhostableClient.js'));
 });
 
 describe('GhostableClient.sendEnvelope', () => {

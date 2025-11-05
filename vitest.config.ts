@@ -3,12 +3,13 @@ import path from 'node:path';
 
 export default defineConfig({
 	resolve: {
-		alias: {
-			'@': path.resolve(__dirname, 'src'),
-			'@/crypto': path.resolve(__dirname, 'src/crypto/index.ts'),
-			'@/types': path.resolve(__dirname, 'src/types/index.ts'),
-			'@/domain': path.resolve(__dirname, 'src/domain/index.ts'),
-		},
+		alias: [
+			{ find: '@', replacement: path.resolve(__dirname, 'src') },
+			{ find: '@/crypto', replacement: path.resolve(__dirname, 'src/crypto') },
+			{ find: '@/types', replacement: path.resolve(__dirname, 'src/types') },
+			{ find: '@/domain', replacement: path.resolve(__dirname, 'src/domain') },
+			{ find: '@/ghostable', replacement: path.resolve(__dirname, 'src/ghostable') },
+		],
 	},
 	test: {
 		setupFiles: ['test/setup.ts'],

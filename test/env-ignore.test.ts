@@ -97,11 +97,21 @@ const client = {
 	getEnvironments: vi.fn(async () => [{ id: 'env-prod', name: 'prod', type: 'production' }]),
 };
 
-vi.mock('../src/services/GhostableClient.js', () => ({
+vi.mock('@/ghostable', () => ({
 	GhostableClient: {
 		unauthenticated: vi.fn(() => ({
 			withToken: vi.fn(() => client),
 		})),
+	},
+	HttpError: class extends Error {
+		status: number;
+		body: string;
+
+		constructor(status: number, body: string, message?: string) {
+			super(message ?? `HTTP ${status}`);
+			this.status = status;
+			this.body = body;
+		}
 	},
 }));
 
@@ -119,30 +129,48 @@ vi.mock('../src/support/workdir.js', () => ({
 	resolveWorkDir: vi.fn(() => '/workdir'),
 }));
 
-vi.mock('../src/crypto.js', () => ({
-	initSodium: vi.fn(async () => {}),
-	deriveKeys: vi.fn(() => ({ encKey: new Uint8Array(), hmacKey: new Uint8Array() })),
-	aeadDecrypt: vi.fn((_encKey: Uint8Array, params: { ciphertext: string }) =>
-		new TextEncoder().encode(params.ciphertext),
-	),
-	scopeFromAAD: vi.fn(() => 'scope'),
-	aeadEncrypt: vi.fn(() => ({
-		ciphertext: 'ciphertext',
-		nonce: 'nonce',
-		alg: 'alg',
-		aad: { org: 'org', project: 'project', env: 'env', name: 'name' },
-	})),
-	edSign: vi.fn(async () => new Uint8Array()),
-	hmacSHA256: vi.fn(() => 'hmac'),
-	b64: vi.fn(() => 'encoded'),
-}));
+const initSodiumMock = vi.hoisted(() => vi.fn(async () => {}));
 
-vi.mock('../src/keys.js', () => ({
-	loadOrCreateKeys: vi.fn(async () => ({
+vi.mock('@/crypto', async () => {
+	const actual = await vi.importActual<typeof import('../src/crypto/index.js')>(
+		'../src/crypto/index.js',
+	);
+	return {
+		...actual,
+		initSodium: initSodiumMock,
+		deriveKeys: vi.fn(() => ({ encKey: new Uint8Array(), hmacKey: new Uint8Array() })),
+		aeadDecrypt: vi.fn((_encKey: Uint8Array, params: { ciphertext: string }) =>
+			new TextEncoder().encode(params.ciphertext),
+		),
+		scopeFromAAD: vi.fn(() => 'scope'),
+		aeadEncrypt: vi.fn(() => ({
+			ciphertext: 'ciphertext',
+			nonce: 'nonce',
+			alg: 'alg',
+			aad: { org: 'org', project: 'project', env: 'env', name: 'name' },
+		})),
+		edSign: vi.fn(async () => new Uint8Array()),
+		hmacSHA256: vi.fn(() => 'hmac'),
+		b64: vi.fn(() => 'encoded'),
+	};
+});
+
+const loadOrCreateKeysMock = vi.hoisted(() =>
+	vi.fn(async () => ({
 		masterSeedB64: `b64:${Buffer.from('0123456789abcdef0123456789abcdef', 'utf8').toString('base64')}`,
 		ed25519PrivB64: `b64:${Buffer.from('abcdef0123456789abcdef0123456789', 'utf8').toString('base64')}`,
 	})),
-}));
+);
+
+vi.mock('@/keychain', async () => {
+	const actual = await vi.importActual<typeof import('../src/keychain/index.js')>(
+		'../src/keychain/index.js',
+	);
+	return {
+		...actual,
+		loadOrCreateKeys: loadOrCreateKeysMock,
+	};
+});
 
 vi.mock('@inquirer/prompts', () => ({
 	select: vi.fn(),

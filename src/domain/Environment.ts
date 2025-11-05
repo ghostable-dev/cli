@@ -1,4 +1,4 @@
-import type { EnvironmentJson } from '@/types';
+import type { EnvironmentJson } from '@/ghostable/types/environment.js';
 
 /**
  * Domain model for an Environment.

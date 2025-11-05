@@ -1,4 +1,4 @@
-import type { EnvironmentSuggestedNameJson } from '@/types';
+import type { EnvironmentSuggestedNameJson } from '@/ghostable/types/environment.js';
 
 /**
  * Domain model for a suggested environment name.

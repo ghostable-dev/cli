@@ -6,7 +6,7 @@ import ora from 'ora';
 
 import { config } from '../config/index.js';
 import { SessionService } from '../services/SessionService.js';
-import { GhostableClient } from '../services/GhostableClient.js';
+import { GhostableClient } from '@/ghostable';
 import { DeviceIdentityService } from '../services/DeviceIdentityService.js';
 import { EnvironmentKeyService } from '../services/EnvironmentKeyService.js';
 import { Manifest } from '../support/Manifest.js';
@@ -17,7 +17,7 @@ import { resolveEnvFile, readEnvFileSafeWithMetadata } from '../support/env-file
 import { initSodium } from '@/crypto';
 import { loadOrCreateKeys } from '@/keychain';
 import { buildSecretPayload } from '../support/secret-payload.js';
-import type { SignedEnvironmentSecretUploadRequest } from '@/types';
+import type { SignedEnvironmentSecretUploadRequest } from '@/ghostable/types/environment.js';
 
 export type PushOptions = {
 	api?: string;

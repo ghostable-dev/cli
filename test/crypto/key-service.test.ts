@@ -12,6 +12,7 @@ type Ed25519Mock = {
 	utils: {
 		randomPrivateKey: ReturnType<typeof vi.fn<() => Uint8Array>>;
 	};
+	etc: Record<string, unknown>;
 	getPublicKey: ReturnType<typeof vi.fn<(priv: Uint8Array) => Promise<Uint8Array>>>;
 	sign: ReturnType<typeof vi.fn<(msg: Uint8Array, priv: Uint8Array) => Promise<Uint8Array>>>;
 	verify: ReturnType<typeof vi.fn<() => Promise<boolean>>>;
@@ -53,6 +54,7 @@ const ed25519Stub = vi.hoisted(() => {
 		utils: {
 			randomPrivateKey: vi.fn(() => new Uint8Array(32).fill(++counter)),
 		},
+		etc: {},
 		getPublicKey: vi.fn(async (priv: Uint8Array) => Uint8Array.from(priv, (v) => v ^ 0xff)),
 		sign: vi.fn(async (_msg: Uint8Array, priv: Uint8Array) => {
 			const signature = new Uint8Array(64);

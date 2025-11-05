@@ -2,7 +2,7 @@ import chalk from 'chalk';
 import { select } from '@inquirer/prompts';
 import { Manifest } from './Manifest.js';
 import { SessionService } from '../services/SessionService.js';
-import { GhostableClient } from '../services/GhostableClient.js';
+import { GhostableClient } from '@/ghostable';
 import { config } from '../config/index.js';
 
 import { sha256 } from '@noble/hashes/sha256';

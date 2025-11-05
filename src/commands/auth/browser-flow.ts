@@ -3,8 +3,8 @@ import ora from 'ora';
 import open from 'open';
 import { log } from '../../support/logger.js';
 import { toErrorMessage } from '../../support/errors.js';
-import { HttpError } from '../../http/errors.js';
-import type { BrowserLoginSession, BrowserLoginStatus } from '../../services/GhostableClient.js';
+import { HttpError } from '@/ghostable';
+import type { BrowserLoginSession, BrowserLoginStatus } from '@/ghostable';
 
 const BROWSER_UNAVAILABLE_STATUSES = [404, 405, 409, 410, 422, 501];
 const MIN_BROWSER_POLL_INTERVAL_MS = 1_000;

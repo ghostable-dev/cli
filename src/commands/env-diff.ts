@@ -6,7 +6,7 @@ import path from 'node:path';
 import { Manifest } from '../support/Manifest.js';
 import { config } from '../config/index.js';
 import { SessionService } from '../services/SessionService.js';
-import { GhostableClient } from '../services/GhostableClient.js';
+import { GhostableClient } from '@/ghostable';
 import { log } from '../support/logger.js';
 import { toErrorMessage } from '../support/errors.js';
 import { resolveWorkDir } from '../support/workdir.js';
