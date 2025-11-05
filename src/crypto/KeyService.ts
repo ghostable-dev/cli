@@ -7,6 +7,7 @@ import { v4 as uuid } from 'uuid';
 import { toBase64, fromBase64 } from './utils.js';
 import { deriveHKDF } from './derive/hkdf.js';
 import { KeyStore } from './types/KeyStore.js';
+import { DEPLOYMENT_ENVELOPE_HKDF_INFO } from '../constants/crypto.js';
 
 import { DeviceIdentity } from './types/DeviceIdentity.js';
 import { EncryptedEnvelope } from './types/EncryptedEnvelope.js';
@@ -146,7 +147,7 @@ export class KeyService {
 		theirPublicKey: Uint8Array,
 	): Uint8Array {
 		const shared = x25519.sharedKey(myPrivateKey, theirPublicKey);
-		return deriveHKDF(shared, 'ghostable:v1:envelope', undefined, 32);
+		return deriveHKDF(shared, DEPLOYMENT_ENVELOPE_HKDF_INFO, undefined, 32);
 	}
 
 	/** Verifies the signature of an envelope using the sender’s public key. */

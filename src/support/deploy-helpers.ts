@@ -4,6 +4,7 @@ import { Manifest } from './Manifest.js';
 import { SessionService } from '../services/SessionService.js';
 import { GhostableClient } from '../services/GhostableClient.js';
 import { config } from '../config/index.js';
+import { DEPLOYMENT_ENVELOPE_HKDF_INFO } from '../constants/crypto.js';
 
 import { sha256 } from '@noble/hashes/sha256';
 import { hkdf } from '@noble/hashes/hkdf';
@@ -157,7 +158,7 @@ export async function decryptBundle(
 		warnings.push(message);
 	};
 
-	const hkdfInfo = new TextEncoder().encode('ghostable:v1:envelope');
+	const hkdfInfo = new TextEncoder().encode(DEPLOYMENT_ENVELOPE_HKDF_INFO);
 
 	type DeploymentRecipientPayload = {
 		ciphertext_b64: string;
