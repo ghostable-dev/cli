@@ -7,20 +7,20 @@ vi.mock('../src/commands/environment/push.js', () => ({
 	runEnvPush: runEnvPushMock,
 }));
 
-describe('env:sync command', () => {
+describe('env sync command', () => {
 	beforeEach(() => {
 		runEnvPushMock.mockReset();
 		runEnvPushMock.mockResolvedValue(undefined);
 	});
 
-	it('forces replace flag when delegating to env:push', async () => {
+	it('forces replace flag when delegating to env push', async () => {
 		const program = new Command();
 		program.exitOverride();
 
 		const { registerEnvSyncCommand } = await import('../src/commands/environment/sync.js');
 		registerEnvSyncCommand(program);
 
-		await program.parseAsync(['env:sync', '--env', 'prod'], { from: 'user' });
+		await program.parseAsync(['env', 'sync', '--env', 'prod'], { from: 'user' });
 
 		expect(runEnvPushMock).toHaveBeenCalledTimes(1);
 		expect(runEnvPushMock).toHaveBeenCalledWith(

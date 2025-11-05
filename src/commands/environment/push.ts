@@ -17,6 +17,7 @@ import { resolveEnvFile, readEnvFileSafeWithMetadata } from '@/environment/files
 import { initSodium } from '@/crypto';
 import { loadOrCreateKeys } from '@/keychain';
 import { buildSecretPayload } from '../../support/secret-payload.js';
+import { registerEnvSubcommand } from './_shared.js';
 import type { SignedEnvironmentSecretUploadRequest } from '@/ghostable/types/environment.js';
 
 export type PushOptions = {
@@ -31,18 +32,25 @@ export type PushOptions = {
 };
 
 export function registerEnvPushCommand(program: Command) {
-	program
-		.command('env:push')
-		.description(
-			'Encrypt and push a local .env file to Ghostable (uses .ghostable/ghostable.yaml)',
-		)
-		.option('--file <PATH>', 'Path to .env file (default: .env.<env> or .env)')
-		.option('--env <ENV>', 'Environment name (if omitted, select from manifest)')
-		.option('-y, --assume-yes', 'Skip confirmation prompts', false)
-		.option('--sync', 'Prune server variables not present locally', false)
-		.option('--replace', 'Alias for --sync', false)
-		.option('--prune-server', 'Alias for --sync', false)
-		.action(async (opts: PushOptions) => runEnvPush(opts));
+	registerEnvSubcommand(
+		program,
+		{
+			subcommand: 'push',
+			legacy: [{ name: 'env:push' }],
+		},
+		(cmd) =>
+			cmd
+				.description(
+					'Encrypt and push a local .env file to Ghostable (uses .ghostable/ghostable.yaml)',
+				)
+				.option('--file <PATH>', 'Path to .env file (default: .env.<env> or .env)')
+				.option('--env <ENV>', 'Environment name (if omitted, select from manifest)')
+				.option('-y, --assume-yes', 'Skip confirmation prompts', false)
+				.option('--sync', 'Prune server variables not present locally', false)
+				.option('--replace', 'Alias for --sync', false)
+				.option('--prune-server', 'Alias for --sync', false)
+				.action(async (opts: PushOptions) => runEnvPush(opts)),
+	);
 }
 
 export async function runEnvPush(opts: PushOptions): Promise<void> {

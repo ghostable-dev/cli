@@ -5,10 +5,9 @@ import { SessionService } from '../../services/SessionService.js';
 import { GhostableClient } from '@/ghostable';
 import { log } from '../../support/logger.js';
 
-export function registerOrganizationSwitchCommand(program: Command) {
-	program
-		.command('org:switch')
-		.aliases(['orgs:switch', 'organizations:switch', 'organization:switch', 'switch'])
+export function configureOrganizationSwitchCommand(org: Command) {
+	org.command('switch')
+		.aliases(['org:switch', 'orgs:switch', 'organizations:switch', 'organization:switch'])
 		.description(
 			'Switch to a different organization context (used as default in subsequent commands)',
 		)

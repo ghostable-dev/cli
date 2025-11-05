@@ -288,7 +288,7 @@ beforeEach(() => {
 	copyFileSyncMock.mockClear();
 });
 
-describe('env:diff ignore behaviour', () => {
+describe('env diff ignore behaviour', () => {
 	it('hides ignored keys and prints them with --show-ignored', async () => {
 		localEnvVars = {
 			FOO: 'local-value',
@@ -315,7 +315,8 @@ describe('env:diff ignore behaviour', () => {
 		await program.parseAsync([
 			'node',
 			'test',
-			'env:diff',
+			'env',
+			'diff',
 			'--env',
 			'prod',
 			'--token',
@@ -344,7 +345,8 @@ describe('env:diff ignore behaviour', () => {
 		await program.parseAsync([
 			'node',
 			'test',
-			'env:diff',
+			'env',
+			'diff',
 			'--env',
 			'prod',
 			'--token',
@@ -380,7 +382,8 @@ describe('env:diff ignore behaviour', () => {
 		await program.parseAsync([
 			'node',
 			'test',
-			'env:diff',
+			'env',
+			'diff',
 			'--env',
 			'prod',
 			'--token',
@@ -396,7 +399,7 @@ describe('env:diff ignore behaviour', () => {
 	});
 });
 
-describe('env:push ignore behaviour', () => {
+describe('env push ignore behaviour', () => {
 	it('skips ignored keys when uploading', async () => {
 		localEnvVars = {
 			FOO: 'value',
@@ -411,7 +414,7 @@ describe('env:push ignore behaviour', () => {
 
 		const program = new Command();
 		registerEnvPushCommand(program);
-		await program.parseAsync(['node', 'test', 'env:push', '--env', 'prod', '--assume-yes']);
+		await program.parseAsync(['node', 'test', 'env', 'push', '--env', 'prod', '--assume-yes']);
 
 		expect(ensureEnvironmentKeyMock).toHaveBeenCalledTimes(1);
 		expect(publishKeyEnvelopesMock).not.toHaveBeenCalled();
@@ -456,7 +459,8 @@ describe('env:push ignore behaviour', () => {
 		await program.parseAsync([
 			'node',
 			'test',
-			'env:push',
+			'env',
+			'push',
 			'--env',
 			'prod',
 			'--assume-yes',
@@ -470,7 +474,7 @@ describe('env:push ignore behaviour', () => {
 	});
 });
 
-describe('env:pull ignore behaviour', () => {
+describe('env pull ignore behaviour', () => {
 	it('omits ignored keys from written file and reports them', async () => {
 		remoteBundle = {
 			chain: ['prod'],
@@ -519,7 +523,8 @@ describe('env:pull ignore behaviour', () => {
 		await program.parseAsync([
 			'node',
 			'test',
-			'env:pull',
+			'env',
+			'pull',
 			'--env',
 			'prod',
 			'--token',
@@ -539,7 +544,7 @@ describe('env:pull ignore behaviour', () => {
 	});
 });
 
-describe('env:pull file management', () => {
+describe('env pull file management', () => {
 	it('merges remote keys into existing file and creates a backup', async () => {
 		vi.useFakeTimers();
 		vi.setSystemTime(new Date('2024-01-02T03:04:05.678Z'));
@@ -582,7 +587,8 @@ describe('env:pull file management', () => {
 			await program.parseAsync([
 				'node',
 				'test',
-				'env:pull',
+				'env',
+				'pull',
 				'--env',
 				'prod',
 				'--token',
@@ -638,7 +644,8 @@ describe('env:pull file management', () => {
 		await program.parseAsync([
 			'node',
 			'test',
-			'env:pull',
+			'env',
+			'pull',
 			'--env',
 			'prod',
 			'--token',
@@ -676,7 +683,8 @@ describe('env:pull file management', () => {
 		await program.parseAsync([
 			'node',
 			'test',
-			'env:pull',
+			'env',
+			'pull',
 			'--env',
 			'prod',
 			'--token',

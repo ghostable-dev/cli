@@ -4,10 +4,9 @@ import { SessionService } from '../../services/SessionService.js';
 import { GhostableClient } from '@/ghostable';
 import { log } from '../../support/logger.js';
 
-export function registerOrganizationCurrentCommand(program: Command) {
-	program
-		.command('org:current')
-		.aliases(['orgs:current', 'organizations:current', 'organization:current', 'current'])
+export function configureOrganizationCurrentCommand(org: Command) {
+	org.command('current')
+		.aliases(['org:current', 'orgs:current', 'organizations:current', 'organization:current'])
 		.description('Show your current organization context.')
 		.action(async () => {
 			// 1. Load session / access token
@@ -20,7 +19,7 @@ export function registerOrganizationCurrentCommand(program: Command) {
 
 			const currentOrgId = sess.organizationId;
 			if (!currentOrgId) {
-				log.error('❌ No organization selected. Run `ghostable org:switch` to select one.');
+				log.error('❌ No organization selected. Run `ghostable org switch` to select one.');
 				process.exit(1);
 			}
 
@@ -29,14 +28,14 @@ export function registerOrganizationCurrentCommand(program: Command) {
 				sess.accessToken,
 			);
 			const orgs = await client.organizations();
-			const org = orgs.find((o) => o.id === currentOrgId);
+			const orgRecord = orgs.find((o) => o.id === currentOrgId);
 
 			// 3. Display result
-			if (!org) {
+			if (!orgRecord) {
 				log.error('❌ Unable to determine current organization (not found in API list).');
 				process.exit(1);
 			}
 
-			log.ok(`✅ Current organization: ${org.name ?? currentOrgId}`);
+			log.ok(`✅ Current organization: ${orgRecord.name ?? currentOrgId}`);
 		});
 }

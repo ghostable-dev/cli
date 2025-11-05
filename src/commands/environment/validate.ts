@@ -7,6 +7,7 @@ import { toErrorMessage } from '../../support/errors.js';
 import { resolveEnvFile, readEnvFileSafe } from '@/environment/files/env-files.js';
 import { loadMergedSchema, validateVariables } from '@/environment/validation/schema.js';
 import type { SchemaDefinition } from '@/environment/validation/schema.js';
+import { registerEnvSubcommand } from './_shared.js';
 
 export type ValidateOptions = {
 	env?: string;
@@ -14,12 +15,19 @@ export type ValidateOptions = {
 };
 
 export function registerEnvValidateCommand(program: Command) {
-	program
-		.command('env:validate')
-		.description('Validate a local environment file using schema rules')
-		.option('--env <ENV>', 'Environment name (if omitted, select from manifest)')
-		.option('--file <PATH>', 'Path to .env file (default: .env.<env> or .env)')
-		.action(async (opts: ValidateOptions) => runEnvValidate(opts));
+	registerEnvSubcommand(
+		program,
+		{
+			subcommand: 'validate',
+			legacy: [{ name: 'env:validate' }],
+		},
+		(cmd) =>
+			cmd
+				.description('Validate a local environment file using schema rules')
+				.option('--env <ENV>', 'Environment name (if omitted, select from manifest)')
+				.option('--file <PATH>', 'Path to .env file (default: .env.<env> or .env)')
+				.action(async (opts: ValidateOptions) => runEnvValidate(opts)),
+	);
 }
 
 export async function runEnvValidate(opts: ValidateOptions): Promise<void> {

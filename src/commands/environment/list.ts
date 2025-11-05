@@ -5,68 +5,77 @@ import { GhostableClient } from '@/ghostable';
 import { Manifest } from '../../support/Manifest.js';
 import { log } from '../../support/logger.js';
 import type { Environment } from '@/entities';
+import { registerEnvSubcommand } from './_shared.js';
 
 export function registerEnvListCommand(program: Command) {
-	program
-		.command('env:list')
-		.alias('environments:list')
-		.description(
-			'List the environments in the current project (from .ghostable/ghostable.yaml).',
-		)
-		.action(async () => {
-			// 1) Ensure session
-			const sessionSvc = new SessionService();
-			const sess = await sessionSvc.load();
-			if (!sess?.accessToken) {
-				log.error('❌ Not authenticated. Run `ghostable login`.');
-				process.exit(1);
-			}
+	registerEnvSubcommand(
+		program,
+		{
+			subcommand: 'list',
+			legacy: [{ name: 'env:list' }, { name: 'environments:list' }],
+		},
+		(cmd) =>
+			cmd
+				.description(
+					'List the environments in the current project (from .ghostable/ghostable.yaml).',
+				)
+				.action(async () => {
+					// 1) Ensure session
+					const sessionSvc = new SessionService();
+					const sess = await sessionSvc.load();
+					if (!sess?.accessToken) {
+						log.error('❌ Not authenticated. Run `ghostable login`.');
+						process.exit(1);
+					}
 
-			// 2) Resolve project from manifest
-			let projectId: string;
-			let projectName: string;
-			try {
-				projectId = Manifest.id();
-				projectName = Manifest.name();
-			} catch {
-				log.error('❌ No project selected. Run `ghostable init` first.');
-				process.exit(1);
-				return;
-			}
+					// 2) Resolve project from manifest
+					let projectId: string;
+					let projectName: string;
+					try {
+						projectId = Manifest.id();
+						projectName = Manifest.name();
+					} catch {
+						log.error('❌ No project selected. Run `ghostable init` first.');
+						process.exit(1);
+						return;
+					}
 
-			// 3) Fetch environments (domain objects)
-			const client = GhostableClient.unauthenticated(config.apiBase).withToken(
-				sess.accessToken,
-			);
-			let envs: Environment[] = [];
-			try {
-				envs = await client.getEnvironments(projectId);
-				envs.sort((a, b) => a.name.localeCompare(b.name));
-			} catch (err: unknown) {
-				if (err instanceof Error) {
-					log.error(`❌ Failed loading environments: ${err.message}`);
-				} else {
-					log.error(`❌ Failed loading environments: ${String(err)}`);
-				}
-				process.exit(1);
-			}
+					// 3) Fetch environments (domain objects)
+					const client = GhostableClient.unauthenticated(config.apiBase).withToken(
+						sess.accessToken,
+					);
+					let envs: Environment[] = [];
+					try {
+						envs = await client.getEnvironments(projectId);
+						envs.sort((a, b) => a.name.localeCompare(b.name));
+					} catch (err: unknown) {
+						if (err instanceof Error) {
+							log.error(`❌ Failed loading environments: ${err.message}`);
+						} else {
+							log.error(`❌ Failed loading environments: ${String(err)}`);
+						}
+						process.exit(1);
+					}
 
-			if (!envs.length) {
-				log.warn(`No environments found for project ${projectName} (${projectId}).`);
-				return;
-			}
+					if (!envs.length) {
+						log.warn(
+							`No environments found for project ${projectName} (${projectId}).`,
+						);
+						return;
+					}
 
-			// 4) Build display rows
-			const rows = envs.map((e) => ({
-				ID: e.id,
-				Name: e.name,
-				Type: e.type,
-			}));
+					// 4) Build display rows
+					const rows = envs.map((e) => ({
+						ID: e.id,
+						Name: e.name,
+						Type: e.type,
+					}));
 
-			// 5) Print without index column: key by env name
-			const keyed = Object.fromEntries(
-				rows.map((r) => [r.ID, { Name: r.Name, Type: r.Type }]),
-			);
-			console.table(keyed);
-		});
+					// 5) Print without index column: key by env name
+					const keyed = Object.fromEntries(
+						rows.map((r) => [r.ID, { Name: r.Name, Type: r.Type }]),
+					);
+					console.table(keyed);
+				}),
+	);
 }

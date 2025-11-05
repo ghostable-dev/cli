@@ -4,7 +4,26 @@ export type Keytar = {
 	deletePassword(service: string, account: string): Promise<boolean>;
 };
 
-const DEPLOY_COMMANDS = new Set(['deploy:forge', 'deploy:cloud', 'deploy:vapor', 'env:deploy']);
+const DEPLOY_COMMANDS = new Set([
+	'deploy',
+	'deploy:forge',
+	'deploy:cloud',
+	'deploy:vapor',
+	'deploy-token',
+	'env:deploy',
+]);
+
+function isEnvNamespaceDeploy(argv: string[]): boolean {
+	for (let i = 0; i < argv.length; i += 1) {
+		const current = argv[i];
+		if (current === 'env:deploy') return true;
+		if (current === 'env' || current === 'environment') {
+			const next = argv[i + 1];
+			if (next === 'deploy') return true;
+		}
+	}
+	return false;
+}
 
 function argvHasToken(argv: string[]): boolean {
 	return argv.includes('--token') || argv.some((a) => a.startsWith('--token='));
@@ -12,7 +31,7 @@ function argvHasToken(argv: string[]): boolean {
 
 function isDeployCommand(argv: string[]): boolean {
 	// naive but reliable enough for Commander-style CLIs
-	return argv.some((a) => DEPLOY_COMMANDS.has(a));
+	return argv.some((a) => DEPLOY_COMMANDS.has(a)) || isEnvNamespaceDeploy(argv);
 }
 
 /**

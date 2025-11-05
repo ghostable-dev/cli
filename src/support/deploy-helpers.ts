@@ -387,7 +387,7 @@ export async function decryptBundle(
 
 	if (!secrets.length && bundle.secrets.length) {
 		warnings.push(
-			'No secrets could be decrypted with the provided master seed. Ensure the deployment token has access to the latest environment key (try `ghostable deploy-token create --env <ENV>` or ask an administrator to re-share the key).',
+			'No secrets could be decrypted with the provided master seed. Ensure the deployment token has access to the latest environment key (try `ghostable deploy token create --env <ENV>` or ask an administrator to re-share the key).',
 		);
 	}
 

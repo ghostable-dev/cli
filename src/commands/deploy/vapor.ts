@@ -23,105 +23,123 @@ import { resolveWorkDir } from '../../support/workdir.js';
 
 import type { EnvironmentSecret, EnvironmentSecretBundle } from '@/entities';
 
-export function registerDeployVaporCommand(program: Command) {
-	program
-		.command('deploy:vapor')
+type DeployVaporOptions = {
+	token?: string;
+	vaporEnv?: string;
+	only?: string[];
+};
+
+async function runDeployVapor(opts: DeployVaporOptions): Promise<void> {
+	let masterSeedB64: string;
+	try {
+		masterSeedB64 = resolveDeployMasterSeed();
+	} catch (error) {
+		log.error(toErrorMessage(error));
+		process.exit(1);
+	}
+
+	// 1) Token + client
+	let token: string;
+	try {
+		token = await resolveToken(opts.token, {
+			allowSession: false,
+		});
+	} catch (error) {
+		log.error(toErrorMessage(error));
+		process.exit(1);
+	}
+	const client = createGhostableClient(token);
+
+	// 2) Fetch secret bundle for this env (derived from token)
+	const deploySpin = ora('Fetching environment secret bundle…').start();
+	let bundle: EnvironmentSecretBundle;
+	try {
+		bundle = await client.deploy({
+			includeMeta: true,
+			includeVersions: true,
+			only: opts.only,
+		});
+		deploySpin.succeed('Bundle fetched.');
+	} catch (error) {
+		deploySpin.fail('Failed to fetch bundle.');
+		log.error(toErrorMessage(error));
+		process.exit(1);
+	}
+
+	if (!bundle.secrets.length) {
+		log.warn('No secrets returned; nothing to deploy.');
+		return;
+	}
+
+	// 3) Decrypt and split into standard vs secret (Vapor)
+	const { secrets, warnings } = await decryptBundle(bundle, {
+		masterSeedB64,
+	});
+	for (const w of warnings) log.warn(`⚠️ ${w}`);
+
+	if (!secrets.length) {
+		log.warn('No decryptable secrets; nothing to deploy.');
+		return;
+	}
+
+	const vaporEnv = (opts.vaporEnv ?? '').trim();
+	if (!vaporEnv) {
+		log.error('❌ The --vapor-env option is required when deploying to Vapor.');
+		process.exit(1);
+	}
+
+	if (!vapor.exists()) {
+		log.error('❌ vapor CLI not found on PATH');
+		process.exit(1);
+	}
+
+	const standardVars: Record<string, string> = {};
+	const secretVars: Record<string, string> = {};
+
+	for (const s of secrets) {
+		const entry = s.entry as EnvironmentSecret;
+		if (entry.meta?.is_vapor_secret) {
+			secretVars[entry.name] = s.value;
+		} else {
+			standardVars[entry.name] = s.value;
+		}
+	}
+
+	try {
+		await deployStandardVariables(vaporEnv, standardVars);
+	} catch (error) {
+		log.error(toErrorMessage(error));
+		process.exit(1);
+	}
+
+	try {
+		await deploySecretVariables(vaporEnv, secretVars);
+	} catch (error) {
+		log.error(toErrorMessage(error));
+		process.exit(1);
+	}
+
+	log.ok(`Vapor environment "${vaporEnv}" updated.`);
+}
+
+function attachVaporCommand(command: Command): Command {
+	return command
 		.description('Deploy Ghostable managed environment variables for Laravel Vapor.')
 		.option('--token <TOKEN>', 'Ghostable CI token (or env GHOSTABLE_CI_TOKEN)')
 		.option('--vapor-env <ENV>', 'Target Vapor environment')
 		.option('--only <KEY...>', 'Limit to specific keys')
-		.action(async (opts: { token?: string; vaporEnv?: string; only?: string[] }) => {
-			let masterSeedB64: string;
-			try {
-				masterSeedB64 = resolveDeployMasterSeed();
-			} catch (error) {
-				log.error(toErrorMessage(error));
-				process.exit(1);
-			}
-
-			// 1) Token + client
-			let token: string;
-			try {
-				token = await resolveToken(opts.token, {
-					allowSession: false,
-				});
-			} catch (error) {
-				log.error(toErrorMessage(error));
-				process.exit(1);
-			}
-			const client = createGhostableClient(token);
-
-			// 2) Fetch secret bundle for this env (derived from token)
-			const deploySpin = ora('Fetching environment secret bundle…').start();
-			let bundle: EnvironmentSecretBundle;
-			try {
-				bundle = await client.deploy({
-					includeMeta: true,
-					includeVersions: true,
-					only: opts.only,
-				});
-				deploySpin.succeed('Bundle fetched.');
-			} catch (error) {
-				deploySpin.fail('Failed to fetch bundle.');
-				log.error(toErrorMessage(error));
-				process.exit(1);
-			}
-
-			if (!bundle.secrets.length) {
-				log.warn('No secrets returned; nothing to deploy.');
-				return;
-			}
-
-			// 3) Decrypt and split into standard vs secret (Vapor)
-			const { secrets, warnings } = await decryptBundle(bundle, {
-				masterSeedB64,
-			});
-			for (const w of warnings) log.warn(`⚠️ ${w}`);
-
-			if (!secrets.length) {
-				log.warn('No decryptable secrets; nothing to deploy.');
-				return;
-			}
-
-			const vaporEnv = (opts.vaporEnv ?? '').trim();
-			if (!vaporEnv) {
-				log.error('❌ The --vapor-env option is required when deploying to Vapor.');
-				process.exit(1);
-			}
-
-			if (!vapor.exists()) {
-				log.error('❌ vapor CLI not found on PATH');
-				process.exit(1);
-			}
-
-			const standardVars: Record<string, string> = {};
-			const secretVars: Record<string, string> = {};
-
-			for (const s of secrets) {
-				const entry = s.entry as EnvironmentSecret;
-				if (entry.meta?.is_vapor_secret) {
-					secretVars[entry.name] = s.value;
-				} else {
-					standardVars[entry.name] = s.value;
-				}
-			}
-
-			try {
-				await deployStandardVariables(vaporEnv, standardVars);
-			} catch (error) {
-				log.error(toErrorMessage(error));
-				process.exit(1);
-			}
-
-			try {
-				await deploySecretVariables(vaporEnv, secretVars);
-			} catch (error) {
-				log.error(toErrorMessage(error));
-				process.exit(1);
-			}
-
-			log.ok(`Vapor environment "${vaporEnv}" updated.`);
+		.action(async (opts: DeployVaporOptions) => {
+			await runDeployVapor(opts);
 		});
+}
+
+export function configureDeployVaporCommand(deploy: Command) {
+	attachVaporCommand(deploy.command('vapor'));
+
+	const root = deploy.parent ?? null;
+	if (root) {
+		attachVaporCommand(root.command('deploy:vapor', { hidden: true }));
+	}
 }
 
 async function deployStandardVariables(

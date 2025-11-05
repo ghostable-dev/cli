@@ -5,10 +5,9 @@ import { GhostableClient } from '@/ghostable';
 import { log } from '../../support/logger.js';
 import type { Organization } from '@/entities';
 
-export function registerOrganizationListCommand(program: Command) {
-	program
-		.command('org:list')
-		.aliases(['orgs:list', 'organizations:list', 'organization:list'])
+export function configureOrganizationListCommand(org: Command) {
+	org.command('list')
+		.aliases(['ls', 'org:list', 'orgs:list', 'organizations:list', 'organization:list'])
 		.description('List the organizations that you belong to.')
 		.action(async () => {
 			const sess = await loadSessionOrExit();
