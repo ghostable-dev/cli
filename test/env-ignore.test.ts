@@ -371,8 +371,8 @@ describe('env diff ignore behaviour', () => {
 				prod: {},
 			},
 		};
-		localEnvVars = { GHOSTABLE_MASTER_SEED: 'seed' };
-		snapshots = { GHOSTABLE_MASTER_SEED: { rawValue: 'seed' } };
+		localEnvVars = { GHOSTABLE_DEPLOY_SEED: 'seed' };
+		snapshots = { GHOSTABLE_DEPLOY_SEED: { rawValue: 'seed' } };
 		decryptedSecrets = [];
 
 		const consoleLog = vi.spyOn(console, 'log').mockImplementation(() => {});
@@ -391,9 +391,9 @@ describe('env diff ignore behaviour', () => {
 			'--show-ignored',
 		]);
 
-		expect(logOutputs.info).toContain('Ignored keys (1): GHOSTABLE_MASTER_SEED');
+		expect(logOutputs.info).toContain('Ignored keys (1): GHOSTABLE_DEPLOY_SEED');
 		const combinedOutput = consoleLog.mock.calls.flat().join(' ');
-		expect(combinedOutput).not.toContain('GHOSTABLE_MASTER_SEED');
+		expect(combinedOutput).not.toContain('GHOSTABLE_DEPLOY_SEED');
 
 		consoleLog.mockRestore();
 	});
@@ -403,12 +403,12 @@ describe('env push ignore behaviour', () => {
 	it('skips ignored keys when uploading', async () => {
 		localEnvVars = {
 			FOO: 'value',
-			GHOSTABLE_MASTER_SEED: 'true',
+			GHOSTABLE_DEPLOY_SEED: 'true',
 			CUSTOM_TOKEN: 'custom',
 		};
 		snapshots = {
 			FOO: { rawValue: 'value' },
-			GHOSTABLE_MASTER_SEED: { rawValue: 'true' },
+			GHOSTABLE_DEPLOY_SEED: { rawValue: 'true' },
 			CUSTOM_TOKEN: { rawValue: 'custom' },
 		};
 
@@ -508,7 +508,7 @@ describe('env pull ignore behaviour', () => {
 				},
 				{
 					env: 'prod',
-					name: 'GHOSTABLE_MASTER_SEED',
+					name: 'GHOSTABLE_DEPLOY_SEED',
 					ciphertext: 'seed',
 					nonce: 'nonce',
 					alg: 'xchacha20',
@@ -536,10 +536,10 @@ describe('env pull ignore behaviour', () => {
 		const [{ content }] = writeFileCalls;
 		expect(content).toContain('FOO=foo-value');
 		expect(content).not.toContain('GHOSTABLE_CI_TOKEN');
-		expect(content).not.toContain('GHOSTABLE_MASTER_SEED');
+		expect(content).not.toContain('GHOSTABLE_DEPLOY_SEED');
 		expect(content).not.toContain('CUSTOM_TOKEN');
 		expect(logOutputs.info).toContain(
-			'Ignored keys (3): GHOSTABLE_CI_TOKEN, GHOSTABLE_MASTER_SEED, CUSTOM_TOKEN',
+			'Ignored keys (3): GHOSTABLE_CI_TOKEN, GHOSTABLE_DEPLOY_SEED, CUSTOM_TOKEN',
 		);
 	});
 });

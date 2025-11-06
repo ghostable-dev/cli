@@ -395,12 +395,12 @@ export async function decryptBundle(
 }
 
 export function resolveDeployMasterSeed(): string {
-	const envValue = process.env.GHOSTABLE_MASTER_SEED?.trim();
+	const envValue = process.env.GHOSTABLE_DEPLOY_SEED?.trim();
 
 	if (!envValue) {
 		throw new Error(
 			chalk.red(
-				'❌ Missing master seed. Set GHOSTABLE_MASTER_SEED when running this command.',
+				'❌ Missing master seed. Set GHOSTABLE_DEPLOY_SEED when running this command.',
 			),
 		);
 	}

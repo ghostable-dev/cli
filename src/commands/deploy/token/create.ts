@@ -141,7 +141,7 @@ export function configureCreateCommand(parent: Command) {
 							[
 								`Private key written to: ${resolved}`,
 								'',
-								'Set GHOSTABLE_MASTER_SEED in your CI to the contents of this private key file.',
+								'Set GHOSTABLE_DEPLOY_SEED in your CI to the contents of this private key file.',
 							].join('\n'),
 							{
 								...baseBoxOptions,
@@ -155,7 +155,7 @@ export function configureCreateCommand(parent: Command) {
 					log.text(
 						boxen(
 							[
-								'Set GHOSTABLE_MASTER_SEED in your CI to this private key (Base64):',
+								'Set GHOSTABLE_DEPLOY_SEED in your CI to this private key (Base64):',
 								'',
 								privateKeyB64,
 							].join('\n'),
