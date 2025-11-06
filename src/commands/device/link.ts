@@ -46,6 +46,7 @@ export async function linkDeviceFlow(client: GhostableClient): Promise<void> {
 		spinner.text = 'Registering device with Ghostable…';
 		const registered = await client.registerDevice({
 			publicKey: identity.encryptionKey.publicKey,
+			publicSigningKey: identity.signingKey.publicKey,
 			name,
 			platform,
 		});

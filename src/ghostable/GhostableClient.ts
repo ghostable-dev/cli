@@ -408,11 +408,13 @@ export class GhostableClient {
 
 	async registerDevice(input: {
 		publicKey: string;
+		publicSigningKey: string;
 		name: string;
 		platform: string;
 	}): Promise<Device> {
 		const json = await this.http.post<DeviceDocumentJson>(this.devicePath(), {
 			public_key: input.publicKey,
+			public_signing_key: input.publicSigningKey,
 			name: input.name,
 			platform: input.platform,
 		});
