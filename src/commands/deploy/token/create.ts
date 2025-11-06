@@ -4,6 +4,9 @@ import { Command } from 'commander';
 import { input } from '@inquirer/prompts';
 import ora from 'ora';
 
+import boxen from 'boxen';
+import chalk from 'chalk';
+
 import { log } from '../../../support/logger.js';
 import { toErrorMessage } from '../../../support/errors.js';
 import {
@@ -72,41 +75,98 @@ export function configureCreateCommand(parent: Command) {
 				});
 
 				spinner.succeed('Deployment token created.');
-				log.ok(`✅ Token ID: ${created.token.id}`);
-				log.ok(`🌱 Environment: ${environment.name}`);
+
+				const baseBoxOptions = {
+					padding: { top: 1, bottom: 1, left: 2, right: 2 },
+					margin: { top: 1, bottom: 1, left: 0, right: 0 },
+					borderStyle: 'round' as const,
+				};
+
+				log.text(
+					boxen(
+						[`Token ID: ${created.token.id}`, `Environment: ${environment.name}`].join(
+							'\n',
+						),
+						{
+							...baseBoxOptions,
+							borderColor: 'green' as const,
+							title: chalk.bold('Deployment Token Created'),
+							titleAlignment: 'center',
+						},
+					),
+				);
 
 				const apiTokenPlainText = created.apiToken?.plainText ?? created.secret;
 				if (apiTokenPlainText) {
-					log.line();
-					log.info('Add this one-time API token to your CI as GHOSTABLE_CI_TOKEN:');
-					log.text(apiTokenPlainText);
-					log.warn('⚠️ Store this token securely — it cannot be retrieved again.');
+					const apiTokenLines = [
+						'Add this one-time API token to your CI as GHOSTABLE_CI_TOKEN.',
+						'',
+						apiTokenPlainText,
+					];
 
 					if (created.apiToken?.tokenSuffix) {
-						log.info(
-							`🔐 Token suffix (for reference in the dashboard): ${created.apiToken.tokenSuffix}`,
+						apiTokenLines.push(
+							'',
+							`Token suffix (for reference in the dashboard): ${created.apiToken.tokenSuffix}`,
 						);
 					}
 
 					if (created.apiToken?.expiresAt) {
-						log.info(
-							`⏰ API token expires at ${created.apiToken.expiresAt.toISOString()}`,
+						apiTokenLines.push(
+							`API token expires at ${created.apiToken.expiresAt.toISOString()}`,
 						);
 					}
+
+					apiTokenLines.push(
+						'',
+						'⚠️ Store this token securely — it cannot be retrieved again.',
+					);
+
+					log.text(
+						boxen(apiTokenLines.join('\n'), {
+							...baseBoxOptions,
+							borderColor: 'yellow' as const,
+							title: chalk.bold('API Token (One-Time)'),
+							titleAlignment: 'center',
+						}),
+					);
 				}
 
-				log.line();
 				if (options.out) {
 					const resolved = path.resolve(options.out);
 					fs.mkdirSync(path.dirname(resolved), { recursive: true });
 					fs.writeFileSync(resolved, `${privateKeyB64}\n`, { mode: 0o600 });
-					log.ok(`🔑 Private key written to ${resolved}`);
-					log.info(
-						'Set GHOSTABLE_MASTER_SEED in your CI to the contents of this private key file.',
+					log.text(
+						boxen(
+							[
+								`Private key written to: ${resolved}`,
+								'',
+								'Set GHOSTABLE_MASTER_SEED in your CI to the contents of this private key file.',
+							].join('\n'),
+							{
+								...baseBoxOptions,
+								borderColor: 'magenta' as const,
+								title: chalk.bold('Deployment Private Key'),
+								titleAlignment: 'center',
+							},
+						),
 					);
 				} else {
-					log.info('Set GHOSTABLE_MASTER_SEED in your CI to this private key (Base64):');
-					log.text(privateKeyB64);
+					log.text(
+						boxen(
+							[
+								'Set GHOSTABLE_MASTER_SEED in your CI to this private key (Base64):',
+								'',
+								privateKeyB64,
+							].join('\n'),
+							{
+								...baseBoxOptions,
+								borderColor: 'magenta' as const,
+								title: chalk.bold('Deployment Private Key'),
+								titleAlignment: 'center',
+							},
+						),
+					);
 				}
 			} catch (error) {
 				spinner.fail('Failed to create deployment token.');

@@ -29,6 +29,17 @@ function argvHasToken(argv: string[]): boolean {
 	return argv.includes('--token') || argv.some((a) => a.startsWith('--token='));
 }
 
+function isDeployTokenCommand(argv: string[]): boolean {
+	for (let i = 0; i < argv.length; i += 1) {
+		const current = argv[i];
+		if (current === 'deploy-token') return true;
+		if (current === 'deploy' && (argv[i + 1] === 'token' || argv[i + 1] === 'tokens')) {
+			return true;
+		}
+	}
+	return false;
+}
+
 function isDeployCommand(argv: string[]): boolean {
 	// naive but reliable enough for Commander-style CLIs
 	return argv.some((a) => DEPLOY_COMMANDS.has(a)) || isEnvNamespaceDeploy(argv);
@@ -39,9 +50,10 @@ function isDeployCommand(argv: string[]): boolean {
  * If a deploy command is detected OR a token is passed via flag/env, we disable keychain.
  */
 export function allowKeyring(argv: string[] = process.argv.slice(2)): boolean {
-	if (isDeployCommand(argv)) return false;
+	if (isDeployTokenCommand(argv)) return true;
 	if (argvHasToken(argv)) return false;
 	if (process.env.GHOSTABLE_CI_TOKEN?.trim()) return false;
+	if (isDeployCommand(argv)) return false;
 	return true;
 }
 

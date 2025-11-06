@@ -1,5 +1,7 @@
 import { Command } from 'commander';
 import ora from 'ora';
+import boxen from 'boxen';
+import chalk from 'chalk';
 import { log } from '../../support/logger.js';
 import { DeviceIdentityService } from '../../services/DeviceIdentityService.js';
 import { ensureDeviceService, getAuthedClient } from './common.js';
@@ -30,23 +32,44 @@ export function configureStatusCommand(device: Command) {
 				const deviceRecord = await client.getDevice(identity.deviceId);
 				spinner.stop();
 
-				log.info('Local device identity');
-				log.info(`  ID: ${identity.deviceId}`);
-				log.info(`  Name: ${identity.name ?? 'n/a'}`);
-				log.info(`  Platform: ${identity.platform ?? 'n/a'}`);
-				log.info(
-					`  Signing fingerprint: ${DeviceIdentityService.fingerprint(identity.signingKey.publicKey)}`,
-				);
-				log.info(
-					`  Encryption fingerprint: ${DeviceIdentityService.fingerprint(identity.encryptionKey.publicKey)}`,
+				const baseBoxOptions = {
+					padding: { top: 1, bottom: 1, left: 2, right: 2 },
+					margin: 1,
+					borderColor: 'cyan' as const,
+					borderStyle: 'round' as const,
+				};
+
+				const localDetails = [
+					`ID: ${identity.deviceId}`,
+					`Name: ${identity.name ?? 'n/a'}`,
+					`Platform: ${identity.platform ?? 'n/a'}`,
+					`Signing fingerprint: ${DeviceIdentityService.fingerprint(identity.signingKey.publicKey)}`,
+					`Encryption fingerprint: ${DeviceIdentityService.fingerprint(identity.encryptionKey.publicKey)}`,
+				].join('\n');
+
+				const remoteDetails = [
+					`Platform: ${deviceRecord.platform}`,
+					`Status: ${deviceRecord.status}`,
+					`Created: ${deviceRecord.createdAt.toISOString()}`,
+					`Last seen: ${deviceRecord.lastSeenAt?.toISOString() ?? 'n/a'}`,
+					`Revoked at: ${deviceRecord.revokedAt?.toISOString() ?? 'n/a'}`,
+				].join('\n');
+
+				log.text(
+					boxen(localDetails, {
+						...baseBoxOptions,
+						title: chalk.bold('Local Device Identity'),
+						titleAlignment: 'center',
+					}),
 				);
 
-				log.info('Remote status');
-				log.info(`  Platform: ${deviceRecord.platform}`);
-				log.info(`  Status: ${deviceRecord.status}`);
-				log.info(`  Created: ${deviceRecord.createdAt.toISOString()}`);
-				log.info(`  Last seen: ${deviceRecord.lastSeenAt?.toISOString() ?? 'n/a'}`);
-				log.info(`  Revoked at: ${deviceRecord.revokedAt?.toISOString() ?? 'n/a'}`);
+				log.text(
+					boxen(remoteDetails, {
+						...baseBoxOptions,
+						title: chalk.bold('Remote Status'),
+						titleAlignment: 'center',
+					}),
+				);
 			} catch (error) {
 				spinner.fail('Unable to fetch device status.');
 				log.error(error instanceof Error ? error.message : String(error));
