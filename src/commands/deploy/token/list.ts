@@ -2,6 +2,7 @@ import { Command } from 'commander';
 
 import { log } from '../../../support/logger.js';
 import { toErrorMessage } from '../../../support/errors.js';
+import { formatDateTime } from '../../../support/dates.js';
 import { requireAuthedClient, requireProjectContext, selectEnvironment } from './common.js';
 import type { DeploymentToken } from '@/entities';
 
@@ -38,8 +39,8 @@ export function configureListCommand(parent: Command) {
 				{
 					Name: token.name,
 					Status: token.status,
-					'Last Used': token.lastUsedAt ? token.lastUsedAt.toISOString() : 'never',
-					Created: token.createdAt.toISOString(),
+					'Last Used': token.lastUsedAt ? formatDateTime(token.lastUsedAt) : 'never',
+					Created: formatDateTime(token.createdAt),
 				},
 			]),
 		);

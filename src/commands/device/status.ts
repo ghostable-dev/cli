@@ -3,6 +3,7 @@ import ora from 'ora';
 import boxen from 'boxen';
 import chalk from 'chalk';
 import { log } from '../../support/logger.js';
+import { formatDateTime } from '../../support/dates.js';
 import { DeviceIdentityService } from '../../services/DeviceIdentityService.js';
 import { ensureDeviceService, getAuthedClient } from './common.js';
 
@@ -50,9 +51,13 @@ export function configureStatusCommand(device: Command) {
 				const remoteDetails = [
 					`Platform: ${deviceRecord.platform}`,
 					`Status: ${deviceRecord.status}`,
-					`Created: ${deviceRecord.createdAt.toISOString()}`,
-					`Last seen: ${deviceRecord.lastSeenAt?.toISOString() ?? 'n/a'}`,
-					`Revoked at: ${deviceRecord.revokedAt?.toISOString() ?? 'n/a'}`,
+					`Created: ${formatDateTime(deviceRecord.createdAt)}`,
+					`Last seen: ${
+						deviceRecord.lastSeenAt ? formatDateTime(deviceRecord.lastSeenAt) : 'n/a'
+					}`,
+					`Revoked at: ${
+						deviceRecord.revokedAt ? formatDateTime(deviceRecord.revokedAt) : 'n/a'
+					}`,
 				].join('\n');
 
 				log.text(

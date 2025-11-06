@@ -3,12 +3,12 @@ import path from 'node:path';
 import { Command } from 'commander';
 import { input } from '@inquirer/prompts';
 import ora from 'ora';
-
 import boxen from 'boxen';
 import chalk from 'chalk';
 
 import { log } from '../../../support/logger.js';
 import { toErrorMessage } from '../../../support/errors.js';
+import { formatDateTimeWithRelative } from '../../../support/dates.js';
 import {
 	requireAuthedClient,
 	requireDeviceIdentity,
@@ -75,99 +75,75 @@ export function configureCreateCommand(parent: Command) {
 				});
 
 				spinner.succeed('Deployment token created.');
-
-				const baseBoxOptions = {
-					padding: { top: 1, bottom: 1, left: 2, right: 2 },
-					margin: { top: 1, bottom: 1, left: 0, right: 0 },
-					borderStyle: 'round' as const,
-				};
-
-				log.text(
-					boxen(
-						[`Token ID: ${created.token.id}`, `Environment: ${environment.name}`].join(
-							'\n',
-						),
-						{
-							...baseBoxOptions,
-							borderColor: 'green' as const,
-							title: chalk.bold('Deployment Token Created'),
-							titleAlignment: 'center',
-						},
-					),
-				);
+				log.line();
 
 				const apiTokenPlainText = created.apiToken?.plainText ?? created.secret;
+				const lines = [
+					`${chalk.dim('Token ID:')} ${created.token.id}`,
+					`${chalk.dim('Environment:')} ${environment.name}`,
+					`${chalk.dim('Token Expires:')} ${
+						created.apiToken?.expiresAt
+							? formatDateTimeWithRelative(created.apiToken.expiresAt)
+							: created.apiToken
+								? 'Does not expire'
+								: 'N/A'
+					}`,
+				];
+
+				if (created.apiToken?.tokenSuffix) {
+					lines.push(`${chalk.dim('Token Suffix:')} ${created.apiToken.tokenSuffix}`);
+				}
+
+				const appendSection = (section: string[]) => {
+					if (section.length === 0) {
+						return;
+					}
+
+					if (lines[lines.length - 1] !== '') {
+						lines.push('');
+					}
+
+					lines.push(...section);
+				};
+
+				const envVarSection: string[] = [];
+
 				if (apiTokenPlainText) {
-					const apiTokenLines = [
-						'Add this one-time API token to your CI as GHOSTABLE_CI_TOKEN.',
-						'',
-						apiTokenPlainText,
-					];
+					envVarSection.push(`${chalk.dim('GHOSTABLE_CI_TOKEN=')}"${apiTokenPlainText}"`);
+				}
 
-					if (created.apiToken?.tokenSuffix) {
-						apiTokenLines.push(
-							'',
-							`Token suffix (for reference in the dashboard): ${created.apiToken.tokenSuffix}`,
-						);
-					}
+				if (!options.out) {
+					envVarSection.push(`${chalk.dim('GHOSTABLE_DEPLOY_SEED=')}"${privateKeyB64}"`);
+				}
 
-					if (created.apiToken?.expiresAt) {
-						apiTokenLines.push(
-							`API token expires at ${created.apiToken.expiresAt.toISOString()}`,
-						);
-					}
-
-					apiTokenLines.push(
-						'',
-						'⚠️ Store this token securely — it cannot be retrieved again.',
-					);
-
-					log.text(
-						boxen(apiTokenLines.join('\n'), {
-							...baseBoxOptions,
-							borderColor: 'yellow' as const,
-							title: chalk.bold('API Token (One-Time)'),
-							titleAlignment: 'center',
-						}),
-					);
+				if (envVarSection.length > 0) {
+					appendSection(envVarSection);
 				}
 
 				if (options.out) {
 					const resolved = path.resolve(options.out);
 					fs.mkdirSync(path.dirname(resolved), { recursive: true });
 					fs.writeFileSync(resolved, `${privateKeyB64}\n`, { mode: 0o600 });
-					log.text(
-						boxen(
-							[
-								`Private key written to: ${resolved}`,
-								'',
-								'Set GHOSTABLE_DEPLOY_SEED in your CI to the contents of this private key file.',
-							].join('\n'),
-							{
-								...baseBoxOptions,
-								borderColor: 'magenta' as const,
-								title: chalk.bold('Deployment Private Key'),
-								titleAlignment: 'center',
-							},
-						),
-					);
-				} else {
-					log.text(
-						boxen(
-							[
-								'Set GHOSTABLE_DEPLOY_SEED in your CI to this private key (Base64):',
-								'',
-								privateKeyB64,
-							].join('\n'),
-							{
-								...baseBoxOptions,
-								borderColor: 'magenta' as const,
-								title: chalk.bold('Deployment Private Key'),
-								titleAlignment: 'center',
-							},
-						),
-					);
+					appendSection([
+						`${chalk.dim('Private key written to:')} ${resolved}`,
+						'Set GHOSTABLE_DEPLOY_SEED in your CI to the contents of this private key file.',
+					]);
 				}
+
+				const warningBox = boxen(
+					'Store this information securely — it cannot be retrieved again.',
+					{
+						padding: { top: 0, bottom: 0, left: 1, right: 1 },
+						margin: 0,
+						borderColor: 'yellow',
+						borderStyle: 'round',
+					},
+				);
+
+				lines.push('');
+				lines.push(warningBox);
+
+				log.text(lines.join('\n'));
 			} catch (error) {
 				spinner.fail('Failed to create deployment token.');
 				log.error(toErrorMessage(error));

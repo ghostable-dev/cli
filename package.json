@@ -43,12 +43,14 @@
         "dotenv": "^17.2.3",
         "js-yaml": "^4.1.0",
         "keytar": "^7.9.0",
+        "luxon": "^3.7.2",
         "open": "^10.2.0",
         "ora": "^9.0.0",
         "uuid": "^13.0.0"
     },
     "devDependencies": {
         "@types/js-yaml": "^4.0.9",
+        "@types/luxon": "^3.7.1",
         "@types/node": "^22.0.0",
         "@types/uuid": "^10.0.0",
         "@typescript-eslint/eslint-plugin": "^8.46.0",
