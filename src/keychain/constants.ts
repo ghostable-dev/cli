@@ -4,8 +4,6 @@ export const KEYCHAIN_SERVICE_DEVICE_IDENTITY = 'dev.ghostable.cli.device.identi
 
 export const KEYCHAIN_SERVICE_ENVIRONMENT = 'dev.ghostable.cli.environment-key';
 
-export const KEYCHAIN_SERVICE_KEY_BUNDLE = 'dev.ghostable.cli.key-bundle';
-
 export function keychainServiceForDeviceEncryptionKey(deviceId: string): string {
 	if (!deviceId) {
 		throw new Error('deviceId is required to derive the encryption key service name.');

@@ -22,7 +22,6 @@ import {
 	DEPLOYMENT_ENVELOPE_HKDF_INFO,
 } from '@/crypto';
 import type { AAD } from '@/crypto';
-import { loadOrCreateKeys } from '@/keychain';
 import { toErrorMessage } from './errors.js';
 
 import { EnvironmentSecret, EnvironmentSecretBundle } from '@/entities';
@@ -137,7 +136,7 @@ export async function decryptBundle(
 ): Promise<DecryptionResult> {
 	await initSodium();
 
-	const masterSeedB64 = await resolveMasterSeed(options?.masterSeedB64);
+	const masterSeedB64 = resolveMasterSeed(options?.masterSeedB64);
 	const masterSeed = Buffer.from(masterSeedB64.replace(/^b64:/, ''), 'base64');
 	const masterSeedBytes = new Uint8Array(masterSeed);
 
@@ -410,13 +409,16 @@ export function resolveDeployMasterSeed(): string {
 
 export type { ManifestContext, DecryptedSecret, DecryptionResult };
 
-async function resolveMasterSeed(provided?: string): Promise<string> {
-	if (provided && provided.trim()) {
-		return normalizeSeed(provided.trim());
+function resolveMasterSeed(provided?: string): string {
+	if (!provided?.trim()) {
+		throw new Error(
+			chalk.red(
+				'❌ Missing master seed. Provide --master-seed or set GHOSTABLE_DEPLOY_SEED.',
+			),
+		);
 	}
 
-	const { masterSeedB64 } = await loadOrCreateKeys();
-	return normalizeSeed(masterSeedB64);
+	return normalizeSeed(provided.trim());
 }
 
 function normalizeSeed(seed: string): string {

@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 import 'dotenv/config';
 import { Command } from 'commander';
+import type { Argument } from 'commander';
 import { select } from '@inquirer/prompts';
 import chalk from 'chalk';
 import { registerAllCommands } from './commands/_autoregister.js';
@@ -40,6 +41,11 @@ const INTERACTIVE_COMMANDS: InteractiveCommandConfig[] = [
 		label: '`ghostable deploy-token`',
 	},
 ];
+
+const humanReadableArgName = (arg: Argument): string => {
+	const nameOutput = `${arg.name()}${arg.variadic ? '...' : ''}`;
+	return arg.required ? `<${nameOutput}>` : `[${nameOutput}]`;
+};
 
 const isPromptCanceledError = (error: unknown): error is Error & { name: string } =>
 	typeof error === 'object' &&
@@ -114,6 +120,15 @@ const program = new Command();
 program.name('ghostable').description('Manage Ghostable environment secrets from the CLI');
 program.version('v2.2.0');
 await registerAllCommands(program);
+program.configureHelp({
+	subcommandTerm: (cmd) => {
+		const args = cmd.registeredArguments
+			.map((argument) => humanReadableArgName(argument))
+			.join(' ');
+		const options = cmd.options.length ? ' [options]' : '';
+		return `${cmd.name()}${options}${args ? ` ${args}` : ''}`;
+	},
+});
 
 // Helpful defaults
 program.showHelpAfterError();

@@ -151,23 +151,6 @@ vi.mock('@/crypto', async () => {
 	};
 });
 
-const loadOrCreateKeysMock = vi.hoisted(() =>
-	vi.fn(async () => ({
-		masterSeedB64: `b64:${Buffer.from('0123456789abcdef0123456789abcdef', 'utf8').toString('base64')}`,
-		ed25519PrivB64: `b64:${Buffer.from('abcdef0123456789abcdef0123456789', 'utf8').toString('base64')}`,
-	})),
-);
-
-vi.mock('@/keychain', async () => {
-	const actual = await vi.importActual<typeof import('../src/keychain/index.js')>(
-		'../src/keychain/index.js',
-	);
-	return {
-		...actual,
-		loadOrCreateKeys: loadOrCreateKeysMock,
-	};
-});
-
 vi.mock('@inquirer/prompts', () => ({
 	select: vi.fn(),
 }));
