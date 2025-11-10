@@ -122,8 +122,15 @@ program.configureOutput({
 });
 
 let forwardArgs: string[] | undefined;
+let rawArgsForPrompt = process.argv.slice(2);
 try {
-	forwardArgs = await maybePromptInteractiveSubcommand(program, process.argv.slice(2));
+	while (true) {
+		const promptedArgs = await maybePromptInteractiveSubcommand(program, rawArgsForPrompt);
+		if (!promptedArgs) break;
+
+		forwardArgs = promptedArgs;
+		rawArgsForPrompt = promptedArgs.slice(2);
+	}
 } catch (err) {
 	if (isPromptCanceledError(err)) {
 		log.warn('Canceled.');
@@ -132,6 +139,9 @@ try {
 	throw err;
 }
 const argvToParse = forwardArgs ?? process.argv;
+if (forwardArgs) {
+	process.argv = forwardArgs.slice();
+}
 
 program.parseAsync(argvToParse).catch((err) => {
 	// Catch any import-time or action-time errors so they don’t crash silently

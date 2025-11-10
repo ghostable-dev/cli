@@ -62,7 +62,7 @@ export type EnvironmentSecretCommon = {
 	/** Authenticated associated data (org/project/env/name). */
 	aad: AAD;
 
-	/** Optional claims (HMAC, validators, etc.) attached by the client. */
+	/** Optional claims (e.g., HMAC) attached by the client. */
 	claims?: Claims;
 
 	/** Version of the environment KEK used during encryption (optional). */
@@ -415,11 +415,6 @@ export function createEnvironmentKeyEnvelopeRequestToJSON(
 		envelope: environmentKeyEnvelopeUploadToJSON(request.envelope),
 	};
 }
-
-/**
- * Validator claims attached by the client during upload.
- */
-export type SecretUploadValidators = Record<string, unknown>;
 
 /**
  * Unsigned upload request for a single environment secret.

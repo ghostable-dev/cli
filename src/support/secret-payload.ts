@@ -1,8 +1,5 @@
 import { aeadEncrypt, b64, deriveKeys, edSign, hmacSHA256 } from '@/crypto';
-import type {
-	SecretUploadValidators,
-	SignedEnvironmentSecretUploadRequest,
-} from '@/ghostable/types/environment.js';
+import type { SignedEnvironmentSecretUploadRequest } from '@/ghostable/types/environment.js';
 import type { AAD, Claims } from '@/crypto';
 
 export async function buildSecretPayload(opts: {
@@ -13,7 +10,6 @@ export async function buildSecretPayload(opts: {
 	plaintext: string;
 	keyMaterial: Uint8Array;
 	edPriv: Uint8Array;
-	validators?: SecretUploadValidators;
 	ifVersion?: number;
 	envKekVersion?: number;
 	envKekFingerprint?: string;
@@ -26,7 +22,6 @@ export async function buildSecretPayload(opts: {
 		plaintext,
 		keyMaterial,
 		edPriv,
-		validators,
 		ifVersion,
 		envKekVersion,
 		envKekFingerprint,
@@ -39,10 +34,7 @@ export async function buildSecretPayload(opts: {
 	const bundle = aeadEncrypt(encKey, pt, aad);
 
 	const hmac = hmacSHA256(hmacKey, pt);
-	const claims: Claims = {
-		hmac,
-		validators: { non_empty: plaintext.length > 0, ...(validators ?? {}) },
-	};
+	const claims: Claims = { hmac };
 
 	const body = {
 		name,

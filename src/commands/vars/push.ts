@@ -21,8 +21,6 @@ import { getIgnoredKeys, filterIgnoredKeys } from '../../support/ignore.js';
 import { buildSecretPayload } from '../../support/secret-payload.js';
 import { registerVarSubcommand } from './_shared.js';
 
-import type { ValidatorRecord } from '@/crypto';
-
 export type VarPushOptions = {
 	env?: string;
 	key?: string;
@@ -260,20 +258,6 @@ export function registerVarPushCommand(program: Command) {
 						return;
 					}
 
-					const validators: ValidatorRecord = {
-						non_empty: target.parsedValue.length > 0,
-					};
-
-					if (target.name === 'APP_KEY') {
-						validators.regex = {
-							id: 'base64_44char_v1',
-							ok:
-								/^base64:/.test(target.parsedValue) &&
-								target.parsedValue.length >= 44,
-						};
-						validators.length = target.parsedValue.length;
-					}
-
 					try {
 						const payload = await buildSecretPayload({
 							name: target.name,
@@ -283,7 +267,6 @@ export function registerVarPushCommand(program: Command) {
 							plaintext: target.plaintext,
 							keyMaterial: keyInfo.key,
 							edPriv,
-							validators,
 							envKekVersion: keyInfo.version,
 							envKekFingerprint: keyInfo.fingerprint,
 						});

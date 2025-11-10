@@ -16,7 +16,7 @@ import {
 import { buildDeploymentTokenSummaryLines } from './output.js';
 
 import { KeyService, MemoryKeyStore } from '@/crypto';
-import { formatDeploymentTokenLabel } from '@/entities';
+import { formatDeploymentTokenLabel, isDeploymentTokenActive } from '@/entities';
 
 export function configureRotateCommand(parent: Command) {
 	parent
@@ -43,19 +43,38 @@ export function configureRotateCommand(parent: Command) {
 				process.exit(1);
 			}
 
-			let target = options.token
-				? tokens.find((token) => token.id === options.token)
-				: undefined;
+			const activeTokens = tokens.filter(isDeploymentTokenActive);
+
+			let target: (typeof tokens)[number] | undefined;
+
+			if (options.token) {
+				target = tokens.find((token) => token.id === options.token);
+
+				if (!target) {
+					log.error('❌ Deployment token not found.');
+					process.exit(1);
+				}
+
+				if (!isDeploymentTokenActive(target)) {
+					log.error(
+						'❌ Deployment token has been revoked and cannot be rotated. Create a new token instead.',
+					);
+					process.exit(1);
+				}
+			} else if (!activeTokens.length) {
+				log.error(`❌ No active deployment tokens available for ${environment.name}.`);
+				process.exit(1);
+			}
 
 			if (!target) {
 				const choice = await select<string>({
 					message: 'Select a deployment token to rotate',
-					choices: tokens.map((token) => ({
+					choices: activeTokens.map((token) => ({
 						name: formatDeploymentTokenLabel(token),
 						value: token.id,
 					})),
 				});
-				target = tokens.find((token) => token.id === choice);
+				target = activeTokens.find((token) => token.id === choice);
 			}
 
 			if (!target) {

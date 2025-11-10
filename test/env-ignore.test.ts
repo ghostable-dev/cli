@@ -38,7 +38,7 @@ const buildSecretPayloadMock = vi.fn(async (input: Record<string, unknown>) => {
 		nonce: 'nonce',
 		alg: 'alg',
 		aad: { org: input.org, project: input.project, env: input.env, name: input.name },
-		claims: { hmac: 'hmac', validators: {} },
+		claims: { hmac: 'hmac' },
 		client_sig: 'sig',
 		env_kek_version: input.envKekVersion,
 		env_kek_fingerprint: input.envKekFingerprint,

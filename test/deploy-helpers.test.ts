@@ -97,7 +97,7 @@ describe('decryptBundle', () => {
 					nonce: cipher.nonce,
 					alg: cipher.alg,
 					aad: cipher.aad,
-					claims: { hmac, validators: {} },
+					claims: { hmac },
 					version: 1,
 					env_kek_version: 1,
 					env_kek_fingerprint: fingerprint,
