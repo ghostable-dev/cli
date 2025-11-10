@@ -16,7 +16,7 @@ async function clearLocalDeviceState(
 export function configureUnlinkCommand(device: Command) {
 	device
 		.command('unlink')
-		.description('Revoke the current device and wipe local key material.')
+		.description('Revoke this device and wipe local key material')
 		.action(async () => {
 			const { client } = await getAuthedClient();
 			let service: DeviceIdentityService;

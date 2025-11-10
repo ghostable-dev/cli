@@ -7,6 +7,7 @@ import { DeviceIdentityService } from '../../services/DeviceIdentityService.js';
 import type { GhostableClient } from '@/ghostable';
 import { KeyService } from '@/crypto';
 import { ensureDeviceService, getAuthedClient } from './common.js';
+import { showDeviceStatus } from './status.js';
 
 function defaultPlatformLabel(): string {
 	return `${process.platform}-${os.arch()} (${os.release()})`;
@@ -35,6 +36,12 @@ export async function linkDeviceFlow(client: GhostableClient): Promise<void> {
 	const existing = await service.loadIdentity();
 	if (existing) {
 		log.ok('✅ Device identity already linked on this machine.');
+		try {
+			await showDeviceStatus(client, { service, identity: existing });
+		} catch (error) {
+			log.error(error instanceof Error ? error.message : String(error));
+			process.exit(1);
+		}
 		return;
 	}
 
@@ -78,7 +85,7 @@ export function configureLinkCommand(device: Command) {
 	device
 		.command('link')
 		.alias('init')
-		.description('Provision a new device identity and register it with Ghostable.')
+		.description('Mint and register a new local device identity')
 		.action(async () => {
 			const { client } = await getAuthedClient();
 			try {

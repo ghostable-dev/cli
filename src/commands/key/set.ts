@@ -8,7 +8,7 @@ import { setMasterSeed } from '@/keychain';
 export function registerKeySetCommand(program: Command) {
 	program
 		.command('key:set')
-		.description('Set the master seed used to derive per-environment keys')
+		.description('Replace the stored master seed for environment keys')
 		.action(async () => {
 			try {
 				const raw = await input({

@@ -4,6 +4,8 @@ import { XChaCha20Poly1305 } from '@stablelib/xchacha20poly1305';
 import {
 	KeyService,
 	CIPHER_ALG,
+	b64,
+	edSign,
 	randomBytes,
 	type DeviceIdentity,
 	type EncryptedEnvelope,
@@ -15,10 +17,19 @@ import { EnvelopeService } from '@/services/EnvelopeService.js';
 import { encryptedEnvelopeFromJSON, encryptedEnvelopeToJSON } from '@/ghostable/types/crypto.js';
 import type {
 	CreateEnvironmentKeyEnvelopeRequest,
+	CreateEnvironmentKeyEnvelopeRequestJson,
 	CreateEnvironmentKeyRequest,
+	CreateEnvironmentKeyRequestJson,
 	EnvironmentKeyEnvelope,
+	SignedClientPayload,
+	SignedCreateEnvironmentKeyEnvelopeRequestJson,
+	SignedCreateEnvironmentKeyRequestJson,
 } from '@/ghostable/types/environment.js';
 import type { GhostableClient } from '@/ghostable';
+import {
+	createEnvironmentKeyEnvelopeRequestToJSON,
+	createEnvironmentKeyRequestToJSON,
+} from '@/ghostable/types/environment.js';
 
 function toHex(bytes: Uint8Array): string {
 	return Buffer.from(bytes).toString('hex');
@@ -37,6 +48,8 @@ type StoredEnvironmentKey = {
 	version: number;
 	fingerprint: string;
 };
+
+const textEncoder = new TextEncoder();
 
 export type EnsureEnvironmentKeyResult = {
 	key: Uint8Array;
@@ -69,6 +82,30 @@ export class EnvironmentKeyService {
 
 	private static normalizeFingerprint(value?: string | null): string {
 		return value ?? '';
+	}
+
+	private static signingKeyBytes(identity: DeviceIdentity): Uint8Array {
+		const privateKey = identity.signingKey?.privateKey;
+		if (!privateKey) {
+			throw new Error('Device identity is missing a private signing key.');
+		}
+		return new Uint8Array(Buffer.from(privateKey, 'base64'));
+	}
+
+	private static async signPayload<T extends Record<string, unknown>>(
+		payload: T,
+		identity: DeviceIdentity,
+	): Promise<SignedClientPayload<T>> {
+		const body = {
+			device_id: identity.deviceId,
+			...payload,
+		};
+		const bytes = textEncoder.encode(JSON.stringify(body));
+		const signature = await edSign(EnvironmentKeyService.signingKeyBytes(identity), bytes);
+		return {
+			...body,
+			client_sig: b64(signature),
+		};
 	}
 
 	private static encodeRecipientEnvelope(envelope: EncryptedEnvelope): string {
@@ -311,12 +348,16 @@ export class EnvironmentKeyService {
 		};
 
 		if (created) {
-			const response = await client.createEnvironmentKey(projectId, envName, {
-				version,
-				fingerprint,
-				envelope,
-				createdByDeviceId: identity.deviceId,
-			});
+			const unsignedRequest: CreateEnvironmentKeyRequestJson =
+				createEnvironmentKeyRequestToJSON({
+					version,
+					fingerprint,
+					envelope,
+					createdByDeviceId: identity.deviceId,
+				});
+			const signedRequest: SignedCreateEnvironmentKeyRequestJson =
+				await EnvironmentKeyService.signPayload(unsignedRequest, identity);
+			const response = await client.createEnvironmentKey(projectId, envName, signedRequest);
 
 			await this.saveLocal(projectId, envName, {
 				keyB64: encodeKey(key),
@@ -326,10 +367,15 @@ export class EnvironmentKeyService {
 			return;
 		}
 
-		await client.createEnvironmentKeyEnvelope(projectId, envName, {
-			fingerprint,
-			envelope,
-		} satisfies CreateEnvironmentKeyEnvelopeRequest);
+		const unsignedEnvelopeRequest: CreateEnvironmentKeyEnvelopeRequestJson =
+			createEnvironmentKeyEnvelopeRequestToJSON({
+				fingerprint,
+				envelope,
+			} satisfies CreateEnvironmentKeyEnvelopeRequest);
+		const signedEnvelopeRequest: SignedCreateEnvironmentKeyEnvelopeRequestJson =
+			await EnvironmentKeyService.signPayload(unsignedEnvelopeRequest, identity);
+
+		await client.createEnvironmentKeyEnvelope(projectId, envName, signedEnvelopeRequest);
 
 		await this.saveLocal(projectId, envName, {
 			keyB64: encodeKey(key),

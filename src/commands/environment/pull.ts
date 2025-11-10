@@ -54,7 +54,7 @@ export function registerEnvPullCommand(program: Command) {
 		},
 		(cmd) =>
 			cmd
-				.description('Pull and decrypt environment variables into a local .env file.')
+				.description('Pull and decrypt environment secrets into a local .env')
 				.option('--env <ENV>', 'Environment name (if omitted, select from manifest)')
 				.option('--file <PATH>', 'Output file (default: .env.<env> or .env)')
 				.option('--token <TOKEN>', 'API token (or stored session / GHOSTABLE_TOKEN)')

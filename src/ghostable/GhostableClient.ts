@@ -14,8 +14,8 @@ import {
 import type { DeviceStatus } from '@/entities';
 
 import type {
-	CreateEnvironmentKeyEnvelopeRequest,
-	CreateEnvironmentKeyRequest,
+	SignedCreateEnvironmentKeyEnvelopeRequestJson,
+	SignedCreateEnvironmentKeyRequestJson,
 	DeviceDeleteResponseJson,
 	DeviceDocumentJson,
 	DeviceResourceJson,
@@ -30,7 +30,6 @@ import type {
 	OrganizationJson,
 	ProjectJson,
 	SignedEnvironmentSecretBatchUploadRequest,
-	SignedEnvironmentSecretUploadRequest,
 	CreateDeploymentTokenRequestJson,
 	CreateDeploymentTokenResponseJson,
 	DeploymentTokenListResponseJson,
@@ -40,8 +39,6 @@ import type {
 	RotateDeploymentTokenResponseJson,
 } from './types/index.js';
 import {
-	createEnvironmentKeyEnvelopeRequestToJSON,
-	createEnvironmentKeyRequestToJSON,
 	environmentKeyResponseFromJSON,
 	environmentKeysFromJSON,
 	deploymentTokenFromJSON,
@@ -172,6 +169,12 @@ export class GhostableClient {
 		return Project.fromJSON(res);
 	}
 
+	async getProject(projectId: string): Promise<Project> {
+		const p = encodeURIComponent(projectId);
+		const res = await this.http.get<ProjectJson>(`/projects/${p}`);
+		return Project.fromJSON(res);
+	}
+
 	async getEnvironments(projectId: string): Promise<Environment[]> {
 		const p = encodeURIComponent(projectId);
 		const res = await this.http.get<{ data?: EnvironmentJson[] }>(
@@ -211,18 +214,6 @@ export class GhostableClient {
 		});
 		const json = res.data;
 		return Environment.fromJSON(json);
-	}
-
-	async uploadSecret(
-		projectId: string,
-		envName: string,
-		payload: SignedEnvironmentSecretUploadRequest,
-		opts?: { sync?: boolean },
-	): Promise<{ id?: string; version?: number }> {
-		const p = encodeURIComponent(projectId);
-		const e = encodeURIComponent(envName);
-		const suffix = opts?.sync ? '?sync=1' : '';
-		return this.http.post(`/projects/${p}/environments/${e}/secrets${suffix}`, payload);
 	}
 
 	async push(
@@ -294,13 +285,13 @@ export class GhostableClient {
 	async createEnvironmentKey(
 		projectId: string,
 		envName: string,
-		request: CreateEnvironmentKeyRequest,
+		payload: SignedCreateEnvironmentKeyRequestJson,
 	): Promise<EnvironmentKey> {
 		const p = encodeURIComponent(projectId);
 		const e = encodeURIComponent(envName);
 		const json = await this.http.post<EnvironmentKeyResponseJson>(
 			`/projects/${p}/environments/${e}/key`,
-			createEnvironmentKeyRequestToJSON(request),
+			payload,
 		);
 		const response = environmentKeyResponseFromJSON(json).data;
 		if (!response) {
@@ -312,14 +303,11 @@ export class GhostableClient {
 	async createEnvironmentKeyEnvelope(
 		projectId: string,
 		envName: string,
-		request: CreateEnvironmentKeyEnvelopeRequest,
+		payload: SignedCreateEnvironmentKeyEnvelopeRequestJson,
 	): Promise<void> {
 		const p = encodeURIComponent(projectId);
 		const e = encodeURIComponent(envName);
-		await this.http.post<unknown>(
-			`/projects/${p}/environments/${e}/key/envelopes`,
-			createEnvironmentKeyEnvelopeRequestToJSON(request),
-		);
+		await this.http.post<unknown>(`/projects/${p}/environments/${e}/key/envelopes`, payload);
 	}
 
 	private deployTokenPath(projectId: string, tokenId?: string): string {

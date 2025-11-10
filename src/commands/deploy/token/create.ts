@@ -22,7 +22,7 @@ import { KeyService, MemoryKeyStore } from '@/crypto';
 export function configureCreateCommand(parent: Command) {
 	parent
 		.command('create')
-		.description('Create a new deployment token and X25519 keypair.')
+		.description('Create a deployment token plus its encryption keypair')
 		.option('--env <ENV>', 'Environment name or ID to target')
 		.option('--name <NAME>', 'Token display name')
 		.option('--out <FILE>', 'Write the private key to a file instead of stdout')

@@ -4,7 +4,6 @@ import fs from 'node:fs';
 import chalk from 'chalk';
 
 import { initSodium } from '@/crypto';
-import { loadOrCreateKeys } from '@/keychain';
 import { config } from '../../config/index.js';
 import { SessionService } from '../../services/SessionService.js';
 import { GhostableClient } from '@/ghostable';
@@ -53,7 +52,7 @@ export function registerVarPushCommand(program: Command) {
 		},
 		(cmd) =>
 			cmd
-				.description('Encrypt and push a single environment variable to Ghostable')
+				.description('Encrypt and push one environment variable to Ghostable')
 				.option('--env <ENV>', 'Environment name (if omitted, select from manifest)')
 				.option(
 					'--key <KEY>',
@@ -160,6 +159,27 @@ export function registerVarPushCommand(program: Command) {
 						sessionToken,
 					);
 
+					if (!orgId) {
+						try {
+							const project = await client.getProject(projectId);
+							orgId = project.organizationId;
+						} catch (error) {
+							log.error(
+								`❌ Failed to resolve organization for project ${projectId}: ${toErrorMessage(error)}`,
+							);
+							process.exit(1);
+							return;
+						}
+					}
+
+					if (!orgId) {
+						log.error(
+							'❌ Organization context is required to push environment variables.',
+						);
+						process.exit(1);
+						return;
+					}
+
 					let envId: string;
 					try {
 						const environments = await client.getEnvironments(projectId);
@@ -182,11 +202,6 @@ export function registerVarPushCommand(program: Command) {
 					}
 
 					await initSodium();
-					const keyBundle = await loadOrCreateKeys();
-					const edPriv = Buffer.from(
-						keyBundle.ed25519PrivB64.replace(/^b64:/, ''),
-						'base64',
-					);
 
 					let identityService: DeviceIdentityService;
 					try {
@@ -205,6 +220,8 @@ export function registerVarPushCommand(program: Command) {
 						process.exit(1);
 						return;
 					}
+
+					const edPriv = Buffer.from(identity.signingKey.privateKey, 'base64');
 
 					let envKeyService: EnvironmentKeyService;
 					try {
@@ -271,7 +288,10 @@ export function registerVarPushCommand(program: Command) {
 							envKekFingerprint: keyInfo.fingerprint,
 						});
 
-						await client.uploadSecret(projectId, envName!, payload);
+						await client.push(projectId, envName!, {
+							device_id: identity.deviceId,
+							secrets: [payload],
+						});
 						log.ok(
 							`✅ Pushed ${chalk.bold(target.name)} from ${chalk.bold(
 								filePath,

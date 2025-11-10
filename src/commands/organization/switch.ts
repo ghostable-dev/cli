@@ -8,9 +8,7 @@ import { log } from '../../support/logger.js';
 export function configureOrganizationSwitchCommand(org: Command) {
 	org.command('switch')
 		.aliases(['org:switch', 'orgs:switch', 'organizations:switch', 'organization:switch'])
-		.description(
-			'Switch to a different organization context (used as default in subsequent commands)',
-		)
+		.description('Switch the active organization used by subsequent commands')
 		.option('--id <ORG_ID>', 'Organization ID to switch to (skip prompt)')
 		.action(async (opts) => {
 			const sessionSvc = new SessionService();

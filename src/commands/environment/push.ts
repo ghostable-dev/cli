@@ -15,7 +15,6 @@ import { toErrorMessage } from '../../support/errors.js';
 import { getIgnoredKeys, filterIgnoredKeys } from '../../support/ignore.js';
 import { resolveEnvFile, readEnvFileSafeWithMetadata } from '@/environment/files/env-files.js';
 import { initSodium } from '@/crypto';
-import { loadOrCreateKeys } from '@/keychain';
 import { buildSecretPayload } from '../../support/secret-payload.js';
 import { registerEnvSubcommand } from './_shared.js';
 import type { SignedEnvironmentSecretUploadRequest } from '@/ghostable/types/environment.js';
@@ -40,9 +39,7 @@ export function registerEnvPushCommand(program: Command) {
 		},
 		(cmd) =>
 			cmd
-				.description(
-					'Encrypt and push a local .env file to Ghostable (uses .ghostable/ghostable.yaml)',
-				)
+				.description('Encrypt and push your local .env file to Ghostable')
 				.option('--file <PATH>', 'Path to .env file (default: .env.<env> or .env)')
 				.option('--env <ENV>', 'Environment name (if omitted, select from manifest)')
 				.option('-y, --assume-yes', 'Skip confirmation prompts', false)
@@ -87,7 +84,7 @@ export async function runEnvPush(opts: PushOptions): Promise<void> {
 		process.exit(1);
 	}
 	const token = sess.accessToken;
-	const orgId = sess.organizationId;
+	let orgId = sess.organizationId ?? '';
 
 	// 4) Resolve .env file path
 	const filePath = resolveEnvFile(envName!, opts.file, true);
@@ -115,6 +112,25 @@ export async function runEnvPush(opts: PushOptions): Promise<void> {
 	}
 
 	const client = GhostableClient.unauthenticated(config.apiBase).withToken(token);
+
+	if (!orgId) {
+		try {
+			const project = await client.getProject(projectId);
+			orgId = project.organizationId;
+		} catch (error) {
+			log.error(
+				`❌ Failed to resolve organization for project ${projectId}: ${toErrorMessage(error)}`,
+			);
+			process.exit(1);
+			return;
+		}
+	}
+
+	if (!orgId) {
+		log.error('❌ Organization context is required to push environment variables.');
+		process.exit(1);
+		return;
+	}
 
 	let envId: string;
 	try {
@@ -179,15 +195,14 @@ export async function runEnvPush(opts: PushOptions): Promise<void> {
 
 		spinner.text = 'Encrypting environment variables locally…';
 		await initSodium();
-		const keyBundle = await loadOrCreateKeys();
-		const edPriv = Buffer.from(keyBundle.ed25519PrivB64.replace(/^b64:/, ''), 'base64');
+		const edPriv = Buffer.from(identity.signingKey.privateKey, 'base64');
 
 		const secrets = [] as SignedEnvironmentSecretUploadRequest[];
 		const sortedKeys = Object.keys(filteredVars).sort((a, b) => a.localeCompare(b));
 		for (const name of sortedKeys) {
 			const value = filteredVars[name] ?? '';
 			const payload = await buildSecretPayload({
-				org: orgId ?? '',
+				org: orgId,
 				project: projectId,
 				env: envName!,
 				name,
@@ -202,7 +217,7 @@ export async function runEnvPush(opts: PushOptions): Promise<void> {
 
 		spinner.text = 'Uploading encrypted secrets to Ghostable…';
 		const sync = Boolean(opts.sync || opts.replace || opts.pruneServer);
-		await client.push(projectId, envName!, { secrets }, { sync });
+		await client.push(projectId, envName!, { device_id: identity.deviceId, secrets }, { sync });
 
 		spinner.succeed('Environment pushed securely.');
 		log.ok(`✅ Pushed ${secrets.length} variables to ${projectId}:${envName}.`);

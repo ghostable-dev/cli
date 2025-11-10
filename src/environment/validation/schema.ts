@@ -16,6 +16,28 @@ export type ValidationIssue = {
 
 const GLOBAL_SCHEMA_FILENAMES = ['schema.yaml', 'schema.yml'];
 
+export class SchemaNotFoundError extends Error {
+	readonly checkedLocations: string[];
+
+	constructor(checkedLocations: string[]) {
+		super(formatMissingSchemaMessage(checkedLocations));
+		this.checkedLocations = checkedLocations;
+		this.name = 'SchemaNotFoundError';
+	}
+}
+
+function formatMissingSchemaMessage(locations: string[]): string {
+	if (!locations.length) {
+		return 'No schema definitions found.';
+	}
+
+	if (locations.length === 1) {
+		return `No schema definitions found. Checked ${locations[0]}.`;
+	}
+
+	const [first, ...rest] = locations;
+	return `No schema definitions found. Checked ${first} or ${rest.join(' or ')}.`;
+}
 function schemaRoot(): string {
 	return path.resolve(resolveWorkDir(), '.ghostable');
 }
@@ -108,12 +130,11 @@ export function loadMergedSchema(envName?: string): SchemaDefinition {
 
 	if (!global && !environment) {
 		const root = schemaRoot();
-		const envHint = envName
-			? ` or ${path.join(root, 'schemas', `${envName}.yaml`)} (.yml also supported)`
-			: '';
-		throw new Error(
-			`No schema definitions were found in ${path.join(root, 'schema.yaml')} (.yml also supported)${envHint}.`,
-		);
+		const locations = [path.join(root, 'schema.(yaml|yml)')];
+		if (envName) {
+			locations.push(path.join(root, 'schemas', `${envName}.(yaml|yml)`));
+		}
+		throw new SchemaNotFoundError(locations);
 	}
 
 	const base = loadSchemaFile(global);

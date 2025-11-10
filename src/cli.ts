@@ -37,6 +37,12 @@ const INTERACTIVE_COMMANDS: InteractiveCommandConfig[] = [
 	},
 ];
 
+const isPromptCanceledError = (error: unknown): error is Error & { name: string } =>
+	typeof error === 'object' &&
+	error !== null &&
+	'name' in error &&
+	(error as { name?: unknown }).name === 'ExitPromptError';
+
 async function maybePromptInteractiveSubcommand(
 	program: Command,
 	rawArgs: string[],
@@ -101,11 +107,7 @@ async function maybePromptInteractiveSubcommand(
 }
 
 const program = new Command();
-program
-	.name('ghostable')
-	.description(
-		'Official CLI for securely managing end-to-end encrypted environment secrets with Ghostable.',
-	);
+program.name('ghostable').description('Manage Ghostable environment secrets from the CLI');
 program.version('v2.2.0');
 await registerAllCommands(program);
 
@@ -115,7 +117,16 @@ program.configureOutput({
 	outputError: (str) => process.stderr.write(chalk.red(str)),
 });
 
-const forwardArgs = await maybePromptInteractiveSubcommand(program, process.argv.slice(2));
+let forwardArgs: string[] | undefined;
+try {
+	forwardArgs = await maybePromptInteractiveSubcommand(program, process.argv.slice(2));
+} catch (err) {
+	if (isPromptCanceledError(err)) {
+		log.warn('Canceled.');
+		process.exit(1);
+	}
+	throw err;
+}
 const argvToParse = forwardArgs ?? process.argv;
 
 program.parseAsync(argvToParse).catch((err) => {

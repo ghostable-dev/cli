@@ -15,12 +15,11 @@ let envFilePath = '/workdir/.env.prod';
 let localEnvVars: Record<string, string> = {};
 let snapshots: Record<string, { rawValue: string }> = {};
 let remoteBundle: any = { chain: ['prod'], secrets: [] };
-let decryptedSecrets: Array<{
-	entry: { name: string; meta?: { is_commented?: boolean } };
-	value: string;
-}> = [];
 const writeFileCalls: Array<{ path: string; content: string }> = [];
 const copyFileCalls: Array<{ src: string; dest: string }> = [];
+const resolveEnvFileMock = vi.fn(() => envFilePath);
+const readEnvFileSafeMock = vi.fn(() => localEnvVars);
+const readEnvFileSafeWithMetadataMock = vi.fn(() => ({ vars: localEnvVars, snapshots }));
 
 const identity = {
 	deviceId: 'device-123',
@@ -89,12 +88,14 @@ vi.mock('../src/services/SessionService.js', () => ({
 
 const client = {
 	pull: vi.fn(async () => remoteBundle),
-	uploadSecret: vi.fn(),
 	push: vi.fn(),
 	getEnvironmentKey: vi.fn(async () => null),
 	createEnvironmentKey: vi.fn(),
 	listDevices: vi.fn(async () => []),
 	getEnvironments: vi.fn(async () => [{ id: 'env-prod', name: 'prod', type: 'production' }]),
+	getProject: vi.fn(async () => ({
+		organizationId: 'org-1',
+	})),
 };
 
 vi.mock('@/ghostable', () => ({
@@ -115,14 +116,10 @@ vi.mock('@/ghostable', () => ({
 	},
 }));
 
-vi.mock('../src/support/deploy-helpers.js', () => ({
-	decryptBundle: vi.fn(async () => ({ secrets: decryptedSecrets, warnings: [] })),
-}));
-
 vi.mock('../src/environment/files/env-files.js', () => ({
-	readEnvFileSafe: vi.fn(() => localEnvVars),
-	resolveEnvFile: vi.fn(() => envFilePath),
-	readEnvFileSafeWithMetadata: vi.fn(() => ({ vars: localEnvVars, snapshots })),
+	readEnvFileSafe: readEnvFileSafeMock,
+	resolveEnvFile: resolveEnvFileMock,
+	readEnvFileSafeWithMetadata: readEnvFileSafeWithMetadataMock,
 }));
 
 vi.mock('../src/support/workdir.js', () => ({
@@ -256,7 +253,6 @@ beforeEach(() => {
 	localEnvVars = {};
 	snapshots = {};
 	remoteBundle = { chain: ['prod'], secrets: [] };
-	decryptedSecrets = [];
 	writeFileCalls.splice(0, writeFileCalls.length);
 	copyFileCalls.splice(0, copyFileCalls.length);
 	logOutputs.info.length = 0;
@@ -264,7 +260,6 @@ beforeEach(() => {
 	logOutputs.error.length = 0;
 	logOutputs.ok.length = 0;
 	client.pull.mockClear();
-	client.uploadSecret.mockClear();
 	client.push.mockClear();
 	client.getEnvironmentKey.mockClear();
 	client.createEnvironmentKey.mockClear();
@@ -286,9 +281,63 @@ beforeEach(() => {
 	existsSyncMock.mockReturnValue(true);
 	writeFileSyncMock.mockClear();
 	copyFileSyncMock.mockClear();
+	resolveEnvFileMock.mockClear();
+	resolveEnvFileMock.mockImplementation(() => envFilePath);
+	readEnvFileSafeMock.mockClear();
+	readEnvFileSafeMock.mockImplementation(() => localEnvVars);
+	readEnvFileSafeWithMetadataMock.mockClear();
+	readEnvFileSafeWithMetadataMock.mockImplementation(() => ({ vars: localEnvVars, snapshots }));
 });
 
 describe('env diff ignore behaviour', () => {
+	it('warns and reports fallback when env-scoped file is missing', async () => {
+		envFilePath = '/workdir/.env';
+
+		const program = new Command();
+		registerEnvDiffCommand(program);
+		await program.parseAsync([
+			'node',
+			'test',
+			'env',
+			'diff',
+			'--env',
+			'prod',
+			'--token',
+			'api-token',
+		]);
+
+		expect(logOutputs.warn).toContain(
+			'⚠️ ".env.prod" not found locally. Falling back to ".env".',
+		);
+		expect(logOutputs.info).toContain(
+			'Comparing local ".env" to remote environment "prod" (fallback used).',
+		);
+	});
+
+	it('supports --local override for custom env files', async () => {
+		envFilePath = '/workdir/.env.local';
+
+		const program = new Command();
+		registerEnvDiffCommand(program);
+		await program.parseAsync([
+			'node',
+			'test',
+			'env',
+			'diff',
+			'--env',
+			'prod',
+			'--token',
+			'api-token',
+			'--local',
+			'.env.local',
+		]);
+
+		expect(resolveEnvFileMock).toHaveBeenCalledWith('prod', '.env.local', false);
+		expect(logOutputs.info).toContain(
+			'Comparing local ".env.local" to remote environment "prod".',
+		);
+	});
+
 	it('hides ignored keys and prints them with --show-ignored', async () => {
 		localEnvVars = {
 			FOO: 'local-value',
@@ -298,15 +347,47 @@ describe('env diff ignore behaviour', () => {
 		snapshots = Object.fromEntries(
 			Object.entries(localEnvVars).map(([name, value]) => [name, { rawValue: value }]),
 		);
-		decryptedSecrets = [
-			{ entry: { name: 'FOO', meta: {} }, value: 'remote-value' },
-			{ entry: { name: 'BAR', meta: {} }, value: 'remote-bar' },
-			{ entry: { name: 'CUSTOM_TOKEN', meta: {} }, value: 'remote-custom' },
-			{
-				entry: { name: 'GHOSTABLE_CI_TOKEN', meta: {} },
-				value: 'remote-token',
-			},
-		];
+		remoteBundle = {
+			chain: ['prod'],
+			secrets: [
+				{
+					env: 'prod',
+					name: 'FOO',
+					ciphertext: 'remote-value',
+					nonce: 'nonce',
+					alg: 'xchacha20',
+					aad: {},
+					meta: {},
+				},
+				{
+					env: 'prod',
+					name: 'BAR',
+					ciphertext: 'remote-bar',
+					nonce: 'nonce',
+					alg: 'xchacha20',
+					aad: {},
+					meta: {},
+				},
+				{
+					env: 'prod',
+					name: 'CUSTOM_TOKEN',
+					ciphertext: 'remote-custom',
+					nonce: 'nonce',
+					alg: 'xchacha20',
+					aad: {},
+					meta: {},
+				},
+				{
+					env: 'prod',
+					name: 'GHOSTABLE_CI_TOKEN',
+					ciphertext: 'remote-token',
+					nonce: 'nonce',
+					alg: 'xchacha20',
+					aad: {},
+					meta: {},
+				},
+			],
+		};
 
 		const consoleLog = vi.spyOn(console, 'log').mockImplementation(() => {});
 
@@ -336,7 +417,6 @@ describe('env diff ignore behaviour', () => {
 	it('--only overrides ignore list', async () => {
 		localEnvVars = { GHOSTABLE_CI_TOKEN: 'only-token' };
 		snapshots = { GHOSTABLE_CI_TOKEN: { rawValue: 'only-token' } };
-		decryptedSecrets = [];
 
 		const consoleLog = vi.spyOn(console, 'log').mockImplementation(() => {});
 
@@ -373,7 +453,6 @@ describe('env diff ignore behaviour', () => {
 		};
 		localEnvVars = { GHOSTABLE_DEPLOY_SEED: 'seed' };
 		snapshots = { GHOSTABLE_DEPLOY_SEED: { rawValue: 'seed' } };
-		decryptedSecrets = [];
 
 		const consoleLog = vi.spyOn(console, 'log').mockImplementation(() => {});
 
@@ -432,7 +511,8 @@ describe('env push ignore behaviour', () => {
 		const [args] = client.push.mock.calls;
 		expect(args[0]).toBe('project-id');
 		expect(args[1]).toBe('prod');
-		expect(args[2]).toEqual({
+		expect(args[2]).toMatchObject({
+			device_id: 'device-123',
 			secrets: [
 				expect.objectContaining({
 					name: 'FOO',

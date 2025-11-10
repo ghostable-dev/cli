@@ -11,7 +11,7 @@ import { toErrorMessage } from '../../support/errors.js';
 export function registerKeyExportCommand(program: Command) {
 	program
 		.command('key:export')
-		.description('Export the master seed (default) or a derived per-environment key')
+		.description('Export the master seed or a scoped environment key')
 		.option(
 			'--env <ENV>',
 			'Export the derived key for a specific environment (instead of the master seed)',

@@ -8,7 +8,7 @@ import { configureDeployTokenCommands } from './token/index.js';
 export function registerDeployCommands(program: Command) {
 	const deploy = program
 		.command('deploy')
-		.description('Deploy Ghostable environment secrets (cloud, forge, vapor, token).');
+		.description('Deploy Ghostable secrets to managed platforms or CI tokens');
 
 	configureDeployCloudCommand(deploy);
 	configureDeployForgeCommand(deploy);

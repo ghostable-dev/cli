@@ -12,9 +12,7 @@ export function registerEnvSyncCommand(program: Command) {
 		},
 		(cmd) =>
 			cmd
-				.description(
-					'Encrypt and push a local .env file to Ghostable, pruning remote variables not present locally.',
-				)
+				.description('Push your .env file and prune remote secrets')
 				.option('--file <PATH>', 'Path to .env file (default: .env.<env> or .env)')
 				.option('--env <ENV>', 'Environment name (if omitted, select from manifest)')
 				.option('-y, --assume-yes', 'Skip confirmation prompts', false)

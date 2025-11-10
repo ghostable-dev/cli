@@ -8,7 +8,7 @@ import { configureRotateCommand } from './rotate.js';
 export function configureDeployTokenCommands(deploy: Command) {
 	const token = deploy
 		.command('token')
-		.description('Manage deployment tokens used for CI/CD deployments.');
+		.description('Manage Ghostable deployment tokens for CI workflows');
 
 	configureListCommand(token);
 	configureCreateCommand(token);
@@ -19,7 +19,7 @@ export function configureDeployTokenCommands(deploy: Command) {
 	if (root) {
 		const legacy = root
 			.command('deploy-token', { hidden: true })
-			.description('Manage deployment tokens used for CI/CD deployments.');
+			.description('Manage Ghostable deployment tokens for CI workflows');
 
 		configureListCommand(legacy);
 		configureCreateCommand(legacy);

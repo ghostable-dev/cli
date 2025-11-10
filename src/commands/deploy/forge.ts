@@ -135,7 +135,7 @@ async function runDeployForge(opts: DeployForgeOptions): Promise<void> {
 
 function attachForgeCommand(command: Command): Command {
 	return command
-		.description('Deploy Ghostable managed environment variables for Laravel Forge.')
+		.description('Deploy Ghostable secrets to a Laravel Forge project')
 		.option('--token <TOKEN>', 'Ghostable CI token (or env GHOSTABLE_CI_TOKEN)')
 		.option('--encrypted', 'Also produce an encrypted blob via php artisan env:encrypt', false)
 		.option('--out <PATH>', 'Where to write the encrypted blob (default: .env.encrypted)')

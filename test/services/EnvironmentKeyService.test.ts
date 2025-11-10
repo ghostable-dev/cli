@@ -34,18 +34,38 @@ const decryptOnThisDeviceMock = vi.hoisted(() =>
 	vi.fn<(typeof import('../../src/crypto/index.js'))['KeyService']['decryptOnThisDevice']>(),
 );
 
+const randomBytesMock = vi.hoisted(() =>
+	vi.fn<(typeof import('../../src/crypto/index.js'))['randomBytes']>((size = 32) =>
+		new Uint8Array(size).fill(1),
+	),
+);
+
+const edSignMock = vi.hoisted(() =>
+	vi.fn<(typeof import('../../src/crypto/index.js'))['edSign']>(async () => new Uint8Array([1])),
+);
+
 vi.mock(
 	'@/crypto',
 	() => ({
 		KeyService: {
 			decryptOnThisDevice: decryptOnThisDeviceMock,
 		},
+		randomBytes: randomBytesMock,
+		CIPHER_ALG: 'xchacha20-poly1305',
+		edSign: edSignMock,
+		b64: (bytes: Uint8Array) => Buffer.from(bytes).toString('base64'),
 	}),
 	{ virtual: true },
 );
 
-vi.mock('../../src/crypto.js', () => ({
-	randomBytes: vi.fn(() => new Uint8Array([0x10, 0x20, 0x30, 0x40])),
+const encryptEnvelopeMock = vi.hoisted(() =>
+	vi.fn<(typeof import('../../src/services/EnvelopeService.js'))['EnvelopeService']['encrypt']>(),
+);
+
+vi.mock('@/services/EnvelopeService.js', () => ({
+	EnvelopeService: {
+		encrypt: encryptEnvelopeMock,
+	},
 }));
 
 let EnvironmentKeyService: EnvironmentKeyServiceCtor;
@@ -60,6 +80,9 @@ beforeEach(() => {
 	keytarMock.getPassword.mockReset();
 	keytarMock.setPassword.mockReset();
 	decryptOnThisDeviceMock.mockReset();
+	randomBytesMock.mockClear();
+	edSignMock.mockClear();
+	encryptEnvelopeMock.mockClear();
 	loadKeytarMock.mockClear();
 });
 
@@ -189,5 +212,131 @@ describe('EnvironmentKeyService.ensureEnvironmentKey', () => {
 			version: 3,
 			fingerprint: 'remote-fingerprint',
 		});
+	});
+});
+
+describe('EnvironmentKeyService.publishKeyEnvelopes', () => {
+	const identity: DeviceIdentity = {
+		deviceId: 'device-signer',
+		createdAtIso: '2024-01-01T00:00:00.000Z',
+		signingKey: {
+			alg: 'Ed25519',
+			publicKey: 'signer-public',
+			privateKey: Buffer.from('signing-private-key').toString('base64'),
+		},
+		encryptionKey: {
+			alg: 'X25519',
+			publicKey: 'encrypt-public',
+			privateKey: Buffer.from('encrypt-private-key').toString('base64'),
+		},
+	};
+
+	const encryptedEnvelope: EncryptedEnvelope = {
+		id: 'env-enc',
+		version: 'v1',
+		alg: 'XChaCha20-Poly1305+HKDF-SHA256',
+		toDevicePublicKey: 'recipient-public',
+		fromEphemeralPublicKey: 'ephemeral-public',
+		nonceB64: 'nonce',
+		ciphertextB64: 'ciphertext',
+		createdAtIso: '2024-01-01T00:00:00.000Z',
+	};
+
+	beforeEach(() => {
+		encryptEnvelopeMock.mockResolvedValue(encryptedEnvelope);
+	});
+
+	it('signs payloads when creating a new environment key', async () => {
+		const listDevices = vi
+			.fn<GhostableClientCtor['prototype']['listDevices']>()
+			.mockResolvedValue([{ id: 'device-peer', publicKey: 'recipient-public' }]);
+		const listDeployTokens = vi
+			.fn<GhostableClientCtor['prototype']['listDeployTokens']>()
+			.mockResolvedValue([]);
+		const createEnvironmentKey = vi
+			.fn<GhostableClientCtor['prototype']['createEnvironmentKey']>()
+			.mockResolvedValue({
+				id: 'env-key',
+				version: 3,
+				fingerprint: 'remote-fingerprint',
+				createdAtIso: null,
+				rotatedAtIso: null,
+				createdByDeviceId: 'other-device',
+				envelope: null,
+			});
+		const createEnvironmentKeyEnvelope =
+			vi.fn<GhostableClientCtor['prototype']['createEnvironmentKeyEnvelope']>();
+		const client = {
+			listDevices,
+			listDeployTokens,
+			createEnvironmentKey,
+			createEnvironmentKeyEnvelope,
+		} as unknown as GhostableClientCtor['prototype'];
+
+		edSignMock.mockResolvedValueOnce(new Uint8Array([0xde, 0xad]));
+		keytarMock.setPassword.mockResolvedValue();
+
+		const service = await EnvironmentKeyService.create();
+		await service.publishKeyEnvelopes({
+			client,
+			projectId: 'proj-1',
+			envId: 'env-1',
+			envName: 'production',
+			identity,
+			key: new Uint8Array([9, 9, 9, 9]),
+			version: 1,
+			fingerprint: 'local-fingerprint',
+			created: true,
+		});
+
+		expect(createEnvironmentKey).toHaveBeenCalledTimes(1);
+		const [, , payload] = createEnvironmentKey.mock.calls[0];
+		expect(payload.device_id).toBe(identity.deviceId);
+		expect(payload.client_sig).toBe(Buffer.from([0xde, 0xad]).toString('base64'));
+		expect(payload.fingerprint).toBe('local-fingerprint');
+		expect(createEnvironmentKeyEnvelope).not.toHaveBeenCalled();
+	});
+
+	it('signs payloads when rotating an existing environment key', async () => {
+		const listDevices = vi
+			.fn<GhostableClientCtor['prototype']['listDevices']>()
+			.mockResolvedValue([{ id: 'device-peer', publicKey: 'recipient-public' }]);
+		const listDeployTokens = vi
+			.fn<GhostableClientCtor['prototype']['listDeployTokens']>()
+			.mockResolvedValue([]);
+		const createEnvironmentKey =
+			vi.fn<GhostableClientCtor['prototype']['createEnvironmentKey']>();
+		const createEnvironmentKeyEnvelope = vi
+			.fn<GhostableClientCtor['prototype']['createEnvironmentKeyEnvelope']>()
+			.mockResolvedValue();
+		const client = {
+			listDevices,
+			listDeployTokens,
+			createEnvironmentKey,
+			createEnvironmentKeyEnvelope,
+		} as unknown as GhostableClientCtor['prototype'];
+
+		edSignMock.mockResolvedValueOnce(new Uint8Array([0xca, 0xfe]));
+		keytarMock.setPassword.mockResolvedValue();
+
+		const service = await EnvironmentKeyService.create();
+		await service.publishKeyEnvelopes({
+			client,
+			projectId: 'proj-2',
+			envId: 'env-2',
+			envName: 'staging',
+			identity,
+			key: new Uint8Array([7, 7, 7]),
+			version: 5,
+			fingerprint: 'local-fingerprint',
+			created: false,
+		});
+
+		expect(createEnvironmentKey).not.toHaveBeenCalled();
+		expect(createEnvironmentKeyEnvelope).toHaveBeenCalledTimes(1);
+		const [, , payload] = createEnvironmentKeyEnvelope.mock.calls[0];
+		expect(payload.device_id).toBe(identity.deviceId);
+		expect(payload.client_sig).toBe(Buffer.from([0xca, 0xfe]).toString('base64'));
+		expect(payload.fingerprint).toBe('local-fingerprint');
 	});
 });

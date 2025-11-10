@@ -17,7 +17,7 @@ import { formatDeploymentTokenLabel, isDeploymentTokenActive } from '@/entities'
 export function configureRevokeCommand(parent: Command) {
 	parent
 		.command('revoke')
-		.description('Revoke an existing deployment token and reshare KEKs.')
+		.description('Revoke a deployment token and reshare environment keys')
 		.option('--env <ENV>', 'Environment name or ID that owns the token')
 		.option('--token <ID>', 'Deployment token ID to revoke')
 		.action(async (options: { env?: string; token?: string }) => {

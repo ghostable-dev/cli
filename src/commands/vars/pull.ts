@@ -75,9 +75,7 @@ export function registerVarPullCommand(program: Command) {
 		},
 		(cmd) =>
 			cmd
-				.description(
-					'Pull and decrypt a single environment variable into a local .env file.',
-				)
+				.description('Pull one environment variable into your local .env')
 				.option('--env <ENV>', 'Environment name (if omitted, select from manifest)')
 				.option(
 					'--key <KEY>',

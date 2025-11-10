@@ -10,7 +10,7 @@ import { BrowserAuthFlowResult, runBrowserAuthFlow } from '../auth/browser-flow.
 export function registerRegisterCommand(program: Command) {
 	program
 		.command('register')
-		.description('Create a new Ghostable account')
+		.description('Register a Ghostable account via browser flow')
 		.action(async () => {
 			const apiBase = config.apiBase;
 			const session = new SessionService();

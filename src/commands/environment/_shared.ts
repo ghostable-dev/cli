@@ -12,7 +12,7 @@ export function ensureEnvParent(program: Command): Command {
 		parent = program
 			.command('env')
 			.alias('environment')
-			.description('Manage Ghostable environments (pull, push, sync, deploy).');
+			.description('Manage Ghostable environments and related workflows');
 		envParents.set(program, parent);
 	}
 	return parent;

@@ -20,7 +20,7 @@ import { formatDeploymentTokenLabel } from '@/entities';
 export function configureRotateCommand(parent: Command) {
 	parent
 		.command('rotate')
-		.description('Rotate the X25519 keypair for an existing deployment token.')
+		.description('Rotate the keypair for an existing deployment token')
 		.option('--env <ENV>', 'Environment name or ID that owns the token')
 		.option('--token <ID>', 'Deployment token ID to rotate')
 		.option('--out <FILE>', 'Write the new private key to a file instead of stdout')

@@ -9,7 +9,7 @@ vi.mock('../src/support/workdir.js', () => ({
 	resolveWorkDir: () => workDir,
 }));
 
-const { loadMergedSchema, validateVariables } = await import(
+const { loadMergedSchema, validateVariables, SchemaNotFoundError } = await import(
 	'../src/environment/validation/schema.js'
 );
 
@@ -57,7 +57,8 @@ describe('loadMergedSchema', () => {
 	});
 
 	it('throws when no schema files exist', () => {
-		expect(() => loadMergedSchema('local')).toThrowError(/No schema definitions were found/);
+		expect(() => loadMergedSchema('local')).toThrowError(SchemaNotFoundError);
+		expect(() => loadMergedSchema('local')).toThrowError(/No schema definitions found/);
 	});
 });
 

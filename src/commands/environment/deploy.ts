@@ -35,9 +35,7 @@ export function registerEnvDeployCommand(program: Command) {
 		},
 		(cmd) =>
 			cmd
-				.description(
-					'Fetch Ghostable env vars and write a local .env file (provider-agnostic).',
-				)
+				.description('Fetch Ghostable secrets and write a local .env file')
 				.option('--token <TOKEN>', 'Ghostable CI token (or env GHOSTABLE_CI_TOKEN)')
 				.option('--file <PATH>', 'Output file (default: .env)')
 				.option('--only <KEY...>', 'Only include these keys')

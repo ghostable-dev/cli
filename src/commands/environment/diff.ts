@@ -6,23 +6,25 @@ import path from 'node:path';
 import { Manifest } from '../../support/Manifest.js';
 import { config } from '../../config/index.js';
 import { SessionService } from '../../services/SessionService.js';
+import { DeviceIdentityService } from '../../services/DeviceIdentityService.js';
 import { GhostableClient } from '@/ghostable';
 import { log } from '../../support/logger.js';
 import { toErrorMessage } from '../../support/errors.js';
 import { resolveWorkDir } from '../../support/workdir.js';
 import { getIgnoredKeys, filterIgnoredKeys } from '../../support/ignore.js';
 
-import { initSodium } from '@/crypto';
-import { decryptBundle } from '../../support/deploy-helpers.js';
+import { initSodium, deriveKeys, aeadDecrypt, scopeFromAAD } from '@/crypto';
+import { EnvironmentKeyService } from '@/environment/keys/EnvironmentKeyService.js';
 import { readEnvFileSafe, resolveEnvFile } from '@/environment/files/env-files.js';
 import { registerEnvSubcommand } from './_shared.js';
 
-import type { EnvironmentSecretBundle } from '@/entities';
+import type { EnvironmentSecret, EnvironmentSecretBundle } from '@/entities';
 
 type DiffOptions = {
 	token?: string;
 	env?: string;
-	file?: string; // optional override; else .env.<env> or .env
+	file?: string; // legacy override flag
+	local?: string; // preferred override flag
 	only?: string[]; // optional; diff just these keys
 	includeMeta?: boolean;
 	showIgnored?: boolean;
@@ -37,11 +39,10 @@ export function registerEnvDiffCommand(program: Command) {
 		},
 		(cmd) =>
 			cmd
-				.description(
-					'Show differences between your local .env and Ghostable (zero-knowledge).',
-				)
+				.description('Compare your local .env against Ghostable securely')
 				.option('--env <ENV>', 'Environment name (if omitted, select from manifest)')
 				.option('--file <PATH>', 'Local .env path (default: .env.<env> or .env)')
+				.option('--local <PATH>', 'Local .env path (alias for --file)')
 				.option('--token <TOKEN>', 'API token (or stored session / GHOSTABLE_TOKEN)')
 				.option('--only <KEY...>', 'Only diff these keys')
 				.option('--include-meta', 'Include meta flags in bundle', false)
@@ -100,23 +101,139 @@ export function registerEnvDiffCommand(program: Command) {
 						return;
 					}
 
-					// 4) Decrypt remote vars locally (ZK)
+					// 4) Decrypt remote vars locally using environment keys
 					await initSodium();
-					const { secrets, warnings } = await decryptBundle(bundle);
-					for (const w of warnings) log.warn(`⚠️ ${w}`);
 
-					// Remote map (name -> { value, commented? })
+					let deviceService: DeviceIdentityService;
+					try {
+						deviceService = await DeviceIdentityService.create();
+					} catch (error) {
+						log.error(`❌ Failed to access device identity: ${toErrorMessage(error)}`);
+						process.exit(1);
+						return;
+					}
+
+					let identity;
+					try {
+						identity = await deviceService.requireIdentity();
+					} catch (error) {
+						log.error(`❌ Failed to load device identity: ${toErrorMessage(error)}`);
+						process.exit(1);
+						return;
+					}
+
+					let envKeyService: EnvironmentKeyService;
+					try {
+						envKeyService = await EnvironmentKeyService.create();
+					} catch (error) {
+						log.error(`❌ Failed to access environment keys: ${toErrorMessage(error)}`);
+						process.exit(1);
+						return;
+					}
+
+					const envKeys = new Map<string, Uint8Array>();
+					const envs = new Set<string>();
+					for (const layer of bundle.chain) envs.add(layer);
+					for (const entry of bundle.secrets) envs.add(entry.env);
+
+					for (const env of envs) {
+						try {
+							const { key } = await envKeyService.ensureEnvironmentKey({
+								client,
+								projectId,
+								envName: env,
+								identity,
+							});
+							envKeys.set(env, key);
+						} catch (error) {
+							log.error(
+								`❌ Failed to load environment key for ${env}: ${toErrorMessage(error)}`,
+							);
+							process.exit(1);
+							return;
+						}
+					}
+
+					const chainOrder: readonly string[] = bundle.chain;
+					const byEnv = new Map<string, EnvironmentSecret[]>();
+					for (const entry of bundle.secrets) {
+						if (!byEnv.has(entry.env)) byEnv.set(entry.env, []);
+						byEnv.get(entry.env)!.push(entry);
+					}
+
+					const decoder = new TextDecoder();
 					const remoteMap: Record<string, { value: string; commented: boolean }> = {};
-					for (const s of secrets) {
-						remoteMap[s.entry.name] = {
-							value: s.value,
-							commented: Boolean(s.entry.meta?.is_commented),
-						};
+
+					for (const layer of chainOrder) {
+						const entries: EnvironmentSecret[] = byEnv.get(layer) || [];
+						for (const entry of entries) {
+							const scope = scopeFromAAD(entry.aad);
+							const keyMaterial = envKeys.get(entry.env);
+							if (!keyMaterial) {
+								log.warn(
+									`⚠️ Missing decryption key for ${entry.env}; skipping ${entry.name}`,
+								);
+								continue;
+							}
+							const { encKey } = deriveKeys(keyMaterial, scope);
+
+							try {
+								const plaintext = aeadDecrypt(encKey, {
+									alg: entry.alg,
+									nonce: entry.nonce,
+									ciphertext: entry.ciphertext,
+									aad: entry.aad,
+								});
+								const value = decoder.decode(plaintext);
+								remoteMap[entry.name] = {
+									value,
+									commented: Boolean(entry.meta?.is_commented),
+								};
+							} catch {
+								log.warn(`⚠️ Could not decrypt ${entry.name}; skipping`);
+							}
+						}
 					}
 
 					// 5) Load local .env for this env (or explicit path)
 					const workDir = resolveWorkDir();
-					const envPath = resolveEnvFile(envName!, opts.file, /* mustExist */ false);
+					const explicitLocalPath = opts.local?.trim() || opts.file;
+					const envPath = resolveEnvFile(
+						envName!,
+						explicitLocalPath,
+						/* mustExist */ false,
+					);
+					const envScopedPath = envName ? path.resolve(workDir, `.env.${envName}`) : '';
+					const defaultEnvPath = path.resolve(workDir, '.env');
+					let fallbackUsed = false;
+					if (!explicitLocalPath && envName) {
+						const resolvedNormalized = path.normalize(envPath);
+						if (resolvedNormalized !== path.normalize(envScopedPath)) {
+							fallbackUsed = true;
+							log.warn(
+								`⚠️ ".env.${envName}" not found locally. Falling back to ".env".`,
+							);
+						}
+					}
+
+					let localDisplayName: string;
+					if (explicitLocalPath) {
+						const relative = path.relative(workDir, envPath);
+						localDisplayName = relative.startsWith('..')
+							? envPath
+							: relative || envPath;
+					} else if (envName && !fallbackUsed) {
+						localDisplayName = `.env.${envName}`;
+					} else {
+						localDisplayName =
+							path.normalize(envPath) === path.normalize(defaultEnvPath)
+								? '.env'
+								: path.relative(workDir, envPath);
+					}
+					const compareMessage = fallbackUsed
+						? `Comparing local "${localDisplayName}" to remote environment "${envName}" (fallback used).`
+						: `Comparing local "${localDisplayName}" to remote environment "${envName}".`;
+					log.info(compareMessage);
 					const localVars = readEnvFileSafe(envPath);
 					// Local map assumes “not commented” for keys present in file; commented state is unknown locally.
 					const localMap: Record<string, { value: string; commented: boolean }> = {};

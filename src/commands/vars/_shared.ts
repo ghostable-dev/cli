@@ -12,7 +12,7 @@ export function ensureVarParent(program: Command): Command {
 		parent = program
 			.command('var')
 			.alias('variable')
-			.description('Manage individual Ghostable environment variables (pull, push).');
+			.description('Manage individual Ghostable environment variable workflows');
 		varParents.set(program, parent);
 	}
 	return parent;

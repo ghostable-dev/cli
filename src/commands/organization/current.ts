@@ -7,7 +7,7 @@ import { log } from '../../support/logger.js';
 export function configureOrganizationCurrentCommand(org: Command) {
 	org.command('current')
 		.aliases(['org:current', 'orgs:current', 'organizations:current', 'organization:current'])
-		.description('Show your current organization context.')
+		.description('Show the organization currently set for this CLI')
 		.action(async () => {
 			// 1. Load session / access token
 			const sessionSvc = new SessionService();

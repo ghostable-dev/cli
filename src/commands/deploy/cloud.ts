@@ -90,7 +90,7 @@ async function runDeployCloud(opts: DeployCloudOptions): Promise<void> {
 
 function attachCloudCommand(command: Command): Command {
 	return command
-		.description('Deploy Ghostable managed environment variables for Laravel Cloud.')
+		.description('Deploy Ghostable secrets to a Laravel Cloud project')
 		.option('--token <TOKEN>', 'Ghostable CI token (or env GHOSTABLE_CI_TOKEN)')
 		.option('--out <PATH>', 'Where to write the encrypted blob (default: .env.encrypted)')
 		.option('--only <KEY...>', 'Limit to specific keys')

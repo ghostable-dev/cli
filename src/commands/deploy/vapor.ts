@@ -124,7 +124,7 @@ async function runDeployVapor(opts: DeployVaporOptions): Promise<void> {
 
 function attachVaporCommand(command: Command): Command {
 	return command
-		.description('Deploy Ghostable managed environment variables for Laravel Vapor.')
+		.description('Deploy Ghostable secrets to a Laravel Vapor environment')
 		.option('--token <TOKEN>', 'Ghostable CI token (or env GHOSTABLE_CI_TOKEN)')
 		.option('--vapor-env <ENV>', 'Target Vapor environment')
 		.option('--only <KEY...>', 'Limit to specific keys')

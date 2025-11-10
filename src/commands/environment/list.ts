@@ -16,9 +16,7 @@ export function registerEnvListCommand(program: Command) {
 		},
 		(cmd) =>
 			cmd
-				.description(
-					'List the environments in the current project (from .ghostable/ghostable.yaml).',
-				)
+				.description('List environments defined for the current project')
 				.action(async () => {
 					// 1) Ensure session
 					const sessionSvc = new SessionService();

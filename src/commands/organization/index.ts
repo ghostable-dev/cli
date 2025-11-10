@@ -8,7 +8,7 @@ export function registerOrganizationCommands(program: Command) {
 	const org = program
 		.command('org')
 		.aliases(['organization', 'organizations', 'orgs'])
-		.description('Manage organizations (list, current, switch, projects).');
+		.description('Manage Ghostable organizations and related contexts');
 
 	configureOrganizationListCommand(org);
 	configureOrganizationCurrentCommand(org);

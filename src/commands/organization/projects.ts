@@ -14,7 +14,7 @@ export function configureOrganizationProjectsCommand(org: Command) {
 			'project:list',
 			'projects:list',
 		])
-		.description('List the projects within the current organization context.')
+		.description('List projects within the active organization context')
 		.action(async () => {
 			const session = await loadSessionOrExit();
 			const orgId = session.organizationId;

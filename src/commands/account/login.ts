@@ -40,7 +40,7 @@ async function passwordLoginFlow(client: GhostableClient, apiBase: string): Prom
 export function registerLoginCommand(program: Command) {
 	program
 		.command('login')
-		.description('Authenticate with Ghostable')
+		.description('Authenticate this CLI session with Ghostable')
 		.action(async () => {
 			const apiBase = config.apiBase;
 			const session = new SessionService();

@@ -22,9 +22,7 @@ export function registerEnvInitCommand(program: Command) {
 		},
 		(cmd) =>
 			cmd
-				.description(
-					'Initialize a new environment in the current organization and project context.',
-				)
+				.description('Create a new environment in the current project context')
 				.option('--name <NAME>', 'Environment name (slug)')
 				.action(async (opts: { name?: string }) => {
 					// 1) Ensure session and project context

@@ -14,9 +14,7 @@ import type { Project } from '@/entities';
 export function registerInitCommand(program: Command) {
 	program
 		.command('init')
-		.description(
-			'Initialize a new project in the current directory within the current organization context.',
-		)
+		.description('Link this directory to a Ghostable project')
 		.action(async () => {
 			const apiBase = config.apiBase;
 

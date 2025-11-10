@@ -62,6 +62,6 @@ export async function buildSecretPayload(opts: {
 
 	return {
 		...body,
-		client_sig: `b64:${b64(sig)}`,
+		client_sig: b64(sig),
 	};
 }

@@ -9,7 +9,7 @@ import type { DeploymentToken } from '@/entities';
 export function configureListCommand(parent: Command) {
 	parent
 		.command('list')
-		.description('List deployment tokens for a project environment.')
+		.description('List deployment tokens for the selected environment')
 		.option('--env <ENV>', 'Environment name or ID to filter by')
 		.action(async (options: { env?: string }) => {
 			const { projectId } = await requireProjectContext();

@@ -295,6 +295,14 @@ export type CreateEnvironmentKeyRequestJson = {
 	envelope: EnvironmentKeyEnvelopeUploadJson;
 };
 
+export type SignedClientPayload<T> = T & {
+	device_id: string;
+	client_sig: string;
+};
+
+export type SignedCreateEnvironmentKeyRequestJson =
+	SignedClientPayload<CreateEnvironmentKeyRequestJson>;
+
 export type CreateEnvironmentKeyRequest = {
 	fingerprint: string;
 	version?: number;
@@ -396,6 +404,9 @@ export type CreateEnvironmentKeyEnvelopeRequest = {
 	envelope: EnvironmentKeyEnvelopeUpload;
 };
 
+export type SignedCreateEnvironmentKeyEnvelopeRequestJson =
+	SignedClientPayload<CreateEnvironmentKeyEnvelopeRequestJson>;
+
 export function createEnvironmentKeyEnvelopeRequestToJSON(
 	request: CreateEnvironmentKeyEnvelopeRequest,
 ): CreateEnvironmentKeyEnvelopeRequestJson {
@@ -427,5 +438,6 @@ export type SignedEnvironmentSecretUploadRequest = EnvironmentSecretUploadReques
 };
 
 export type SignedEnvironmentSecretBatchUploadRequest = {
+	device_id?: string;
 	secrets: SignedEnvironmentSecretUploadRequest[];
 };

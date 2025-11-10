@@ -8,7 +8,7 @@ import type { Organization } from '@/entities';
 export function configureOrganizationListCommand(org: Command) {
 	org.command('list')
 		.aliases(['ls', 'org:list', 'orgs:list', 'organizations:list', 'organization:list'])
-		.description('List the organizations that you belong to.')
+		.description('List organizations available to your account')
 		.action(async () => {
 			const sess = await loadSessionOrExit();
 			const currentOrgId = sess.organizationId;
