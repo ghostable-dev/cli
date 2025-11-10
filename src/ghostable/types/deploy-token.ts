@@ -58,6 +58,16 @@ export type CreateDeploymentTokenResponseJson = {
 
 export type RotateDeploymentTokenResponseJson = {
 	data: DeploymentTokenJson;
+	meta?: {
+		secret?: string;
+		api_token?: {
+			plain_text: string;
+			id: string;
+			name: string;
+			token_suffix: string;
+			expires_at?: string | null;
+		};
+	};
 };
 
 export type RevokeDeploymentTokenResponseJson = {

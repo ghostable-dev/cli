@@ -324,6 +324,24 @@ export class GhostableClient {
 		return (res.data ?? []).map(deploymentTokenFromJSON);
 	}
 
+	private parseDeploymentTokenMeta(
+		meta?: CreateDeploymentTokenResponseJson['meta'],
+	): Pick<DeploymentTokenWithSecret, 'secret' | 'apiToken'> {
+		const secret = meta?.secret ?? meta?.api_token?.plain_text;
+		const apiToken = meta?.api_token
+			? {
+					plainText: meta.api_token.plain_text,
+					id: meta.api_token.id,
+					name: meta.api_token.name,
+					tokenSuffix: meta.api_token.token_suffix,
+					expiresAt: meta.api_token.expires_at
+						? new Date(meta.api_token.expires_at)
+						: null,
+				}
+			: undefined;
+		return { secret, apiToken };
+	}
+
 	async createDeployToken(
 		projectId: string,
 		input: { environmentId: string; name: string; publicKey: string },
@@ -337,31 +355,22 @@ export class GhostableClient {
 			} satisfies CreateDeploymentTokenRequestJson,
 		);
 		const token = deploymentTokenFromJSON(res.data);
-		const plainTextSecret = res.meta?.secret ?? res.meta?.api_token?.plain_text;
-		const apiToken = res.meta?.api_token
-			? {
-					plainText: res.meta.api_token.plain_text,
-					id: res.meta.api_token.id,
-					name: res.meta.api_token.name,
-					tokenSuffix: res.meta.api_token.token_suffix,
-					expiresAt: res.meta.api_token.expires_at
-						? new Date(res.meta.api_token.expires_at)
-						: null,
-				}
-			: undefined;
-		return { token, secret: plainTextSecret, apiToken };
+		const { secret, apiToken } = this.parseDeploymentTokenMeta(res.meta);
+		return { token, secret, apiToken };
 	}
 
 	async rotateDeployToken(
 		projectId: string,
 		tokenId: string,
 		input: { publicKey: string },
-	): Promise<DeploymentToken> {
+	): Promise<DeploymentTokenWithSecret> {
 		const res = await this.http.post<RotateDeploymentTokenResponseJson>(
 			`${this.deployTokenPath(projectId, tokenId)}/rotate`,
 			{ public_key: input.publicKey } satisfies RotateDeploymentTokenRequestJson,
 		);
-		return deploymentTokenFromJSON(res.data);
+		const token = deploymentTokenFromJSON(res.data);
+		const { secret, apiToken } = this.parseDeploymentTokenMeta(res.meta);
+		return { token, secret, apiToken };
 	}
 
 	async revokeDeployToken(projectId: string, tokenId: string): Promise<DeploymentToken> {

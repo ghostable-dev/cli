@@ -13,6 +13,7 @@ import {
 	reshareEnvironmentKey,
 	selectEnvironment,
 } from './common.js';
+import { buildDeploymentTokenSummaryLines } from './output.js';
 
 import { KeyService, MemoryKeyStore } from '@/crypto';
 import { formatDeploymentTokenLabel } from '@/entities';
@@ -69,9 +70,10 @@ export function configureRotateCommand(parent: Command) {
 					target.name,
 					'deployment-token',
 				);
+				const privateKeyB64 = identity.encryptionKey.privateKey;
 
 				spinner.text = 'Updating token on Ghostable…';
-				await client.rotateDeployToken(projectId, target.id, {
+				const rotatedToken = await client.rotateDeployToken(projectId, target.id, {
 					publicKey: identity.encryptionKey.publicKey,
 				});
 
@@ -83,20 +85,29 @@ export function configureRotateCommand(parent: Command) {
 					envId: environment.id,
 					envName: environment.name,
 					identity: deviceIdentity,
+					extraDeployTokens: [rotatedToken.token],
 				});
 
 				spinner.succeed('Deployment token rotated.');
+				log.line();
+				let privateKeyPath: string | undefined;
 				if (options.out) {
 					const resolved = path.resolve(options.out);
 					fs.mkdirSync(path.dirname(resolved), { recursive: true });
-					fs.writeFileSync(resolved, `${identity.encryptionKey.privateKey}\n`, {
+					fs.writeFileSync(resolved, `${privateKeyB64}\n`, {
 						mode: 0o600,
 					});
-					log.ok(`🔑 New private key written to ${resolved}`);
-				} else {
-					log.info('🔑 New private key (Base64):');
-					console.log(identity.encryptionKey.privateKey);
+					privateKeyPath = resolved;
 				}
+
+				const lines = buildDeploymentTokenSummaryLines({
+					result: rotatedToken,
+					environmentName: environment.name,
+					privateKeyB64,
+					includeInlinePrivateKey: !options.out,
+					privateKeyPath,
+				});
+				log.text(lines.join('\n'));
 			} catch (error) {
 				spinner.fail('Failed to rotate deployment token.');
 				log.error(toErrorMessage(error));

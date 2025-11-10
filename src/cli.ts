@@ -23,6 +23,10 @@ const INTERACTIVE_COMMANDS: InteractiveCommandConfig[] = [
 		label: '`ghostable device`',
 	},
 	{
+		commandPath: ['deploy'],
+		label: '`ghostable deploy`',
+	},
+	{
 		commandPath: ['env'],
 		aliasSets: [['env', 'environment']],
 		label: '`ghostable env`',
