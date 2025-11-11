@@ -422,6 +422,15 @@ export function createEnvironmentKeyEnvelopeRequestToJSON(
 export type EnvironmentSecretUploadRequest = EnvironmentSecretCommon & {
 	/** Optimistic concurrency guard. */
 	if_version?: number;
+
+	/** Byte length of the variable’s line (raw value from .env). */
+	line_bytes?: number;
+
+	/** Whether the secret originated from a Vapor-managed source. */
+	is_vapor_secret?: boolean;
+
+	/** Indicates if the .env line was commented out locally. */
+	is_commented?: boolean;
 };
 
 /**

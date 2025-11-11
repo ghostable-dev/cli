@@ -72,15 +72,35 @@ export type BrowserLoginStatus = {
 };
 type ListResp<T> = { data?: T[] };
 
+const PUSH_API_VERSION = 'v2.2';
+
+function resolvePushApiBase(apiBase: string): string {
+	const normalized = apiBase.replace(/\/+$/, '');
+	if (normalized.endsWith(`/api/${PUSH_API_VERSION}`)) return normalized;
+
+	const versionedMatch = normalized.match(/(.*\/api\/)v[\d.]+$/);
+	if (versionedMatch) return `${versionedMatch[1]}${PUSH_API_VERSION}`;
+
+	if (normalized.endsWith('/api')) return `${normalized}/${PUSH_API_VERSION}`;
+
+	return normalized;
+}
+
 export class GhostableClient {
-	constructor(private http: HttpClient) {}
+	constructor(
+		private http: HttpClient,
+		private pushHttp: HttpClient,
+	) {}
 
 	static unauthenticated(apiBase: string) {
-		return new GhostableClient(new HttpClient(apiBase));
+		const http = new HttpClient(apiBase);
+		const pushBase = resolvePushApiBase(apiBase);
+		const pushHttp = pushBase === apiBase ? http : new HttpClient(pushBase);
+		return new GhostableClient(http, pushHttp);
 	}
 
 	withToken(token: string) {
-		return new GhostableClient(this.http.withBearer(token));
+		return new GhostableClient(this.http.withBearer(token), this.pushHttp.withBearer(token));
 	}
 
 	async login(email: string, password: string, code?: string): Promise<string> {
@@ -225,7 +245,7 @@ export class GhostableClient {
 		const p = encodeURIComponent(projectId);
 		const e = encodeURIComponent(envName);
 		const suffix = opts?.sync ? '?sync=1' : '';
-		await this.http.post(`/projects/${p}/environments/${e}/push${suffix}`, payloads);
+		await this.pushHttp.post(`/projects/${p}/environments/${e}/push${suffix}`, payloads);
 	}
 
 	async pull(
@@ -241,7 +261,8 @@ export class GhostableClient {
 		const e = encodeURIComponent(envName);
 
 		const qs = new URLSearchParams();
-		if (opts?.includeMeta) qs.set('include_meta', '1');
+		const includeMeta = opts?.includeMeta ?? true;
+		if (includeMeta) qs.set('include_meta', '1');
 		if (opts?.includeVersions) qs.set('include_versions', '1');
 		if (opts?.only?.length) for (const k of opts.only) qs.append('only[]', k);
 
@@ -387,7 +408,8 @@ export class GhostableClient {
 		includeVersions?: boolean;
 	}): Promise<EnvironmentSecretBundle> {
 		const qs = new URLSearchParams();
-		if (opts?.includeMeta) qs.set('include_meta', '1');
+		const includeMeta = opts?.includeMeta ?? true;
+		if (includeMeta) qs.set('include_meta', '1');
 		if (opts?.includeVersions) qs.set('include_versions', '1');
 		if (opts?.only?.length) for (const k of opts.only) qs.append('only[]', k);
 

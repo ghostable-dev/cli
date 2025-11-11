@@ -2,10 +2,12 @@ import fs from 'node:fs';
 import path from 'node:path';
 import dotenv from 'dotenv';
 import { resolveWorkDir } from '@/support/workdir.js';
+import { EnvFileFormat, renderEnvFile } from './env-format.js';
 
 export type EnvVarSnapshot = {
 	value: string;
 	rawValue: string;
+	commented?: boolean;
 };
 
 export type EnvFileMetadata = {
@@ -16,25 +18,32 @@ export type EnvFileMetadata = {
 /**
  * Write a .env-style file from a vars map.
  */
+export type WriteEnvFileOptions = {
+	preserve?: Record<string, EnvVarSnapshot>;
+	format?: EnvFileFormat;
+};
+
 export function writeEnvFile(
 	filePath: string,
 	vars: Record<string, string>,
-	opts?: { preserve?: Record<string, EnvVarSnapshot> },
+	opts?: WriteEnvFileOptions,
 ): void {
 	const preserve = opts?.preserve ?? {};
+	const entries = Object.keys(vars).map((key) => {
+		const snapshot = preserve[key];
+		const value = vars[key];
+		const commented =
+			snapshot && snapshot.value === value ? Boolean(snapshot.commented) : undefined;
 
-	const content =
-		Object.keys(vars)
-			.sort((a, b) => a.localeCompare(b))
-			.map((key) => {
-				const snapshot = preserve[key];
-				if (snapshot && snapshot.value === vars[key]) {
-					return `${key}=${snapshot.rawValue}`;
-				}
+		return {
+			key,
+			value,
+			commented,
+			snapshot,
+		};
+	});
 
-				return `${key}=${vars[key]}`;
-			})
-			.join('\n') + '\n';
+	const content = renderEnvFile(entries, { format: opts?.format });
 
 	fs.writeFileSync(filePath, content, 'utf8');
 }
@@ -67,17 +76,27 @@ export function readEnvFileWithMetadata(filePath: string): EnvFileMetadata {
 
 	const lines = raw.split(/\r?\n/);
 	for (const line of lines) {
-		const match = line.match(/^\s*([\w.-]+)\s*=\s*(.*)$/);
+		const match = line.match(/^\s*(#\s*)?([\w.-]+)\s*=\s*(.*)$/);
 		if (!match) continue;
 
-		const [, key, rawValue] = match;
+		const [, hashPrefix, key, rawValue] = match;
+		const commented = Boolean(hashPrefix);
 
-		if (key in vars) {
-			snapshots[key] = {
-				value: vars[key],
-				rawValue,
-			};
+		let value: string | undefined;
+		if (commented) {
+			const synthetic = dotenv.parse(`${key}=${rawValue}`);
+			value = synthetic[key];
+		} else {
+			value = vars[key];
 		}
+
+		if (value === undefined) continue;
+
+		snapshots[key] = {
+			value,
+			rawValue,
+			commented,
+		};
 	}
 
 	return { vars, snapshots };

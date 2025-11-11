@@ -6,6 +6,7 @@ const logOutputs = {
 	warn: [] as string[],
 	error: [] as string[],
 	ok: [] as string[],
+	text: [] as string[],
 };
 
 let manifestData: any = {};
@@ -13,7 +14,7 @@ let manifestEnvs: string[] = ['prod'];
 let sessionData: any = { accessToken: 'session-token', organizationId: 'org-1' };
 let envFilePath = '/workdir/.env.prod';
 let localEnvVars: Record<string, string> = {};
-let snapshots: Record<string, { rawValue: string }> = {};
+let snapshots: Record<string, { rawValue: string; commented?: boolean }> = {};
 let remoteBundle: any = { chain: ['prod'], secrets: [] };
 const writeFileCalls: Array<{ path: string; content: string }> = [];
 const copyFileCalls: Array<{ src: string; dest: string }> = [];
@@ -62,6 +63,7 @@ vi.mock('../src/support/logger.js', () => ({
 		warn: vi.fn((msg: string) => logOutputs.warn.push(msg)),
 		error: vi.fn((msg: string) => logOutputs.error.push(msg)),
 		ok: vi.fn((msg: string) => logOutputs.ok.push(msg)),
+		text: vi.fn((msg: string) => logOutputs.text.push(msg)),
 	},
 }));
 
@@ -242,6 +244,7 @@ beforeEach(() => {
 	logOutputs.warn.length = 0;
 	logOutputs.error.length = 0;
 	logOutputs.ok.length = 0;
+	logOutputs.text.length = 0;
 	client.pull.mockClear();
 	client.push.mockClear();
 	client.getEnvironmentKey.mockClear();
@@ -488,6 +491,10 @@ describe('env push ignore behaviour', () => {
 			plaintext: 'value',
 			envKekVersion: 1,
 			envKekFingerprint: 'fingerprint-1',
+			meta: {
+				lineBytes: Buffer.byteLength('value', 'utf8'),
+				isCommented: false,
+			},
 		});
 
 		expect(client.push).toHaveBeenCalledTimes(1);
@@ -721,6 +728,47 @@ describe('env pull file management', () => {
 		expect(content).toContain('KEEP=keep-value');
 		expect(content).not.toContain('REMOVE_ME');
 		expect(logOutputs.info).toContain('CREATE 0 | UPDATE 0 | DELETE 1');
+	});
+
+	it('treats comment-only differences as updates', async () => {
+		localEnvVars = {
+			FEATURE_FLAG: 'enabled',
+		};
+		snapshots = {
+			FEATURE_FLAG: { rawValue: 'enabled', commented: false },
+		};
+		remoteBundle = {
+			chain: ['prod'],
+			secrets: [
+				{
+					env: 'prod',
+					name: 'FEATURE_FLAG',
+					ciphertext: 'enabled',
+					nonce: 'nonce',
+					alg: 'xchacha20',
+					aad: {},
+					meta: { is_commented: true },
+				},
+			],
+		};
+
+		const program = new Command();
+		registerEnvPullCommand(program);
+		await program.parseAsync([
+			'node',
+			'test',
+			'env',
+			'pull',
+			'--env',
+			'prod',
+			'--token',
+			'api-token',
+		]);
+
+		expect(writeFileCalls).toHaveLength(1);
+		const [{ content }] = writeFileCalls;
+		expect(content).toContain('# FEATURE_FLAG=enabled');
+		expect(logOutputs.info).toContain('CREATE 0 | UPDATE 1');
 	});
 
 	it('skips backups when --no-backup is provided', async () => {

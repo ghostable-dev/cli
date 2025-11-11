@@ -25,6 +25,9 @@ beforeAll(async () => {
 	({ GhostableClient } = await import('../../src/ghostable/GhostableClient.js'));
 });
 
+const makeClient = (post: ReturnType<typeof vi.fn>) =>
+	new GhostableClient({ post } as unknown as HttpClient, { post } as unknown as HttpClient);
+
 describe('GhostableClient.startBrowserRegistration', () => {
 	it('uses login_url when provided', async () => {
 		const post = vi.fn(async () => ({
@@ -32,7 +35,7 @@ describe('GhostableClient.startBrowserRegistration', () => {
 			login_url: 'https://ghostable.example/login',
 			poll_interval: 10,
 		}));
-		const client = new GhostableClient({ post } as unknown as HttpClient);
+		const client = makeClient(post);
 
 		await expect(client.startBrowserRegistration()).resolves.toEqual({
 			ticket: 'ticket-1',
@@ -51,7 +54,7 @@ describe('GhostableClient.startBrowserRegistration', () => {
 			register_url: 'https://ghostable.example/register',
 			poll_url: 'https://ghostable.example/poll',
 		}));
-		const client = new GhostableClient({ post } as unknown as HttpClient);
+		const client = makeClient(post);
 
 		await expect(client.startBrowserRegistration()).resolves.toEqual({
 			ticket: 'ticket-2',
@@ -68,10 +71,32 @@ describe('GhostableClient.startBrowserRegistration', () => {
 		const post = vi.fn(async () => ({
 			ticket: 'ticket-3',
 		}));
-		const client = new GhostableClient({ post } as unknown as HttpClient);
+		const client = makeClient(post);
 
 		await expect(client.startBrowserRegistration()).rejects.toThrow(
 			'Browser registration is not available.',
+		);
+	});
+});
+
+describe('GhostableClient.push', () => {
+	it('sends push payloads via the v2.2 client', async () => {
+		const apiPost = vi.fn();
+		const pushPost = vi.fn(async () => ({}));
+		const client = new GhostableClient(
+			{ post: apiPost } as unknown as HttpClient,
+			{ post: pushPost } as unknown as HttpClient,
+		);
+
+		await client.push('proj', 'env', {
+			device_id: 'device-1',
+			secrets: [],
+		} as unknown as Parameters<GhostableClientCtor['prototype']['push']>[2]);
+
+		expect(apiPost).not.toHaveBeenCalled();
+		expect(pushPost).toHaveBeenCalledWith(
+			'/projects/proj/environments/env/push',
+			expect.objectContaining({ device_id: 'device-1', secrets: [] }),
 		);
 	});
 });

@@ -15,6 +15,11 @@ import { toErrorMessage } from '../../support/errors.js';
 import { resolveWorkDir } from '../../support/workdir.js';
 import { getIgnoredKeys, filterIgnoredKeys } from '../../support/ignore.js';
 import { readEnvFileSafeWithMetadata } from '@/environment/files/env-files.js';
+import {
+	EnvFileFormat,
+	type EnvRenderEntry,
+	renderEnvFile,
+} from '@/environment/files/env-format.js';
 import { registerEnvSubcommand } from './_shared.js';
 
 import type { EnvironmentSecret, EnvironmentSecretBundle } from '@/entities';
@@ -31,6 +36,7 @@ type PullOptions = {
 	pruneLocal?: boolean;
 	noBackup?: boolean;
 	backup?: boolean;
+	format?: string;
 };
 
 function resolveOutputPath(envName: string | undefined, explicit?: string): string {
@@ -40,10 +46,7 @@ function resolveOutputPath(envName: string | undefined, explicit?: string): stri
 	return path.resolve(workDir, '.env');
 }
 
-function lineForDotenv(name: string, value: string, commented = false): string {
-	const safe = value.includes('\n') ? JSON.stringify(value) : value;
-	return commented ? `# ${name}=${safe}` : `${name}=${safe}`;
-}
+const VALID_FORMATS = Object.values(EnvFileFormat);
 
 export function registerEnvPullCommand(program: Command) {
 	registerEnvSubcommand(
@@ -59,12 +62,17 @@ export function registerEnvPullCommand(program: Command) {
 				.option('--file <PATH>', 'Output file (default: .env.<env> or .env)')
 				.option('--token <TOKEN>', 'API token (or stored session / GHOSTABLE_TOKEN)')
 				.option('--only <KEY...>', 'Only include these keys')
-				.option('--include-meta', 'Include meta flags in bundle', false)
+				.option('--include-meta', 'Include meta flags in bundle')
 				.option('--dry-run', 'Do not write file; just report', false)
 				.option('--show-ignored', 'Display ignored keys', false)
 				.option('--replace', 'Replace local file instead of merging', false)
 				.option('--prune-local', 'Alias for --replace', false)
 				.option('--no-backup', 'Do not create a backup before writing')
+				.option(
+					'--format <FORMAT>',
+					`Output format (${VALID_FORMATS.join('|')})`,
+					EnvFileFormat.ALPHABETICAL,
+				)
 				.action(async (opts: PullOptions) => {
 					// 1) Load manifest (project + envs)
 					let projectId: string, projectName: string, envNames: string[];
@@ -110,7 +118,7 @@ export function registerEnvPullCommand(program: Command) {
 					let bundle: EnvironmentSecretBundle;
 					try {
 						bundle = await client.pull(projectId, envName!, {
-							includeMeta: !!opts.includeMeta,
+							includeMeta: opts.includeMeta,
 							includeVersions: true,
 							only: opts.only,
 						});
@@ -253,11 +261,16 @@ export function registerEnvPullCommand(program: Command) {
 					let updateCount = 0;
 					for (const key of serverKeys) {
 						const current = existingVars[key];
+						const targetValue = filteredMerged[key];
+						const targetCommented = Boolean(filteredComments[key]);
 						if (current === undefined) {
 							createCount += 1;
 							continue;
 						}
-						if (current !== filteredMerged[key]) {
+						const currentCommented = Boolean(snapshots[key]?.commented);
+						const valueChanged = current !== targetValue;
+						const commentChanged = currentCommented !== targetCommented;
+						if (valueChanged || commentChanged) {
 							updateCount += 1;
 						}
 					}
@@ -294,38 +307,37 @@ export function registerEnvPullCommand(program: Command) {
 						return;
 					}
 
-					const finalEntries = new Map<string, { value: string; comment?: boolean }>();
+					const finalEntries = new Map<string, { value: string; commented?: boolean }>();
 
 					if (!replace) {
 						for (const [key, value] of Object.entries(existingVars)) {
-							finalEntries.set(key, { value });
+							const snapshot = snapshots[key];
+							finalEntries.set(key, {
+								value,
+								commented: Boolean(snapshot?.commented),
+							});
 						}
 					}
 
 					for (const key of serverKeys) {
 						finalEntries.set(key, {
 							value: filteredMerged[key],
-							comment: Boolean(filteredComments[key]),
+							commented: Boolean(filteredComments[key]),
 						});
 					}
 
-					const lines = Array.from(finalEntries.keys())
-						.sort((a, b) => a.localeCompare(b))
-						.map((key) => {
-							const entry = finalEntries.get(key)!;
-							if (entry.comment) {
-								return lineForDotenv(key, entry.value, true);
-							}
+					const format = coerceEnvFileFormat(opts.format);
 
-							const snapshot = snapshots[key];
-							if (snapshot && snapshot.value === entry.value) {
-								return `${key}=${snapshot.rawValue}`;
-							}
+					const entries: EnvRenderEntry[] = Array.from(finalEntries.entries()).map(
+						([key, entry]) => ({
+							key,
+							value: entry.value,
+							commented: entry.commented,
+							snapshot: snapshots[key],
+						}),
+					);
 
-							return lineForDotenv(key, entry.value);
-						});
-
-					const content = lines.join('\n') + '\n';
+					const content = renderEnvFile(entries, { format });
 
 					if (!noBackup && fs.existsSync(outputPath)) {
 						const timestamp = new Date().toISOString().replace(/:/g, '-');
@@ -340,4 +352,24 @@ export function registerEnvPullCommand(program: Command) {
 					log.ok(`✅ Updated ${outputPath} for ${projectName}:${envName}.`);
 				}),
 	);
+}
+
+function coerceEnvFileFormat(input?: string): EnvFileFormat {
+	if (input && VALID_FORMATS.includes(input as EnvFileFormat)) {
+		return input as EnvFileFormat;
+	}
+
+	if (!input) {
+		return EnvFileFormat.ALPHABETICAL;
+	}
+
+	const normalized = input.toLowerCase();
+	const match = VALID_FORMATS.find((fmt) => fmt === normalized);
+	if (match) {
+		return match as EnvFileFormat;
+	}
+
+	log.error(`❌ Invalid --format "${input}". Valid options: ${VALID_FORMATS.join(', ')}`);
+	process.exit(1);
+	return EnvFileFormat.ALPHABETICAL;
 }

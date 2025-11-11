@@ -2,6 +2,12 @@ import { aeadEncrypt, b64, deriveKeys, edSign, hmacSHA256 } from '@/crypto';
 import type { SignedEnvironmentSecretUploadRequest } from '@/ghostable/types/environment.js';
 import type { AAD, Claims } from '@/crypto';
 
+type SecretUploadMetadata = {
+	lineBytes?: number;
+	isCommented?: boolean;
+	isVaporSecret?: boolean;
+};
+
 export async function buildSecretPayload(opts: {
 	org: string;
 	project: string;
@@ -13,6 +19,7 @@ export async function buildSecretPayload(opts: {
 	ifVersion?: number;
 	envKekVersion?: number;
 	envKekFingerprint?: string;
+	meta?: SecretUploadMetadata;
 }): Promise<SignedEnvironmentSecretUploadRequest> {
 	const {
 		org,
@@ -25,6 +32,7 @@ export async function buildSecretPayload(opts: {
 		ifVersion,
 		envKekVersion,
 		envKekFingerprint,
+		meta,
 	} = opts;
 
 	const { encKey, hmacKey } = deriveKeys(keyMaterial, `${org}/${project}/${env}`);
@@ -35,6 +43,8 @@ export async function buildSecretPayload(opts: {
 
 	const hmac = hmacSHA256(hmacKey, pt);
 	const claims: Claims = { hmac };
+
+	const metadata = meta ?? {};
 
 	const body = {
 		name,
@@ -47,6 +57,11 @@ export async function buildSecretPayload(opts: {
 		...(ifVersion !== undefined ? { if_version: ifVersion } : {}),
 		...(envKekVersion !== undefined ? { env_kek_version: envKekVersion } : {}),
 		...(envKekFingerprint ? { env_kek_fingerprint: envKekFingerprint } : {}),
+		...(metadata.lineBytes !== undefined ? { line_bytes: metadata.lineBytes } : {}),
+		...(metadata.isVaporSecret !== undefined
+			? { is_vapor_secret: metadata.isVaporSecret }
+			: {}),
+		...(metadata.isCommented !== undefined ? { is_commented: metadata.isCommented } : {}),
 	};
 
 	const bytes = new TextEncoder().encode(JSON.stringify(body));

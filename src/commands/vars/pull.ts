@@ -14,6 +14,7 @@ import { resolveWorkDir } from '../../support/workdir.js';
 import { DeviceIdentityService } from '../../services/DeviceIdentityService.js';
 import { EnvironmentKeyService } from '@/environment/keys/EnvironmentKeyService.js';
 import { registerVarSubcommand } from './_shared.js';
+import { promptWithCancel } from '@/support/prompts.js';
 
 import type { EnvironmentSecret } from '@/entities';
 
@@ -106,10 +107,12 @@ export function registerVarPullCommand(program: Command) {
 
 					let envName = opts.env?.trim();
 					if (!envName) {
-						envName = await select<string>({
-							message: 'Which environment would you like to pull?',
-							choices: envNames.sort().map((name) => ({ name, value: name })),
-						});
+						envName = await promptWithCancel(() =>
+							select<string>({
+								message: 'Which environment would you like to pull?',
+								choices: envNames.sort().map((name) => ({ name, value: name })),
+							}),
+						);
 					}
 
 					let token = opts.token || process.env.GHOSTABLE_TOKEN || '';
@@ -137,13 +140,15 @@ export function registerVarPullCommand(program: Command) {
 								return;
 							}
 
-							keyName = await select<string>({
-								message: `Select a variable to pull from ${projectName}/${envName}:`,
-								choices: response.data.map((item) => ({
-									name: item.name,
-									value: item.name,
-								})),
-							});
+							keyName = await promptWithCancel(() =>
+								select<string>({
+									message: `Select a variable to pull from ${projectName}/${envName}:`,
+									choices: response.data.map((item) => ({
+										name: item.name,
+										value: item.name,
+									})),
+								}),
+							);
 						} catch (error) {
 							log.error(
 								`❌ Failed to load environment keys: ${toErrorMessage(error)}`,

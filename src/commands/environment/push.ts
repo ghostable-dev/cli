@@ -94,9 +94,16 @@ export async function runEnvPush(opts: PushOptions): Promise<void> {
 	}
 
 	// 5) Read variables + apply ignore list
-	const { vars: envMap } = readEnvFileSafeWithMetadata(filePath);
+	const { vars: envMap, snapshots } = readEnvFileSafeWithMetadata(filePath);
+	const mergedVars: Record<string, string> = { ...envMap };
+	for (const [name, snapshot] of Object.entries(snapshots)) {
+		if (!(name in mergedVars) && snapshot.commented) {
+			mergedVars[name] = snapshot.value;
+		}
+	}
+
 	const ignored = getIgnoredKeys(envName);
-	const filteredVars = filterIgnoredKeys(envMap, ignored);
+	const filteredVars = filterIgnoredKeys(mergedVars, ignored);
 	const entryCount = Object.keys(filteredVars).length;
 	if (!entryCount) {
 		log.warn('⚠️  No variables found in the .env file.');
@@ -201,6 +208,8 @@ export async function runEnvPush(opts: PushOptions): Promise<void> {
 		const sortedKeys = Object.keys(filteredVars).sort((a, b) => a.localeCompare(b));
 		for (const name of sortedKeys) {
 			const value = filteredVars[name] ?? '';
+			const snapshot = snapshots[name];
+			const lineBytes = Buffer.byteLength(snapshot?.rawValue ?? value ?? '', 'utf8');
 			const payload = await buildSecretPayload({
 				org: orgId,
 				project: projectId,
@@ -211,13 +220,18 @@ export async function runEnvPush(opts: PushOptions): Promise<void> {
 				edPriv,
 				envKekVersion: keyInfo.version,
 				envKekFingerprint: keyInfo.fingerprint,
+				meta: {
+					lineBytes,
+					isCommented: Boolean(snapshot?.commented),
+				},
 			});
 			secrets.push(payload);
 		}
 
 		spinner.text = 'Uploading encrypted secrets to Ghostable…';
 		const sync = Boolean(opts.sync || opts.replace || opts.pruneServer);
-		await client.push(projectId, envName!, { device_id: identity.deviceId, secrets }, { sync });
+		const requestBody = { device_id: identity.deviceId, secrets };
+		await client.push(projectId, envName!, requestBody, { sync });
 
 		spinner.succeed('Environment pushed securely.');
 		log.ok(`✅ Pushed ${secrets.length} variables to ${projectId}:${envName}.`);

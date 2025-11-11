@@ -20,6 +20,7 @@ import {
 import { getIgnoredKeys, filterIgnoredKeys } from '../../support/ignore.js';
 import { buildSecretPayload } from '../../support/secret-payload.js';
 import { registerVarSubcommand } from './_shared.js';
+import { promptWithCancel } from '@/support/prompts.js';
 
 export type VarPushOptions = {
 	env?: string;
@@ -81,10 +82,12 @@ export function registerVarPushCommand(program: Command) {
 
 					let envName = opts.env?.trim();
 					if (!envName) {
-						envName = await select<string>({
-							message: 'Which environment would you like to push?',
-							choices: envNames.sort().map((name) => ({ name, value: name })),
-						});
+						envName = await promptWithCancel(() =>
+							select<string>({
+								message: 'Which environment would you like to push?',
+								choices: envNames.sort().map((name) => ({ name, value: name })),
+							}),
+						);
 					}
 
 					const filePath = resolveEnvFile(envName!, opts.file, true);
@@ -95,14 +98,26 @@ export function registerVarPushCommand(program: Command) {
 					}
 
 					const { vars: envMap, snapshots } = readEnvFileSafeWithMetadata(filePath);
+					const mergedVars: Record<string, string> = { ...envMap };
+					for (const [name, snapshot] of Object.entries(snapshots)) {
+						if (!(name in mergedVars) && snapshot.commented) {
+							mergedVars[name] = snapshot.value;
+						}
+					}
 					const ignored = getIgnoredKeys(envName);
-					const filtered = filterIgnoredKeys(envMap, ignored);
+					const filtered = filterIgnoredKeys(mergedVars, ignored);
 					const entries = Object.entries(filtered)
-						.map(([name, parsedValue]) => ({
-							name,
-							parsedValue,
-							plaintext: resolvePlaintext(parsedValue, snapshots[name]),
-						}))
+						.map(([name, parsedValue]) => {
+							const snapshot = snapshots[name];
+							const rawSource = snapshot?.rawValue ?? parsedValue ?? '';
+							return {
+								name,
+								parsedValue,
+								plaintext: resolvePlaintext(parsedValue, snapshot),
+								commented: Boolean(snapshot?.commented),
+								lineBytes: Buffer.byteLength(rawSource, 'utf8'),
+							};
+						})
 						.sort((a, b) => a.name.localeCompare(b.name));
 
 					if (!entries.length) {
@@ -119,13 +134,17 @@ export function registerVarPushCommand(program: Command) {
 							return;
 						}
 					} else {
-						keyName = await select<string>({
-							message: `Select a variable to push from ${projectName}/${envName}:`,
-							choices: entries.map((entry) => ({
-								name: entry.name,
-								value: entry.name,
-							})),
-						});
+						keyName = await promptWithCancel(() =>
+							select<string>({
+								message: `Select a variable to push from ${projectName}/${envName}:`,
+								choices: entries.map((entry) => ({
+									name: entry.commented
+										? `${entry.name} (commented)`
+										: entry.name,
+									value: entry.name,
+								})),
+							}),
+						);
 					}
 
 					let token = opts.token || process.env.GHOSTABLE_TOKEN || '';
@@ -269,12 +288,17 @@ export function registerVarPushCommand(program: Command) {
 							edPriv,
 							envKekVersion: keyInfo.version,
 							envKekFingerprint: keyInfo.fingerprint,
+							meta: {
+								lineBytes: target.lineBytes,
+								isCommented: target.commented,
+							},
 						});
 
-						await client.push(projectId, envName!, {
+						const requestBody = {
 							device_id: identity.deviceId,
 							secrets: [payload],
-						});
+						};
+						await client.push(projectId, envName!, requestBody);
 						log.ok(
 							`✅ Pushed ${chalk.bold(target.name)} from ${chalk.bold(
 								filePath,

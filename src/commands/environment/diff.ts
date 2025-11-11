@@ -15,7 +15,7 @@ import { getIgnoredKeys, filterIgnoredKeys } from '../../support/ignore.js';
 
 import { initSodium, deriveKeys, aeadDecrypt, scopeFromAAD } from '@/crypto';
 import { EnvironmentKeyService } from '@/environment/keys/EnvironmentKeyService.js';
-import { readEnvFileSafe, resolveEnvFile } from '@/environment/files/env-files.js';
+import { readEnvFileSafeWithMetadata, resolveEnvFile } from '@/environment/files/env-files.js';
 import { registerEnvSubcommand } from './_shared.js';
 
 import type { EnvironmentSecret, EnvironmentSecretBundle } from '@/entities';
@@ -45,7 +45,7 @@ export function registerEnvDiffCommand(program: Command) {
 				.option('--local <PATH>', 'Local .env path (alias for --file)')
 				.option('--token <TOKEN>', 'API token (or stored session / GHOSTABLE_TOKEN)')
 				.option('--only <KEY...>', 'Only diff these keys')
-				.option('--include-meta', 'Include meta flags in bundle', false)
+				.option('--include-meta', 'Include meta flags in bundle')
 				.option('--show-ignored', 'Display ignored keys', false)
 				.action(async (opts: DiffOptions) => {
 					// 1) Resolve project + environment from manifest
@@ -91,7 +91,7 @@ export function registerEnvDiffCommand(program: Command) {
 					let bundle: EnvironmentSecretBundle;
 					try {
 						bundle = await client.pull(projectId, envName!, {
-							includeMeta: !!opts.includeMeta,
+							includeMeta: opts.includeMeta,
 							includeVersions: true,
 							only: opts.only,
 						});
@@ -234,11 +234,18 @@ export function registerEnvDiffCommand(program: Command) {
 						? `Comparing local "${localDisplayName}" to remote environment "${envName}" (fallback used).`
 						: `Comparing local "${localDisplayName}" to remote environment "${envName}".`;
 					log.info(compareMessage);
-					const localVars = readEnvFileSafe(envPath);
-					// Local map assumes “not commented” for keys present in file; commented state is unknown locally.
+					const localMetadata = readEnvFileSafeWithMetadata(envPath);
 					const localMap: Record<string, { value: string; commented: boolean }> = {};
-					for (const [k, v] of Object.entries(localVars)) {
-						localMap[k] = { value: v, commented: false };
+					for (const [k, snapshot] of Object.entries(localMetadata.snapshots)) {
+						localMap[k] = {
+							value: snapshot.value,
+							commented: Boolean(snapshot.commented),
+						};
+					}
+					for (const [k, v] of Object.entries(localMetadata.vars)) {
+						if (!(k in localMap)) {
+							localMap[k] = { value: v, commented: false };
+						}
 					}
 
 					// 6) Apply ignore list (unless overridden by --only)
@@ -312,8 +319,19 @@ export function registerEnvDiffCommand(program: Command) {
 							const commentChanged =
 								(remoteFiltered[k]?.commented ?? false) !==
 								(localFiltered[k]?.commented ?? false);
-							const note = commentChanged ? ' (commented state changed)' : '';
-							console.log(`  ${chalk.yellow('~')} ${k}: ${cur} -> ${inc}${note}`);
+							const valueChanged = cur !== inc;
+							if (commentChanged && !valueChanged) {
+								const nowCommented =
+									(localFiltered[k]?.commented ?? false)
+										? 'now commented out'
+										: 'now active';
+								console.log(
+									`  ${chalk.yellow('~')} ${k}: ${nowCommented} (value: ${inc})`,
+								);
+							} else {
+								const note = commentChanged ? ' (commented state changed)' : '';
+								console.log(`  ${chalk.yellow('~')} ${k}: ${cur} -> ${inc}${note}`);
+							}
 						}
 					}
 					if (removed.length) {

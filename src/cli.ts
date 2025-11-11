@@ -6,6 +6,7 @@ import { select } from '@inquirer/prompts';
 import chalk from 'chalk';
 import { registerAllCommands } from './commands/_autoregister.js';
 import { log } from './support/logger.js';
+import { isPromptCanceledError, promptWithCancel } from './support/prompts.js';
 
 type InteractiveCommandConfig = {
 	commandPath: string[];
@@ -46,12 +47,6 @@ const humanReadableArgName = (arg: Argument): string => {
 	const nameOutput = `${arg.name()}${arg.variadic ? '...' : ''}`;
 	return arg.required ? `<${nameOutput}>` : `[${nameOutput}]`;
 };
-
-const isPromptCanceledError = (error: unknown): error is Error & { name: string } =>
-	typeof error === 'object' &&
-	error !== null &&
-	'name' in error &&
-	(error as { name?: unknown }).name === 'ExitPromptError';
 
 async function maybePromptInteractiveSubcommand(
 	program: Command,
@@ -102,16 +97,18 @@ async function maybePromptInteractiveSubcommand(
 	}
 	log.line();
 
-	const selected = await select<string>({
-		message: `Select a ${config.label} command to run`,
-		choices: subcommands.map((subcommand) => {
-			const summary = subcommand.summary() || subcommand.description();
-			return {
-				name: summary ? `${subcommand.name()} - ${summary}` : subcommand.name(),
-				value: subcommand.name(),
-			};
+	const selected = await promptWithCancel(() =>
+		select<string>({
+			message: `Select a ${config.label} command to run`,
+			choices: subcommands.map((subcommand) => {
+				const summary = subcommand.summary() || subcommand.description();
+				return {
+					name: summary ? `${subcommand.name()} - ${summary}` : subcommand.name(),
+					value: subcommand.name(),
+				};
+			}),
 		}),
-	});
+	);
 
 	return [process.argv[0], process.argv[1], ...rawArgs, selected];
 }
