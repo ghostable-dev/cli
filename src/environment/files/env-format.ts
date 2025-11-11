@@ -61,11 +61,12 @@ function renderGrouped(entries: EnvRenderEntry[], withComments: boolean): string
 	const lines: string[] = [];
 
 	for (const prefix of sortedPrefixes) {
+		const entriesForPrefix = groups.get(prefix)!;
+
 		if (withComments) {
 			lines.push(`# ${prefix}`);
 		}
 
-		const entriesForPrefix = groups.get(prefix)!;
 		entriesForPrefix
 			.sort((a, b) => a.key.localeCompare(b.key))
 			.forEach((entry) => {

@@ -26,7 +26,6 @@ type DiffOptions = {
 	file?: string; // legacy override flag
 	local?: string; // preferred override flag
 	only?: string[]; // optional; diff just these keys
-	includeMeta?: boolean;
 	showIgnored?: boolean;
 };
 
@@ -45,7 +44,6 @@ export function registerEnvDiffCommand(program: Command) {
 				.option('--local <PATH>', 'Local .env path (alias for --file)')
 				.option('--token <TOKEN>', 'API token (or stored session / GHOSTABLE_TOKEN)')
 				.option('--only <KEY...>', 'Only diff these keys')
-				.option('--include-meta', 'Include meta flags in bundle')
 				.option('--show-ignored', 'Display ignored keys', false)
 				.action(async (opts: DiffOptions) => {
 					// 1) Resolve project + environment from manifest
@@ -91,9 +89,9 @@ export function registerEnvDiffCommand(program: Command) {
 					let bundle: EnvironmentSecretBundle;
 					try {
 						bundle = await client.pull(projectId, envName!, {
-							includeMeta: opts.includeMeta,
 							includeVersions: true,
 							only: opts.only,
+							includeMeta: true,
 						});
 					} catch (error) {
 						log.error(`❌ Failed to pull environment bundle: ${toErrorMessage(error)}`);

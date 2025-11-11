@@ -21,15 +21,14 @@ import {
 	renderEnvFile,
 } from '@/environment/files/env-format.js';
 import { registerEnvSubcommand } from './_shared.js';
+import { promptWithCancel } from '@/support/prompts.js';
 
 import type { EnvironmentSecret, EnvironmentSecretBundle } from '@/entities';
 
 type PullOptions = {
-	token?: string;
 	env?: string;
 	file?: string; // output path; default .env.<env> or .env
 	only?: string[]; // repeatable: --only KEY --only OTHER
-	includeMeta?: boolean;
 	dryRun?: boolean; // don't write file; just show summary
 	showIgnored?: boolean;
 	replace?: boolean;
@@ -47,6 +46,20 @@ function resolveOutputPath(envName: string | undefined, explicit?: string): stri
 }
 
 const VALID_FORMATS = Object.values(EnvFileFormat);
+const FORMAT_PROMPT_CHOICES = [
+	{
+		name: 'Alphabetical (sort keys A→Z)',
+		value: EnvFileFormat.ALPHABETICAL,
+	},
+	{
+		name: 'Grouped (cluster by prefix)',
+		value: EnvFileFormat.GROUPED,
+	},
+	{
+		name: 'Grouped with comments (cluster by prefix + heading comments)',
+		value: EnvFileFormat.GROUPED_COMMENTS,
+	},
+];
 
 export function registerEnvPullCommand(program: Command) {
 	registerEnvSubcommand(
@@ -60,19 +73,13 @@ export function registerEnvPullCommand(program: Command) {
 				.description('Pull and decrypt environment secrets into a local .env')
 				.option('--env <ENV>', 'Environment name (if omitted, select from manifest)')
 				.option('--file <PATH>', 'Output file (default: .env.<env> or .env)')
-				.option('--token <TOKEN>', 'API token (or stored session / GHOSTABLE_TOKEN)')
 				.option('--only <KEY...>', 'Only include these keys')
-				.option('--include-meta', 'Include meta flags in bundle')
 				.option('--dry-run', 'Do not write file; just report', false)
 				.option('--show-ignored', 'Display ignored keys', false)
 				.option('--replace', 'Replace local file instead of merging', false)
 				.option('--prune-local', 'Alias for --replace', false)
 				.option('--no-backup', 'Do not create a backup before writing')
-				.option(
-					'--format <FORMAT>',
-					`Output format (${VALID_FORMATS.join('|')})`,
-					EnvFileFormat.ALPHABETICAL,
-				)
+				.option('--format <FORMAT>', `Output format (${VALID_FORMATS.join('|')})`)
 				.action(async (opts: PullOptions) => {
 					// 1) Load manifest (project + envs)
 					let projectId: string, projectName: string, envNames: string[];
@@ -93,20 +100,32 @@ export function registerEnvPullCommand(program: Command) {
 					// 2) Pick env (flag → prompt)
 					let envName = opts.env?.trim();
 					if (!envName) {
-						envName = await select<string>({
-							message: 'Which environment would you like to pull?',
-							choices: envNames.sort().map((n) => ({ name: n, value: n })),
-						});
+						envName = await promptWithCancel(() =>
+							select<string>({
+								message: 'Which environment would you like to pull?',
+								choices: envNames.sort().map((n) => ({ name: n, value: n })),
+							}),
+						);
 					}
 
+					const format = opts.format
+						? coerceEnvFileFormat(opts.format)
+						: await promptWithCancel(() =>
+								select<EnvFileFormat>({
+									message: 'How should the env file be formatted?',
+									choices: FORMAT_PROMPT_CHOICES,
+									default: EnvFileFormat.ALPHABETICAL,
+								}),
+							);
+
 					// 3) Resolve token (org context only affects server-side; decrypt uses AAD)
-					let token = opts.token || process.env.GHOSTABLE_TOKEN || '';
+					let token = process.env.GHOSTABLE_TOKEN || '';
 					if (!token) {
 						const sessionSvc = new SessionService();
 						const sess = await sessionSvc.load();
 						if (!sess?.accessToken) {
 							log.error(
-								'❌ No API token. Run `ghostable login` or pass --token / set GHOSTABLE_TOKEN.',
+								'❌ No API token. Run `ghostable login` or set GHOSTABLE_TOKEN.',
 							);
 							process.exit(1);
 						}
@@ -118,9 +137,9 @@ export function registerEnvPullCommand(program: Command) {
 					let bundle: EnvironmentSecretBundle;
 					try {
 						bundle = await client.pull(projectId, envName!, {
-							includeMeta: opts.includeMeta,
 							includeVersions: true,
 							only: opts.only,
+							includeMeta: true,
 						});
 					} catch (error) {
 						log.error(`❌ Failed to pull environment bundle: ${toErrorMessage(error)}`);
@@ -252,6 +271,16 @@ export function registerEnvPullCommand(program: Command) {
 					const outputPath = resolveOutputPath(envName!, opts.file);
 					const { vars: existingVars, snapshots } =
 						readEnvFileSafeWithMetadata(outputPath);
+					const fileExists = fs.existsSync(outputPath);
+					let existingFileContent: string | undefined;
+					if (fileExists) {
+						try {
+							existingFileContent = fs.readFileSync(outputPath, 'utf8');
+						} catch {
+							// Ignore read errors; we'll treat as needing a rewrite later.
+							existingFileContent = undefined;
+						}
+					}
 
 					const replace = Boolean(opts.replace || opts.pruneLocal);
 					const noBackup = opts.backup === false || opts.noBackup === true;
@@ -260,14 +289,16 @@ export function registerEnvPullCommand(program: Command) {
 					let createCount = 0;
 					let updateCount = 0;
 					for (const key of serverKeys) {
-						const current = existingVars[key];
+						const snapshot = snapshots[key];
+						const current =
+							snapshot?.value !== undefined ? snapshot.value : existingVars[key];
 						const targetValue = filteredMerged[key];
 						const targetCommented = Boolean(filteredComments[key]);
 						if (current === undefined) {
 							createCount += 1;
 							continue;
 						}
-						const currentCommented = Boolean(snapshots[key]?.commented);
+						const currentCommented = Boolean(snapshot?.commented);
 						const valueChanged = current !== targetValue;
 						const commentChanged = currentCommented !== targetCommented;
 						if (valueChanged || commentChanged) {
@@ -277,7 +308,11 @@ export function registerEnvPullCommand(program: Command) {
 
 					let deleteCount = 0;
 					if (replace) {
-						for (const key of Object.keys(existingVars)) {
+						const localKeys = new Set([
+							...Object.keys(existingVars),
+							...Object.keys(snapshots),
+						]);
+						for (const key of localKeys) {
 							if (!(key in filteredMerged)) {
 								deleteCount += 1;
 							}
@@ -292,26 +327,18 @@ export function registerEnvPullCommand(program: Command) {
 					const summary = summaryParts.join(' | ');
 					log.info(summary);
 
-					if (opts.dryRun) {
-						const dryRunMsg = hasChanges
-							? `Dry run: would update ${outputPath}`
-							: `Dry run: no changes for ${outputPath}`;
-						log.info(dryRunMsg);
-						process.exit(0);
-					}
-
-					if (!hasChanges) {
-						log.ok(
-							`✅ ${outputPath} is already up to date for ${projectName}:${envName}.`,
-						);
-						return;
-					}
-
 					const finalEntries = new Map<string, { value: string; commented?: boolean }>();
 
 					if (!replace) {
-						for (const [key, value] of Object.entries(existingVars)) {
+						const localKeys = new Set([
+							...Object.keys(snapshots),
+							...Object.keys(existingVars),
+						]);
+						for (const key of localKeys) {
 							const snapshot = snapshots[key];
+							const value =
+								snapshot?.value !== undefined ? snapshot.value : existingVars[key];
+							if (value === undefined) continue;
 							finalEntries.set(key, {
 								value,
 								commented: Boolean(snapshot?.commented),
@@ -326,8 +353,6 @@ export function registerEnvPullCommand(program: Command) {
 						});
 					}
 
-					const format = coerceEnvFileFormat(opts.format);
-
 					const entries: EnvRenderEntry[] = Array.from(finalEntries.entries()).map(
 						([key, entry]) => ({
 							key,
@@ -338,6 +363,32 @@ export function registerEnvPullCommand(program: Command) {
 					);
 
 					const content = renderEnvFile(entries, { format });
+					const formatChanged =
+						existingFileContent === undefined
+							? !fileExists || Boolean(content.length)
+							: existingFileContent !== content;
+					const needsWrite = hasChanges || formatChanged;
+
+					if (formatChanged && !hasChanges && fileExists) {
+						log.info(
+							`Formatting differs from requested output (${format}); will rewrite file.`,
+						);
+					}
+
+					if (opts.dryRun) {
+						const dryRunMsg = needsWrite
+							? `Dry run: would update ${outputPath}`
+							: `Dry run: no changes for ${outputPath}`;
+						log.info(dryRunMsg);
+						process.exit(0);
+					}
+
+					if (!needsWrite) {
+						log.ok(
+							`✅ ${outputPath} is already up to date for ${projectName}:${envName}.`,
+						);
+						return;
+					}
 
 					if (!noBackup && fs.existsSync(outputPath)) {
 						const timestamp = new Date().toISOString().replace(/:/g, '-');
