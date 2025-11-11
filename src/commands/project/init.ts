@@ -8,8 +8,35 @@ import { GhostableClient } from '@/ghostable';
 import { config } from '../../config/index.js';
 import { log } from '../../support/logger.js';
 import { toErrorMessage } from '../../support/errors.js';
+import {
+	DeploymentProvider,
+	ProjectStackTag,
+	stackFrameworkChoices,
+	stackLanguageChoices,
+	stackPlatformChoices,
+} from '@/entities';
+import type { Project, ProjectStackChoice, ProjectStackShape } from '@/entities';
 
-import type { Project } from '@/entities';
+function toPromptChoices(options: ProjectStackChoice[]) {
+	return options.map((option) => ({
+		name: option.label,
+		value: option.value,
+		description: option.description,
+	}));
+}
+
+function inferDeploymentProviderFromPlatform(platform?: ProjectStackTag): DeploymentProvider {
+	switch (platform) {
+		case ProjectStackTag.PlatformLaravelCloud:
+			return DeploymentProvider.LaravelCloud;
+		case ProjectStackTag.PlatformLaravelForge:
+			return DeploymentProvider.LaravelForge;
+		case ProjectStackTag.PlatformLaravelVapor:
+			return DeploymentProvider.LaravelVapor;
+		default:
+			return DeploymentProvider.Other;
+	}
+}
 
 export function registerInitCommand(program: Command) {
 	program
@@ -65,6 +92,8 @@ export function registerInitCommand(program: Command) {
 			});
 
 			let project: Project;
+			let deploymentProvider: DeploymentProvider | undefined;
+			let projectStack: ProjectStackShape | undefined;
 
 			if (selection !== '__new__') {
 				const found = projects.find((p) => p.id === selection);
@@ -73,17 +102,52 @@ export function registerInitCommand(program: Command) {
 					process.exit(1);
 				}
 				project = found;
+				deploymentProvider = project.deploymentProvider;
 			} else {
 				const name = await input({
 					message: 'What is the name of this project?',
 					validate: (v) => (v && v.trim().length > 0) || 'Project name is required',
 				});
 
+				const languageChoices = stackLanguageChoices();
+				const language = await select<ProjectStackTag>({
+					message: 'Which language powers this project?',
+					choices: toPromptChoices(languageChoices),
+					pageSize: languageChoices.length,
+					default: languageChoices[0]?.value,
+				});
+
+				const frameworkChoices = stackFrameworkChoices(language);
+				const framework = await select<ProjectStackTag>({
+					message: 'Which framework do you use?',
+					choices: toPromptChoices(frameworkChoices),
+					pageSize: frameworkChoices.length,
+					default: frameworkChoices[0]?.value,
+				});
+
+				const platformChoices = stackPlatformChoices(framework);
+				const platform = await select<ProjectStackTag>({
+					message: 'Where will you deploy this project?',
+					choices: toPromptChoices(platformChoices),
+					pageSize: platformChoices.length,
+					default: platformChoices[0]?.value,
+				});
+
+				projectStack = {
+					language,
+					framework,
+					platform,
+				};
+
+				const providerForApi = inferDeploymentProviderFromPlatform(platform);
+				deploymentProvider = providerForApi;
+
 				const createSpin = ora('Creating project…').start();
 				try {
 					project = await client.createProject({
 						organizationId: sess.organizationId,
 						name: name.trim(),
+						deploymentProvider: providerForApi,
 					});
 					createSpin.succeed(`Project created: ${project.name}`);
 				} catch (error) {
@@ -104,6 +168,8 @@ export function registerInitCommand(program: Command) {
 				Manifest.fresh({
 					id: project.id,
 					name: project.name,
+					deploymentProvider: deploymentProvider ?? project.deploymentProvider,
+					stack: projectStack,
 					environments: manifestEnvs,
 				});
 

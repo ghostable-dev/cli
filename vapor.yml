@@ -1,0 +1,14 @@
+id: 73039
+name: joerucci
+environments:
+    production:
+        memory: 1024
+        cli-memory: 512
+        runtime: 'php-8.4:al2'
+        build:
+            - 'composer install --no-dev'
+            - 'php artisan event:cache'
+            - 'npm ci && npm run build'
+            - 'npx ghostable deploy:vapor --vapor-env=production'
+            - 'rm -rf node_modules'
+        deploy:

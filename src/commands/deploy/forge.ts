@@ -112,7 +112,7 @@ async function runDeployForge(opts: DeployForgeOptions): Promise<void> {
 		// Create encrypted blob using Laravel's own command
 		const encSpin = ora('Encrypting .env via php artisan env:encrypt…').start();
 		try {
-			artisan.run(['env:encrypt', `--key=${envKeyB64}`]);
+			artisan.run(['env:encrypt', '--force', `--key=${envKeyB64}`]);
 			encSpin.succeed('Encrypted .env created via Artisan.');
 		} catch (err) {
 			encSpin.fail('Artisan encryption failed.');

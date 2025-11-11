@@ -2,6 +2,7 @@ import { HttpClient } from './http/HttpClient.js';
 import { HttpError } from './http/errors.js';
 
 import {
+	DeploymentProvider,
 	DeploymentToken,
 	Device,
 	Environment,
@@ -181,12 +182,23 @@ export class GhostableClient {
 		return (res.data ?? []).map(Device.fromResource);
 	}
 
-	async createProject(input: { organizationId: string; name: string }): Promise<Project> {
-		const res = await this.http.post<ProjectJson>(
+	async createProject(input: {
+		organizationId: string;
+		name: string;
+		deploymentProvider: DeploymentProvider;
+	}): Promise<Project> {
+		const res = await this.http.post<{ data?: ProjectJson } | ProjectJson>(
 			`/organizations/${input.organizationId}/projects`,
-			{ name: input.name },
+			{ name: input.name, deployment_provider: input.deploymentProvider },
 		);
-		return Project.fromJSON(res);
+
+		const json: ProjectJson | undefined = 'data' in res ? res.data : (res as ProjectJson);
+
+		if (!json) {
+			throw new Error('Malformed create project response.');
+		}
+
+		return Project.fromJSON(json);
 	}
 
 	async getProject(projectId: string): Promise<Project> {
