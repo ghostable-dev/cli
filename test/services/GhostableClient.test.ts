@@ -25,8 +25,11 @@ beforeAll(async () => {
 	({ GhostableClient } = await import('../../src/ghostable/GhostableClient.js'));
 });
 
-const makeClient = (post: ReturnType<typeof vi.fn>) =>
+const makeClientWithPost = (post: ReturnType<typeof vi.fn>) =>
 	new GhostableClient({ post } as unknown as HttpClient, { post } as unknown as HttpClient);
+
+const makeClientWithGet = (get: ReturnType<typeof vi.fn>) =>
+	new GhostableClient({ get } as unknown as HttpClient, {} as unknown as HttpClient);
 
 describe('GhostableClient.startBrowserRegistration', () => {
 	it('uses login_url when provided', async () => {
@@ -35,7 +38,7 @@ describe('GhostableClient.startBrowserRegistration', () => {
 			login_url: 'https://ghostable.example/login',
 			poll_interval: 10,
 		}));
-		const client = makeClient(post);
+		const client = makeClientWithPost(post);
 
 		await expect(client.startBrowserRegistration()).resolves.toEqual({
 			ticket: 'ticket-1',
@@ -54,7 +57,7 @@ describe('GhostableClient.startBrowserRegistration', () => {
 			register_url: 'https://ghostable.example/register',
 			poll_url: 'https://ghostable.example/poll',
 		}));
-		const client = makeClient(post);
+		const client = makeClientWithPost(post);
 
 		await expect(client.startBrowserRegistration()).resolves.toEqual({
 			ticket: 'ticket-2',
@@ -71,7 +74,7 @@ describe('GhostableClient.startBrowserRegistration', () => {
 		const post = vi.fn(async () => ({
 			ticket: 'ticket-3',
 		}));
-		const client = makeClient(post);
+		const client = makeClientWithPost(post);
 
 		await expect(client.startBrowserRegistration()).rejects.toThrow(
 			'Browser registration is not available.',
@@ -98,5 +101,22 @@ describe('GhostableClient.push', () => {
 			'/projects/proj/environments/env/push',
 			expect.objectContaining({ device_id: 'device-1', secrets: [] }),
 		);
+	});
+});
+
+describe('GhostableClient.pull', () => {
+	it('pipes device identity via query param and header', async () => {
+		const get = vi.fn(async () => ({}));
+		const client = makeClientWithGet(get);
+
+		await client.pull('proj id', 'env/prod', { deviceId: 'device-1', includeMeta: false });
+
+		expect(get).toHaveBeenCalledTimes(1);
+		const call = get.mock.calls[0];
+		expect(call).toBeDefined();
+		if (!call) throw new Error('Expected pull to invoke HttpClient.get');
+		const [path, headers] = call;
+		expect(path).toContain('device_id=device-1');
+		expect(headers).toMatchObject({ 'X-Device-ID': 'device-1' });
 	});
 });

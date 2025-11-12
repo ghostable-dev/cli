@@ -4,3 +4,4 @@ export * from './environment.js';
 export * from './crypto.js';
 export * from './device.js';
 export * from './deploy-token.js';
+export * from './history.js';

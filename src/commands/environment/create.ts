@@ -283,15 +283,17 @@ async function duplicateEnvironmentSecrets({
 	sourceEnv,
 	targetEnv,
 }: DuplicateEnvironmentSecretsParams): Promise<number> {
+	const deviceService = await DeviceIdentityService.create();
+	const identity = await deviceService.requireIdentity();
+
 	const bundle: EnvironmentSecretBundle = await client.pull(projectId, sourceEnv.name, {
 		includeMeta: true,
 		includeVersions: true,
+		deviceId: identity.deviceId,
 	});
 
 	await initSodium();
 
-	const deviceService = await DeviceIdentityService.create();
-	const identity = await deviceService.requireIdentity();
 	const envKeyService = await EnvironmentKeyService.create();
 
 	const envNames = new Set<string>(bundle.chain);

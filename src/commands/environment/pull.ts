@@ -132,29 +132,6 @@ export function registerEnvPullCommand(program: Command) {
 						token = sess.accessToken;
 					}
 
-					// 4) Fetch secret bundle
-					const client = GhostableClient.unauthenticated(config.apiBase).withToken(token);
-					let bundle: EnvironmentSecretBundle;
-					try {
-						bundle = await client.pull(projectId, envName!, {
-							includeVersions: true,
-							only: opts.only,
-							includeMeta: true,
-						});
-					} catch (error) {
-						log.error(`❌ Failed to pull environment bundle: ${toErrorMessage(error)}`);
-						process.exit(1);
-						return;
-					}
-
-					if (!bundle.secrets.length) {
-						log.warn('No secrets returned; nothing to write.');
-						return;
-					}
-
-					// 5) Prepare crypto
-					await initSodium(); // no-op with stablelib; safe to keep
-
 					let deviceService: DeviceIdentityService;
 					try {
 						deviceService = await DeviceIdentityService.create();
@@ -172,6 +149,30 @@ export function registerEnvPullCommand(program: Command) {
 						process.exit(1);
 						return;
 					}
+
+					// 4) Fetch secret bundle
+					const client = GhostableClient.unauthenticated(config.apiBase).withToken(token);
+					let bundle: EnvironmentSecretBundle;
+					try {
+						bundle = await client.pull(projectId, envName!, {
+							includeVersions: true,
+							only: opts.only,
+							includeMeta: true,
+							deviceId: identity.deviceId,
+						});
+					} catch (error) {
+						log.error(`❌ Failed to pull environment bundle: ${toErrorMessage(error)}`);
+						process.exit(1);
+						return;
+					}
+
+					if (!bundle.secrets.length) {
+						log.warn('No secrets returned; nothing to write.');
+						return;
+					}
+
+					// 5) Prepare crypto
+					await initSodium(); // no-op with stablelib; safe to keep
 
 					let envKeyService: EnvironmentKeyService;
 					try {

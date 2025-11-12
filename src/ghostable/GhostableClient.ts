@@ -39,11 +39,20 @@ import type {
 	RevokeDeploymentTokenResponseJson,
 	RotateDeploymentTokenRequestJson,
 	RotateDeploymentTokenResponseJson,
+	EnvironmentHistoryResponse,
+	EnvironmentHistoryResponseJson,
+	ProjectHistoryResponse,
+	ProjectHistoryResponseJson,
+	VariableHistoryResponse,
+	VariableHistoryResponseJson,
 } from './types/index.js';
 import {
 	environmentKeyResponseFromJSON,
 	environmentKeysFromJSON,
 	deploymentTokenFromJSON,
+	variableHistoryFromJSON,
+	environmentHistoryFromJSON,
+	projectHistoryFromJSON,
 } from './types/index.js';
 
 type LoginResponse = { token?: string; two_factor?: boolean };
@@ -73,7 +82,6 @@ export type BrowserLoginStatus = {
 	status?: 'pending' | 'approved' | 'expired' | 'cancelled' | 'verification_required';
 };
 type ListResp<T> = { data?: T[] };
-
 const PUSH_API_VERSION = 'v2.2';
 
 function resolvePushApiBase(apiBase: string): string {
@@ -297,6 +305,7 @@ export class GhostableClient {
 			only?: string[];
 			includeMeta?: boolean;
 			includeVersions?: boolean;
+			deviceId?: string;
 		},
 	): Promise<EnvironmentSecretBundle> {
 		const p = encodeURIComponent(projectId);
@@ -307,11 +316,15 @@ export class GhostableClient {
 		if (includeMeta) qs.set('include_meta', '1');
 		if (opts?.includeVersions) qs.set('include_versions', '1');
 		if (opts?.only?.length) for (const k of opts.only) qs.append('only[]', k);
+		if (opts?.deviceId) qs.set('device_id', opts.deviceId);
 
 		const suffix = qs.toString() ? `?${qs.toString()}` : '';
+		const headers: Record<string, string> = {};
+		if (opts?.deviceId) headers['X-Device-ID'] = opts.deviceId;
 
 		const json = await this.http.get<EnvironmentSecretBundleJson>(
 			`/projects/${p}/environments/${e}/pull${suffix}`,
+			headers,
 		);
 
 		return EnvironmentSecretBundle.fromJSON(json);
@@ -326,6 +339,38 @@ export class GhostableClient {
 		);
 
 		return environmentKeysFromJSON(json);
+	}
+
+	async getVariableHistory(
+		projectId: string,
+		envName: string,
+		variable: string,
+	): Promise<VariableHistoryResponse> {
+		const p = encodeURIComponent(projectId);
+		const e = encodeURIComponent(envName);
+		const v = encodeURIComponent(variable);
+		const json = await this.pushHttp.get<VariableHistoryResponseJson>(
+			`/projects/${p}/environments/${e}/variables/${v}/history`,
+		);
+		return variableHistoryFromJSON(json);
+	}
+
+	async getEnvironmentHistory(
+		projectId: string,
+		envName: string,
+	): Promise<EnvironmentHistoryResponse> {
+		const p = encodeURIComponent(projectId);
+		const e = encodeURIComponent(envName);
+		const json = await this.pushHttp.get<EnvironmentHistoryResponseJson>(
+			`/projects/${p}/environments/${e}/history`,
+		);
+		return environmentHistoryFromJSON(json);
+	}
+
+	async getProjectHistory(projectId: string): Promise<ProjectHistoryResponse> {
+		const p = encodeURIComponent(projectId);
+		const json = await this.pushHttp.get<ProjectHistoryResponseJson>(`/projects/${p}/audit`);
+		return projectHistoryFromJSON(json);
 	}
 
 	async getEnvironmentKey(projectId: string, envName: string): Promise<EnvironmentKey | null> {

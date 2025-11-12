@@ -158,26 +158,6 @@ export function registerVarPullCommand(program: Command) {
 						}
 					}
 
-					let bundle;
-					try {
-						bundle = await client.pull(projectId, envName!, {
-							includeMeta: true,
-							includeVersions: true,
-							only: [keyName!],
-						});
-					} catch (error) {
-						log.error(`❌ Failed to pull variable: ${toErrorMessage(error)}`);
-						process.exit(1);
-						return;
-					}
-
-					if (!bundle.secrets.length) {
-						log.warn(`Variable "${keyName}" was not found on the server.`);
-						return;
-					}
-
-					await initSodium();
-
 					let identityService: DeviceIdentityService;
 					try {
 						identityService = await DeviceIdentityService.create();
@@ -195,6 +175,27 @@ export function registerVarPullCommand(program: Command) {
 						process.exit(1);
 						return;
 					}
+
+					let bundle;
+					try {
+						bundle = await client.pull(projectId, envName!, {
+							includeMeta: true,
+							includeVersions: true,
+							only: [keyName!],
+							deviceId: identity.deviceId,
+						});
+					} catch (error) {
+						log.error(`❌ Failed to pull variable: ${toErrorMessage(error)}`);
+						process.exit(1);
+						return;
+					}
+
+					if (!bundle.secrets.length) {
+						log.warn(`Variable "${keyName}" was not found on the server.`);
+						return;
+					}
+
+					await initSodium();
 
 					let envKeyService: EnvironmentKeyService;
 					try {

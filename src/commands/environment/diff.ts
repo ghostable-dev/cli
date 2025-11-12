@@ -84,24 +84,6 @@ export function registerEnvDiffCommand(program: Command) {
 						token = sess.accessToken;
 					}
 
-					// 3) Pull encrypted bundle from Ghostable
-					const client = GhostableClient.unauthenticated(config.apiBase).withToken(token);
-					let bundle: EnvironmentSecretBundle;
-					try {
-						bundle = await client.pull(projectId, envName!, {
-							includeVersions: true,
-							only: opts.only,
-							includeMeta: true,
-						});
-					} catch (error) {
-						log.error(`❌ Failed to pull environment bundle: ${toErrorMessage(error)}`);
-						process.exit(1);
-						return;
-					}
-
-					// 4) Decrypt remote vars locally using environment keys
-					await initSodium();
-
 					let deviceService: DeviceIdentityService;
 					try {
 						deviceService = await DeviceIdentityService.create();
@@ -119,6 +101,25 @@ export function registerEnvDiffCommand(program: Command) {
 						process.exit(1);
 						return;
 					}
+
+					// 3) Pull encrypted bundle from Ghostable
+					const client = GhostableClient.unauthenticated(config.apiBase).withToken(token);
+					let bundle: EnvironmentSecretBundle;
+					try {
+						bundle = await client.pull(projectId, envName!, {
+							includeVersions: true,
+							only: opts.only,
+							includeMeta: true,
+							deviceId: identity.deviceId,
+						});
+					} catch (error) {
+						log.error(`❌ Failed to pull environment bundle: ${toErrorMessage(error)}`);
+						process.exit(1);
+						return;
+					}
+
+					// 4) Decrypt remote vars locally using environment keys
+					await initSodium();
 
 					let envKeyService: EnvironmentKeyService;
 					try {
