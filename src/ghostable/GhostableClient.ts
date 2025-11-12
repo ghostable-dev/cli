@@ -11,6 +11,7 @@ import {
 	EnvironmentType,
 	Organization,
 	Project,
+	type ProjectStackShape,
 } from '@/entities';
 import type { DeviceStatus } from '@/entities';
 
@@ -185,11 +186,40 @@ export class GhostableClient {
 	async createProject(input: {
 		organizationId: string;
 		name: string;
+		description?: string;
 		deploymentProvider: DeploymentProvider;
+		stack?: ProjectStackShape;
 	}): Promise<Project> {
+		const payload: {
+			name: string;
+			description?: string;
+			deployment_provider: DeploymentProvider;
+			stack?: ProjectStackShape;
+		} = {
+			name: input.name,
+			deployment_provider: input.deploymentProvider,
+		};
+
+		if (input.description) {
+			payload.description = input.description;
+		}
+
+		if (input.stack) {
+			const sanitizedStack: ProjectStackShape = {};
+			for (const category of Object.keys(input.stack) as (keyof ProjectStackShape)[]) {
+				const value = input.stack[category];
+				if (value) {
+					sanitizedStack[category] = value;
+				}
+			}
+			if (Object.keys(sanitizedStack).length > 0) {
+				payload.stack = sanitizedStack;
+			}
+		}
+
 		const res = await this.http.post<{ data?: ProjectJson } | ProjectJson>(
 			`/organizations/${input.organizationId}/projects`,
-			{ name: input.name, deployment_provider: input.deploymentProvider },
+			payload,
 		);
 
 		const json: ProjectJson | undefined = 'data' in res ? res.data : (res as ProjectJson);

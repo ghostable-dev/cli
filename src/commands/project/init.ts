@@ -109,6 +109,11 @@ export function registerInitCommand(program: Command) {
 					validate: (v) => (v && v.trim().length > 0) || 'Project name is required',
 				});
 
+				const description = await input({
+					message: 'Add a short description for this project (optional):',
+					default: '',
+				});
+
 				const languageChoices = stackLanguageChoices();
 				const language = await select<ProjectStackTag>({
 					message: 'Which language powers this project?',
@@ -147,7 +152,9 @@ export function registerInitCommand(program: Command) {
 					project = await client.createProject({
 						organizationId: sess.organizationId,
 						name: name.trim(),
+						description: description.trim() || undefined,
 						deploymentProvider: providerForApi,
+						stack: projectStack,
 					});
 					createSpin.succeed(`Project created: ${project.name}`);
 				} catch (error) {

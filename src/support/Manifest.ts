@@ -182,12 +182,19 @@ export class Manifest {
 		const manifest: ManifestShape = {
 			id: project.id,
 			name: project.name,
-			deployment_provider: project.deploymentProvider,
 			stack: project.stack,
 			environments: Object.fromEntries(
 				Object.entries(envs).sort(([a], [b]) => a.localeCompare(b)),
 			),
 		};
+
+		if (project.deploymentProvider) {
+			const stackPlatform = project.stack?.platform;
+			if (!stackPlatform || stackPlatform !== project.deploymentProvider) {
+				manifest.deployment_provider = project.deploymentProvider;
+			}
+		}
+
 		writeYaml(file, manifest);
 	}
 
