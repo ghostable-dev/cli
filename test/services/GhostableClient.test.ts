@@ -120,3 +120,46 @@ describe('GhostableClient.pull', () => {
 		expect(headers).toMatchObject({ 'X-Device-ID': 'device-1' });
 	});
 });
+
+describe('GhostableClient.rollbackVariable', () => {
+	it('sends rollback requests via the push client and normalizes the response', async () => {
+		const apiPost = vi.fn();
+		const pushPost = vi.fn(async () => ({
+			status: 'rolled_back',
+			data: {
+				variable: {
+					name: 'DB_PASSWORD',
+					version: 8,
+					rolled_back_to_version: 3,
+				},
+				previous_head_version: 7,
+				snapshot_id: 'snap-123',
+				updated_at: '2025-01-01T00:00:00Z',
+				updated_by: 'dana@example.com',
+			},
+		}));
+		const client = new GhostableClient(
+			{ post: apiPost } as unknown as HttpClient,
+			{ post: pushPost } as unknown as HttpClient,
+		);
+
+		const response = await client.rollbackVariable('proj id', 'Prod Env', 'DB_PASSWORD', {
+			device_id: 'device-1',
+			version_id: 'version-3',
+			client_sig: 'sig',
+		});
+
+		expect(apiPost).not.toHaveBeenCalled();
+		expect(pushPost).toHaveBeenCalledWith(
+			'/projects/proj%20id/environments/Prod%20Env/variables/DB_PASSWORD/rollback',
+			expect.objectContaining({
+				device_id: 'device-1',
+				version_id: 'version-3',
+			}),
+		);
+		expect(response.status).toBe('rolled_back');
+		expect(response.data.variable.rolledBackToVersion).toBe(3);
+		expect(response.data.snapshotId).toBe('snap-123');
+		expect(response.data.updatedBy?.label).toBe('dana@example.com');
+	});
+});

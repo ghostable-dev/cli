@@ -1,6 +1,5 @@
 import { Command } from 'commander';
 import { select } from '@inquirer/prompts';
-import fs from 'node:fs';
 import path from 'node:path';
 
 import { Manifest } from '../../support/Manifest.js';
@@ -15,10 +14,9 @@ import { DeviceIdentityService } from '../../services/DeviceIdentityService.js';
 import { EnvironmentKeyService } from '@/environment/keys/EnvironmentKeyService.js';
 import { registerVarSubcommand } from './_shared.js';
 import { promptWithCancel } from '@/support/prompts.js';
+import { upsertEnvValue } from '@/environment/files/env-upsert.js';
 
 import type { EnvironmentSecret } from '@/entities';
-
-const ESCAPE_REGEX = /[.*+?^${}()|[\]\\]/g;
 
 type VarPullOptions = {
 	token?: string;
@@ -27,44 +25,11 @@ type VarPullOptions = {
 	key?: string;
 };
 
-function escapeRegExp(value: string): string {
-	return value.replace(ESCAPE_REGEX, '\\$&');
-}
-
-function lineForDotenv(name: string, value: string, commented = false): string {
-	const safe = value.includes('\n') ? JSON.stringify(value) : value;
-	return commented ? `# ${name}=${safe}` : `${name}=${safe}`;
-}
-
 function resolveOutputPath(envName: string | undefined, explicit?: string): string {
 	const workDir = resolveWorkDir();
 	if (explicit) return path.resolve(workDir, explicit);
 	if (envName) return path.resolve(workDir, `.env.${envName}`);
 	return path.resolve(workDir, '.env');
-}
-
-function upsertEnvValue(filePath: string, key: string, value: string, commented: boolean): void {
-	const line = lineForDotenv(key, value, commented);
-	let content = '';
-
-	if (fs.existsSync(filePath)) {
-		content = fs.readFileSync(filePath, 'utf8');
-	}
-
-	const pattern = new RegExp(`^\\s*#?\\s*${escapeRegExp(key)}\\s*=.*$`, 'm');
-	if (pattern.test(content)) {
-		content = content.replace(pattern, line);
-	} else {
-		const trimmed = content.replace(/\s*$/, '');
-		content = trimmed ? `${trimmed}\n${line}\n` : `${line}\n`;
-	}
-
-	if (!content.endsWith('\n')) {
-		content += '\n';
-	}
-
-	fs.mkdirSync(path.dirname(filePath), { recursive: true });
-	fs.writeFileSync(filePath, content, 'utf8');
 }
 
 export function registerVarPullCommand(program: Command) {

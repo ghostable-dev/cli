@@ -55,12 +55,14 @@ export type HistoryEntryVariableJson = {
 	name: string;
 	version?: number | null;
 	state?: string | null;
+	version_id?: string | null;
 };
 
 export type HistoryEntryVariable = {
 	name: string;
 	version: number | null;
 	state: string | null;
+	versionId: string | null;
 };
 
 export type HistoryActorBreakdownJson = Record<string, number | undefined>;
@@ -85,9 +87,11 @@ export type VariableHistoryEntryJson = {
 	occurred_at: string;
 	actor?: HistoryActorJson | null;
 	operation: string;
+	variable?: HistoryEntryVariableJson | null;
 	kek?: HistoryKekJson | null;
 	line?: HistoryLineJson | null;
 	commented?: boolean;
+	version_id?: string | null;
 };
 
 export type VariableHistoryEntry = {
@@ -95,9 +99,11 @@ export type VariableHistoryEntry = {
 	occurredAt: string;
 	actor: HistoryActor | null;
 	operation: string;
+	variable: HistoryEntryVariable | null;
 	kek: HistoryKek | null;
 	line: HistoryLine | null;
 	commented: boolean;
+	versionId: string | null;
 };
 
 export type VariableHistoryResponseJson = {
@@ -284,6 +290,7 @@ function historyEntryVariableFromJSON(
 						? null
 						: Number(json.version),
 		state: json.state ?? null,
+		versionId: json.version_id ?? null,
 	};
 }
 
@@ -302,9 +309,11 @@ function variableHistoryEntryFromJSON(json: VariableHistoryEntryJson): VariableH
 		occurredAt: json.occurred_at,
 		actor: historyActorFromJSON(json.actor),
 		operation: json.operation,
+		variable: historyEntryVariableFromJSON(json.variable),
 		kek: historyKekFromJSON(json.kek),
 		line: historyLineFromJSON(json.line),
 		commented: Boolean(json.commented),
+		versionId: json.version_id ?? json.variable?.version_id ?? null,
 	};
 }
 

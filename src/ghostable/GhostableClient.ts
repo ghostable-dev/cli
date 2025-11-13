@@ -45,6 +45,9 @@ import type {
 	ProjectHistoryResponseJson,
 	VariableHistoryResponse,
 	VariableHistoryResponseJson,
+	RollbackResultResponse,
+	RollbackResultResponseJson,
+	SignedRollbackVariableRequestJson,
 } from './types/index.js';
 import {
 	environmentKeyResponseFromJSON,
@@ -53,6 +56,7 @@ import {
 	variableHistoryFromJSON,
 	environmentHistoryFromJSON,
 	projectHistoryFromJSON,
+	rollbackResultFromJSON,
 } from './types/index.js';
 
 type LoginResponse = { token?: string; two_factor?: boolean };
@@ -353,6 +357,22 @@ export class GhostableClient {
 			`/projects/${p}/environments/${e}/variables/${v}/history`,
 		);
 		return variableHistoryFromJSON(json);
+	}
+
+	async rollbackVariable(
+		projectId: string,
+		envName: string,
+		variable: string,
+		request: SignedRollbackVariableRequestJson,
+	): Promise<RollbackResultResponse> {
+		const p = encodeURIComponent(projectId);
+		const e = encodeURIComponent(envName);
+		const v = encodeURIComponent(variable);
+		const json = await this.pushHttp.post<RollbackResultResponseJson>(
+			`/projects/${p}/environments/${e}/variables/${v}/rollback`,
+			request,
+		);
+		return rollbackResultFromJSON(json);
 	}
 
 	async getEnvironmentHistory(
