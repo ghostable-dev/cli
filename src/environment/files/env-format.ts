@@ -87,9 +87,6 @@ function renderGrouped(
 	for (const group of sortedGroups) {
 		if (withComments) {
 			lines.push(`# ${group.prefix}`);
-			if (group.entries.length) {
-				lines.push('');
-			}
 		}
 
 		for (const entry of group.entries) {

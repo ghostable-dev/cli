@@ -824,7 +824,7 @@ describe('env pull file management', () => {
 
 		expect(writeFileCalls).toHaveLength(1);
 		const [{ content }] = writeFileCalls;
-		expect(content).toContain('# APP\n\nAPP_SECRET=app-secret');
+		expect(content).toContain('# APP\nAPP_SECRET=app-secret');
 	});
 
 	it('rewrites the file when switching formats without value changes', async () => {

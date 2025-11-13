@@ -86,7 +86,7 @@ export type BrowserLoginStatus = {
 	status?: 'pending' | 'approved' | 'expired' | 'cancelled' | 'verification_required';
 };
 type ListResp<T> = { data?: T[] };
-const PUSH_API_VERSION = 'v2.2';
+const PUSH_API_VERSION = 'v2';
 
 function resolvePushApiBase(apiBase: string): string {
 	const normalized = apiBase.replace(/\/+$/, '');

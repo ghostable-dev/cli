@@ -25,8 +25,8 @@ describe('renderEnvFile dependency ordering', () => {
 			{ format: EnvFileFormat.GROUPED_COMMENTS },
 		);
 
-		expect(content).toContain('# ZETA\n\nZETA_VALUE=secret');
-		expect(content).toContain('# ALPHA\n\nALPHA_DEP=${ZETA_VALUE}');
+		expect(content).toContain('# ZETA\nZETA_VALUE=secret');
+		expect(content).toContain('# ALPHA\nALPHA_DEP=${ZETA_VALUE}');
 		expect(content.indexOf('# ZETA')).toBeGreaterThan(-1);
 		expect(content.indexOf('# ALPHA')).toBeGreaterThan(-1);
 		expect(content.indexOf('# ZETA')).toBeLessThan(content.indexOf('# ALPHA'));
