@@ -14,7 +14,9 @@ Use the Ghostable CLI to effortlessly:
 - **Seamlessly integrate** with Laravel (Forge, Vapor, Cloud), Node.js, Python, Ruby, and other ecosystems
 
 ## Get Started
+
 Read our [official documentation](https://docs.ghostable.dev) or sign up at [ghostable.dev](https://ghostable.dev).
 
 ## Security
+
 Ghostable is built on a zero-knowledge, device-scoped cryptographic architecture. See [SECURITY.md](./SECURITY.md) for details on our security model and policies.
