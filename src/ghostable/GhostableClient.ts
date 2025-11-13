@@ -86,19 +86,6 @@ export type BrowserLoginStatus = {
 	status?: 'pending' | 'approved' | 'expired' | 'cancelled' | 'verification_required';
 };
 type ListResp<T> = { data?: T[] };
-const PUSH_API_VERSION = 'v2';
-
-function resolvePushApiBase(apiBase: string): string {
-	const normalized = apiBase.replace(/\/+$/, '');
-	if (normalized.endsWith(`/api/${PUSH_API_VERSION}`)) return normalized;
-
-	const versionedMatch = normalized.match(/(.*\/api\/)v[\d.]+$/);
-	if (versionedMatch) return `${versionedMatch[1]}${PUSH_API_VERSION}`;
-
-	if (normalized.endsWith('/api')) return `${normalized}/${PUSH_API_VERSION}`;
-
-	return normalized;
-}
 
 export class GhostableClient {
 	constructor(
@@ -108,9 +95,7 @@ export class GhostableClient {
 
 	static unauthenticated(apiBase: string) {
 		const http = new HttpClient(apiBase);
-		const pushBase = resolvePushApiBase(apiBase);
-		const pushHttp = pushBase === apiBase ? http : new HttpClient(pushBase);
-		return new GhostableClient(http, pushHttp);
+		return new GhostableClient(http, http);
 	}
 
 	withToken(token: string) {
