@@ -1,4 +1,3 @@
-import keytarModule from 'keytar';
 import { KEYCHAIN_SERVICE_ENVIRONMENT } from '@/keychain';
 import { toBase64, fromBase64 } from './utils.js';
 import { KeyStore } from './types/KeyStore.js';
@@ -60,9 +59,10 @@ export class KeytarKeyStore implements KeyStore {
 
 	constructor(
 		serviceOrResolver: string | KeytarTargetResolver = KEYCHAIN_SERVICE_ENVIRONMENT,
-		keytarImpl: KeytarLike = keytarModule,
+		keytarImpl?: KeytarLike,
 	) {
 		if (!serviceOrResolver) throw new TypeError('service must not be empty');
+		if (!keytarImpl) throw new TypeError('keytar implementation must be provided');
 		this.resolve =
 			typeof serviceOrResolver === 'function'
 				? serviceOrResolver

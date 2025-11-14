@@ -18,10 +18,6 @@ const keytarStub = vi.hoisted(() => ({
 	deletePassword: vi.fn<(service: string, account: string) => Promise<boolean>>(),
 })) as KeytarMock;
 
-vi.mock('keytar', () => ({
-	default: keytarStub,
-}));
-
 import { KeytarKeyStore, MemoryKeyStore } from '../../src/crypto/KeyStore.js';
 import { KEYCHAIN_SERVICE_ENVIRONMENT } from '../../src/keychain/constants.js';
 
@@ -65,7 +61,7 @@ describe('KeytarKeyStore', () => {
 	});
 
 	it('uses the OS keychain to store and retrieve Base64 values', async () => {
-		const store = new KeytarKeyStore();
+		const store = new KeytarKeyStore(undefined, keytarStub);
 		keytarStub.getPassword.mockResolvedValueOnce(SAMPLE_B64);
 
 		await store.setKey('example', SAMPLE_KEY);
@@ -84,7 +80,7 @@ describe('KeytarKeyStore', () => {
 	});
 
 	it('supports custom service names', async () => {
-		const store = new KeytarKeyStore('custom-service');
+		const store = new KeytarKeyStore('custom-service', keytarStub);
 		await store.setKey('example', SAMPLE_KEY);
 		expect(keytarStub.setPassword).toHaveBeenCalledWith(
 			'custom-service',
@@ -98,7 +94,7 @@ describe('KeytarKeyStore', () => {
 			service: `svc-${name}`,
 			account: 'data',
 		}));
-		const store = new KeytarKeyStore(resolver);
+		const store = new KeytarKeyStore(resolver, keytarStub);
 		await store.setKey('dynamic', SAMPLE_KEY);
 		expect(resolver).toHaveBeenCalledWith('dynamic');
 		expect(keytarStub.setPassword).toHaveBeenCalledWith('svc-dynamic', 'data', SAMPLE_B64);
@@ -110,7 +106,7 @@ describe('KeytarKeyStore', () => {
 	});
 
 	it('validates input arguments', async () => {
-		const store = new KeytarKeyStore();
+		const store = new KeytarKeyStore(undefined, keytarStub);
 		await expect(store.getKey('')).rejects.toThrow(TypeError);
 		await expect(store.setKey('', SAMPLE_KEY)).rejects.toThrow(TypeError);
 		await expect(store.deleteKey('')).rejects.toThrow(TypeError);

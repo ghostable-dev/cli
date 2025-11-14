@@ -19,18 +19,6 @@ type Ed25519Mock = {
 	__reset: () => void;
 };
 
-type KeytarMock = {
-	getPassword: ReturnType<
-		typeof vi.fn<(service: string, account: string) => Promise<string | null>>
-	>;
-	setPassword: ReturnType<
-		typeof vi.fn<(service: string, account: string, password: string) => Promise<void>>
-	>;
-	deletePassword: ReturnType<
-		typeof vi.fn<(service: string, account: string) => Promise<boolean>>
-	>;
-};
-
 const x25519Stub = vi.hoisted(() => {
 	let counter = 0;
 	return {
@@ -71,14 +59,6 @@ const ed25519Stub = vi.hoisted(() => {
 
 vi.mock('@stablelib/x25519', () => x25519Stub);
 vi.mock('@noble/ed25519', () => ed25519Stub);
-
-const keytarStub = vi.hoisted(() => ({
-	getPassword: vi.fn(async () => null),
-	setPassword: vi.fn(async () => {}),
-	deletePassword: vi.fn(async () => true),
-})) as KeytarMock;
-
-vi.mock('keytar', () => keytarStub);
 
 const uuidStub = vi.hoisted(() => {
 	let counter = 0;
