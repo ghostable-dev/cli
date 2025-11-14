@@ -22,7 +22,7 @@ const extractPrimaryDetail = (payload: ApiErrorPayload): string | undefined => {
 	return (
 		toMessage(payload.detail) ??
 		toMessage(payload.message) ??
-		(nested ? toMessage(nested.detail) ?? toMessage(nested.message) : undefined)
+		(nested ? (toMessage(nested.detail) ?? toMessage(nested.message)) : undefined)
 	);
 };
 

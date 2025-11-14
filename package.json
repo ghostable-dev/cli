@@ -1,6 +1,6 @@
 {
     "name": "@ghostable/cli",
-    "version": "2.2.0",
+    "version": "2.2.0-beta",
     "type": "module",
     "bin": {
         "ghostable": "bin/ghostable.mjs"
