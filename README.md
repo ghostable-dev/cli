@@ -1,9 +1,22 @@
 # Ghostable CLI
 
-**Ghostable** is a secure, Laravel-friendly platform for managing and sharing environment variables across projects and CI pipelines. This repository contains the CLI client used to interact with that platform.
+[![npm version](https://img.shields.io/npm/v/@ghostable/cli.svg)](https://www.npmjs.com/package/@ghostable/cli)
+[![npm downloads](https://img.shields.io/npm/dm/@ghostable/cli.svg)](https://www.npmjs.com/package/@ghostable/cli)
 
-Ghostable stores and organizes your `.env` variables, validates them, and integrates seamlessly into your development workflow—locally or in CI.
+**Ghostable** is a secure, zero-knowledge platform designed to simplify and protect your management of environment variables across teams, projects, and deployment providers.
 
-Read the [official documentation](https://docs.ghostable.dev) or try it out at [Ghostable.dev](https://ghostable.dev).
+Use the Ghostable CLI to effortlessly:
 
-See [SECURITY.md](./SECURITY.md) for our security policy.
+- **Securely store** `.env` files with end-to-end encryption
+- **Safely share** environment variables with team members and CI/CD pipelines
+- **Validate** your environment configurations
+- **Maintain audit trails** for compliance and visibility
+- **Seamlessly integrate** with Laravel (Forge, Vapor, Cloud), Node.js, Python, Ruby, and other ecosystems
+
+## Get Started
+
+Read our [official documentation](https://docs.ghostable.dev) or sign up at [ghostable.dev](https://ghostable.dev).
+
+## Security
+
+Ghostable is built on a zero-knowledge, device-scoped cryptographic architecture. See [SECURITY.md](./SECURITY.md) for details on our security model and policies.

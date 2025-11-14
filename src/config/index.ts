@@ -1,4 +1,5 @@
 import 'dotenv/config';
+import { KEYCHAIN_SERVICE_SESSION } from '@/keychain';
 
 export interface AppConfig {
 	apiBase: string;
@@ -8,6 +9,6 @@ export interface AppConfig {
 
 export const config: AppConfig = {
 	apiBase: process.env.GHOSTABLE_API ?? 'https://ghostable.dev/api/v2',
-	keychainService: 'ghostable-cli',
+	keychainService: KEYCHAIN_SERVICE_SESSION,
 	keychainAccount: 'session',
 };

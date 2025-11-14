@@ -1,10 +1,12 @@
-import { aeadEncrypt, b64, deriveKeys, edSign, hmacSHA256 } from '@/crypto.js';
-import type {
-	AAD,
-	Claims,
-	SecretUploadValidators,
-	SignedEnvironmentSecretUploadRequest,
-} from '@/types';
+import { aeadEncrypt, b64, deriveKeys, edSign, hmacSHA256 } from '@/crypto';
+import type { SignedEnvironmentSecretUploadRequest } from '@/ghostable/types/environment.js';
+import type { AAD, Claims } from '@/crypto';
+
+type SecretUploadMetadata = {
+	lineBytes?: number;
+	isCommented?: boolean;
+	isVaporSecret?: boolean;
+};
 
 export async function buildSecretPayload(opts: {
 	org: string;
@@ -12,24 +14,37 @@ export async function buildSecretPayload(opts: {
 	env: string;
 	name: string;
 	plaintext: string;
-	masterSeed: Uint8Array;
+	keyMaterial: Uint8Array;
 	edPriv: Uint8Array;
-	validators?: SecretUploadValidators;
 	ifVersion?: number;
+	envKekVersion?: number;
+	envKekFingerprint?: string;
+	meta?: SecretUploadMetadata;
 }): Promise<SignedEnvironmentSecretUploadRequest> {
-	const { org, project, env, name, plaintext, masterSeed, edPriv, validators, ifVersion } = opts;
+	const {
+		org,
+		project,
+		env,
+		name,
+		plaintext,
+		keyMaterial,
+		edPriv,
+		ifVersion,
+		envKekVersion,
+		envKekFingerprint,
+		meta,
+	} = opts;
 
-	const { encKey, hmacKey } = deriveKeys(masterSeed, `${org}/${project}/${env}`);
+	const { encKey, hmacKey } = deriveKeys(keyMaterial, `${org}/${project}/${env}`);
 
 	const aad: AAD = { org, project, env, name };
 	const pt = new TextEncoder().encode(plaintext);
 	const bundle = aeadEncrypt(encKey, pt, aad);
 
 	const hmac = hmacSHA256(hmacKey, pt);
-	const claims: Claims = {
-		hmac,
-		validators: { non_empty: plaintext.length > 0, ...(validators ?? {}) },
-	};
+	const claims: Claims = { hmac };
+
+	const metadata = meta ?? {};
 
 	const body = {
 		name,
@@ -40,6 +55,13 @@ export async function buildSecretPayload(opts: {
 		aad: bundle.aad,
 		claims,
 		...(ifVersion !== undefined ? { if_version: ifVersion } : {}),
+		...(envKekVersion !== undefined ? { env_kek_version: envKekVersion } : {}),
+		...(envKekFingerprint ? { env_kek_fingerprint: envKekFingerprint } : {}),
+		...(metadata.lineBytes !== undefined ? { line_bytes: metadata.lineBytes } : {}),
+		...(metadata.isVaporSecret !== undefined
+			? { is_vapor_secret: metadata.isVaporSecret }
+			: {}),
+		...(metadata.isCommented !== undefined ? { is_commented: metadata.isCommented } : {}),
 	};
 
 	const bytes = new TextEncoder().encode(JSON.stringify(body));
@@ -47,6 +69,6 @@ export async function buildSecretPayload(opts: {
 
 	return {
 		...body,
-		client_sig: `b64:${b64(sig)}`,
+		client_sig: b64(sig),
 	};
 }

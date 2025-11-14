@@ -1,7 +1,7 @@
 import { Manifest } from './Manifest.js';
 import type { EnvEntry } from './Manifest.js';
 
-export const DEFAULT_IGNORES = ['GHOSTABLE_CI_TOKEN', 'GHOSTABLE_MASTER_SEED'];
+export const DEFAULT_IGNORES = ['GHOSTABLE_CI_TOKEN', 'GHOSTABLE_DEPLOY_SEED'];
 
 export function getIgnoredKeys(env?: string): string[] {
 	const manifest = Manifest.data();

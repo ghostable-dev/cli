@@ -1,11 +1,13 @@
 import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { Command } from 'commander';
+import type { EnvVarSnapshot } from '../src/environment/files/env-files.js';
 
 const logOutputs = {
 	info: [] as string[],
 	warn: [] as string[],
 	error: [] as string[],
 	ok: [] as string[],
+	text: [] as string[],
 };
 
 let manifestData: any = {};
@@ -13,15 +15,49 @@ let manifestEnvs: string[] = ['prod'];
 let sessionData: any = { accessToken: 'session-token', organizationId: 'org-1' };
 let envFilePath = '/workdir/.env.prod';
 let localEnvVars: Record<string, string> = {};
-let snapshots: Record<string, { rawValue: string }> = {};
+let snapshots: Record<string, EnvVarSnapshot> = {};
 let remoteBundle: any = { chain: ['prod'], secrets: [] };
-let decryptedSecrets: Array<{
-	entry: { name: string; meta?: { is_commented?: boolean } };
-	value: string;
-}> = [];
-const uploadCalls: Array<{ payload: any; options: { sync?: boolean } }> = [];
+let envFileContent = '';
 const writeFileCalls: Array<{ path: string; content: string }> = [];
 const copyFileCalls: Array<{ src: string; dest: string }> = [];
+const resolveEnvFileMock = vi.fn(() => envFilePath);
+const readEnvFileSafeMock = vi.fn(() => localEnvVars);
+const readEnvFileSafeWithMetadataMock = vi.fn(() => ({ vars: localEnvVars, snapshots }));
+
+const identity = {
+	deviceId: 'device-123',
+	signingKey: { alg: 'Ed25519', publicKey: 'sign-pub', privateKey: 'sign-priv' },
+	encryptionKey: { alg: 'X25519', publicKey: 'enc-pub', privateKey: 'enc-priv' },
+};
+
+const buildSecretPayloadCalls: Array<Record<string, unknown>> = [];
+
+const buildSecretPayloadMock = vi.fn(async (input: Record<string, unknown>) => {
+	buildSecretPayloadCalls.push(input);
+	return {
+		name: input.name,
+		env: input.env,
+		ciphertext: `cipher-${input.name as string}`,
+		nonce: 'nonce',
+		alg: 'alg',
+		aad: { org: input.org, project: input.project, env: input.env, name: input.name },
+		claims: { hmac: 'hmac' },
+		client_sig: 'sig',
+		env_kek_version: input.envKekVersion,
+		env_kek_fingerprint: input.envKekFingerprint,
+	};
+});
+
+const requireIdentityMock = vi.fn(async () => identity);
+const createDeviceServiceMock = vi.fn(async () => ({ requireIdentity: requireIdentityMock }));
+
+const spinner = {
+	text: '',
+	start: vi.fn(() => spinner),
+	succeed: vi.fn(() => spinner),
+	fail: vi.fn(() => spinner),
+};
+const oraMock = vi.fn(() => spinner);
 
 vi.mock('../src/support/logger.js', () => ({
 	log: {
@@ -29,6 +65,7 @@ vi.mock('../src/support/logger.js', () => ({
 		warn: vi.fn((msg: string) => logOutputs.warn.push(msg)),
 		error: vi.fn((msg: string) => logOutputs.error.push(msg)),
 		ok: vi.fn((msg: string) => logOutputs.ok.push(msg)),
+		text: vi.fn((msg: string) => logOutputs.text.push(msg)),
 	},
 }));
 
@@ -55,93 +92,111 @@ vi.mock('../src/services/SessionService.js', () => ({
 
 const client = {
 	pull: vi.fn(async () => remoteBundle),
-	uploadSecret: vi.fn(),
-	push: vi.fn(
-		async (_projectId: string, _env: string, payload: any, options?: { sync?: boolean }) => {
-			uploadCalls.push({ payload, options: options ?? {} });
-		},
-	),
+	push: vi.fn(),
+	getEnvironmentKey: vi.fn(async () => null),
+	createEnvironmentKey: vi.fn(),
+	listDevices: vi.fn(async () => []),
+	getEnvironments: vi.fn(async () => [{ id: 'env-prod', name: 'prod', type: 'production' }]),
+	getProject: vi.fn(async () => ({
+		organizationId: 'org-1',
+	})),
 };
 
-vi.mock('../src/services/GhostableClient.js', () => ({
+vi.mock('@/ghostable', () => ({
 	GhostableClient: {
 		unauthenticated: vi.fn(() => ({
 			withToken: vi.fn(() => client),
 		})),
 	},
+	HttpError: class extends Error {
+		status: number;
+		body: string;
+
+		constructor(status: number, body: string, message?: string) {
+			super(message ?? `HTTP ${status}`);
+			this.status = status;
+			this.body = body;
+		}
+	},
 }));
 
-vi.mock('../src/support/deploy-helpers.js', () => ({
-	decryptBundle: vi.fn(async () => ({ secrets: decryptedSecrets, warnings: [] })),
-}));
-
-vi.mock('../src/support/env-files.js', () => ({
-	readEnvFileSafe: vi.fn(() => localEnvVars),
-	resolveEnvFile: vi.fn(() => envFilePath),
-	readEnvFileSafeWithMetadata: vi.fn(() => ({ vars: localEnvVars, snapshots })),
+vi.mock('../src/environment/files/env-files.js', () => ({
+	readEnvFileSafe: readEnvFileSafeMock,
+	resolveEnvFile: resolveEnvFileMock,
+	readEnvFileSafeWithMetadata: readEnvFileSafeWithMetadataMock,
 }));
 
 vi.mock('../src/support/workdir.js', () => ({
 	resolveWorkDir: vi.fn(() => '/workdir'),
 }));
 
-vi.mock('../src/support/secret-payload.js', () => ({
-	buildSecretPayload: vi.fn(async ({ name, plaintext }: { name: string; plaintext: string }) => ({
-		name,
-		plaintext,
-	})),
-}));
+const initSodiumMock = vi.hoisted(() => vi.fn(async () => {}));
 
-vi.mock('../src/crypto.js', () => ({
-	initSodium: vi.fn(async () => {}),
-	deriveKeys: vi.fn(() => ({ encKey: new Uint8Array(), hmacKey: new Uint8Array() })),
-	aeadDecrypt: vi.fn((_encKey: Uint8Array, params: { ciphertext: string }) =>
-		new TextEncoder().encode(params.ciphertext),
-	),
-	scopeFromAAD: vi.fn(() => 'scope'),
-}));
-
-vi.mock('../src/keys.js', () => ({
-	loadOrCreateKeys: vi.fn(async () => ({
-		masterSeedB64: 'b64:master',
-		ed25519PrivB64: 'b64:priv',
-	})),
-}));
+vi.mock('@/crypto', async () => {
+	const actual =
+		await vi.importActual<typeof import('../src/crypto/index.js')>('../src/crypto/index.js');
+	return {
+		...actual,
+		initSodium: initSodiumMock,
+		deriveKeys: vi.fn(() => ({ encKey: new Uint8Array(), hmacKey: new Uint8Array() })),
+		aeadDecrypt: vi.fn((_encKey: Uint8Array, params: { ciphertext: string }) =>
+			new TextEncoder().encode(params.ciphertext),
+		),
+		scopeFromAAD: vi.fn(() => 'scope'),
+		aeadEncrypt: vi.fn(() => ({
+			ciphertext: 'ciphertext',
+			nonce: 'nonce',
+			alg: 'alg',
+			aad: { org: 'org', project: 'project', env: 'env', name: 'name' },
+		})),
+		edSign: vi.fn(async () => new Uint8Array()),
+		hmacSHA256: vi.fn(() => 'hmac'),
+		b64: vi.fn(() => 'encoded'),
+	};
+});
 
 vi.mock('@inquirer/prompts', () => ({
 	select: vi.fn(),
 }));
 
-class MockListr<TContext> {
-	private readonly tasks: Array<{
-		title: string;
-		task: (ctx: TContext, task: { title: string }) => Promise<void> | void;
-	}>;
+vi.mock('../src/services/DeviceIdentityService.js', () => ({
+	DeviceIdentityService: {
+		create: createDeviceServiceMock,
+	},
+}));
 
-	constructor(
-		tasks: Array<{
-			title: string;
-			task: (ctx: TContext, task: { title: string }) => Promise<void> | void;
-		}>,
-	) {
-		this.tasks = tasks;
-	}
+const ensureEnvironmentKeyMock = vi.fn(async () => ({
+	key: new Uint8Array([1, 2, 3, 4]),
+	version: 1,
+	fingerprint: 'fingerprint-1',
+	created: false,
+}));
+const publishKeyEnvelopesMock = vi.fn(async () => {});
+const createEnvironmentKeyServiceMock = vi.fn(async () => ({
+	ensureEnvironmentKey: ensureEnvironmentKeyMock,
+	publishKeyEnvelopes: publishKeyEnvelopesMock,
+}));
 
-	async run(): Promise<void> {
-		for (const item of this.tasks) {
-			const task = { title: item.title };
-			await item.task({} as TContext, task);
-		}
-	}
-}
+vi.mock('../src/environment/keys/EnvironmentKeyService.js', () => ({
+	EnvironmentKeyService: {
+		create: createEnvironmentKeyServiceMock,
+	},
+}));
 
-vi.mock('listr2', () => ({
-	Listr: MockListr,
+vi.mock('../src/support/secret-payload.js', () => ({
+	buildSecretPayload: buildSecretPayloadMock,
+}));
+
+vi.mock('ora', () => ({
+	__esModule: true,
+	default: oraMock,
 }));
 
 const existsSyncMock = vi.fn(() => true);
+const readFileSyncMock = vi.fn(() => envFileContent);
 const writeFileSyncMock = vi.fn((path: string, content: string) => {
 	writeFileCalls.push({ path, content });
+	envFileContent = content;
 });
 const copyFileSyncMock = vi.fn((src: string, dest: string) => {
 	copyFileCalls.push({ src, dest });
@@ -152,10 +207,12 @@ vi.mock('node:fs', () => ({
 	default: {
 		existsSync: existsSyncMock,
 		writeFileSync: writeFileSyncMock,
+		readFileSync: readFileSyncMock,
 		copyFileSync: copyFileSyncMock,
 	},
 	existsSync: existsSyncMock,
 	writeFileSync: writeFileSyncMock,
+	readFileSync: readFileSyncMock,
 	copyFileSync: copyFileSyncMock,
 }));
 
@@ -163,14 +220,14 @@ vi.mock('../src/support/errors.js', () => ({
 	toErrorMessage: (err: unknown) => String(err),
 }));
 
-let registerEnvDiffCommand: typeof import('../src/commands/env-diff.js').registerEnvDiffCommand;
-let registerEnvPushCommand: typeof import('../src/commands/env-push.js').registerEnvPushCommand;
-let registerEnvPullCommand: typeof import('../src/commands/env-pull.js').registerEnvPullCommand;
+let registerEnvDiffCommand: typeof import('../src/commands/environment/diff.js').registerEnvDiffCommand;
+let registerEnvPushCommand: typeof import('../src/commands/environment/push.js').registerEnvPushCommand;
+let registerEnvPullCommand: typeof import('../src/commands/environment/pull.js').registerEnvPullCommand;
 
 beforeAll(async () => {
-	({ registerEnvDiffCommand } = await import('../src/commands/env-diff.js'));
-	({ registerEnvPushCommand } = await import('../src/commands/env-push.js'));
-	({ registerEnvPullCommand } = await import('../src/commands/env-pull.js'));
+	({ registerEnvDiffCommand } = await import('../src/commands/environment/diff.js'));
+	({ registerEnvPushCommand } = await import('../src/commands/environment/push.js'));
+	({ registerEnvPullCommand } = await import('../src/commands/environment/pull.js'));
 });
 
 beforeEach(() => {
@@ -187,24 +244,95 @@ beforeEach(() => {
 	localEnvVars = {};
 	snapshots = {};
 	remoteBundle = { chain: ['prod'], secrets: [] };
-	decryptedSecrets = [];
-	uploadCalls.splice(0, uploadCalls.length);
+	envFileContent = '';
 	writeFileCalls.splice(0, writeFileCalls.length);
 	copyFileCalls.splice(0, copyFileCalls.length);
 	logOutputs.info.length = 0;
 	logOutputs.warn.length = 0;
 	logOutputs.error.length = 0;
 	logOutputs.ok.length = 0;
+	logOutputs.text.length = 0;
 	client.pull.mockClear();
-	client.uploadSecret.mockClear();
 	client.push.mockClear();
+	client.getEnvironmentKey.mockClear();
+	client.createEnvironmentKey.mockClear();
+	client.listDevices.mockClear();
+	client.getEnvironments.mockClear();
+	buildSecretPayloadCalls.splice(0, buildSecretPayloadCalls.length);
+	buildSecretPayloadMock.mockClear();
+	ensureEnvironmentKeyMock.mockClear();
+	publishKeyEnvelopesMock.mockClear();
+	createEnvironmentKeyServiceMock.mockClear();
+	createDeviceServiceMock.mockClear();
+	requireIdentityMock.mockClear();
+	spinner.start.mockClear();
+	spinner.succeed.mockClear();
+	spinner.fail.mockClear();
+	spinner.text = '';
+	oraMock.mockClear();
 	existsSyncMock.mockClear();
 	existsSyncMock.mockReturnValue(true);
+	readFileSyncMock.mockClear();
+	readFileSyncMock.mockImplementation(() => envFileContent);
 	writeFileSyncMock.mockClear();
 	copyFileSyncMock.mockClear();
+	resolveEnvFileMock.mockClear();
+	resolveEnvFileMock.mockImplementation(() => envFilePath);
+	readEnvFileSafeMock.mockClear();
+	readEnvFileSafeMock.mockImplementation(() => localEnvVars);
+	readEnvFileSafeWithMetadataMock.mockClear();
+	readEnvFileSafeWithMetadataMock.mockImplementation(() => ({ vars: localEnvVars, snapshots }));
 });
 
-describe('env:diff ignore behaviour', () => {
+describe('env diff ignore behaviour', () => {
+	it('warns and reports fallback when env-scoped file is missing', async () => {
+		envFilePath = '/workdir/.env';
+
+		const program = new Command();
+		registerEnvDiffCommand(program);
+		await program.parseAsync([
+			'node',
+			'test',
+			'env',
+			'diff',
+			'--env',
+			'prod',
+			'--token',
+			'api-token',
+		]);
+
+		expect(logOutputs.warn).toContain(
+			'⚠️ ".env.prod" not found locally. Falling back to ".env".',
+		);
+		expect(logOutputs.info).toContain(
+			'Comparing local ".env" to remote environment "prod" (fallback used).',
+		);
+	});
+
+	it('supports --local override for custom env files', async () => {
+		envFilePath = '/workdir/.env.local';
+
+		const program = new Command();
+		registerEnvDiffCommand(program);
+		await program.parseAsync([
+			'node',
+			'test',
+			'env',
+			'diff',
+			'--env',
+			'prod',
+			'--token',
+			'api-token',
+			'--local',
+			'.env.local',
+		]);
+
+		expect(resolveEnvFileMock).toHaveBeenCalledWith('prod', '.env.local', false);
+		expect(logOutputs.info).toContain(
+			'Comparing local ".env.local" to remote environment "prod".',
+		);
+	});
+
 	it('hides ignored keys and prints them with --show-ignored', async () => {
 		localEnvVars = {
 			FOO: 'local-value',
@@ -212,14 +340,49 @@ describe('env:diff ignore behaviour', () => {
 			CUSTOM_TOKEN: 'custom-local',
 		};
 		snapshots = Object.fromEntries(
-			Object.entries(localEnvVars).map(([name, value]) => [name, { rawValue: value }]),
+			Object.entries(localEnvVars).map(([name, value]) => [name, { value, rawValue: value }]),
 		);
-		decryptedSecrets = [
-			{ entry: { name: 'FOO', meta: {} }, value: 'remote-value' },
-			{ entry: { name: 'BAR', meta: {} }, value: 'remote-bar' },
-			{ entry: { name: 'CUSTOM_TOKEN', meta: {} }, value: 'remote-custom' },
-			{ entry: { name: 'GHOSTABLE_CI_TOKEN', meta: {} }, value: 'remote-token' },
-		];
+		remoteBundle = {
+			chain: ['prod'],
+			secrets: [
+				{
+					env: 'prod',
+					name: 'FOO',
+					ciphertext: 'remote-value',
+					nonce: 'nonce',
+					alg: 'xchacha20',
+					aad: {},
+					meta: {},
+				},
+				{
+					env: 'prod',
+					name: 'BAR',
+					ciphertext: 'remote-bar',
+					nonce: 'nonce',
+					alg: 'xchacha20',
+					aad: {},
+					meta: {},
+				},
+				{
+					env: 'prod',
+					name: 'CUSTOM_TOKEN',
+					ciphertext: 'remote-custom',
+					nonce: 'nonce',
+					alg: 'xchacha20',
+					aad: {},
+					meta: {},
+				},
+				{
+					env: 'prod',
+					name: 'GHOSTABLE_CI_TOKEN',
+					ciphertext: 'remote-token',
+					nonce: 'nonce',
+					alg: 'xchacha20',
+					aad: {},
+					meta: {},
+				},
+			],
+		};
 
 		const consoleLog = vi.spyOn(console, 'log').mockImplementation(() => {});
 
@@ -228,7 +391,8 @@ describe('env:diff ignore behaviour', () => {
 		await program.parseAsync([
 			'node',
 			'test',
-			'env:diff',
+			'env',
+			'diff',
 			'--env',
 			'prod',
 			'--token',
@@ -247,8 +411,7 @@ describe('env:diff ignore behaviour', () => {
 
 	it('--only overrides ignore list', async () => {
 		localEnvVars = { GHOSTABLE_CI_TOKEN: 'only-token' };
-		snapshots = { GHOSTABLE_CI_TOKEN: { rawValue: 'only-token' } };
-		decryptedSecrets = [];
+		snapshots = { GHOSTABLE_CI_TOKEN: { value: 'only-token', rawValue: 'only-token' } };
 
 		const consoleLog = vi.spyOn(console, 'log').mockImplementation(() => {});
 
@@ -257,7 +420,8 @@ describe('env:diff ignore behaviour', () => {
 		await program.parseAsync([
 			'node',
 			'test',
-			'env:diff',
+			'env',
+			'diff',
 			'--env',
 			'prod',
 			'--token',
@@ -282,9 +446,8 @@ describe('env:diff ignore behaviour', () => {
 				prod: {},
 			},
 		};
-		localEnvVars = { GHOSTABLE_MASTER_SEED: 'seed' };
-		snapshots = { GHOSTABLE_MASTER_SEED: { rawValue: 'seed' } };
-		decryptedSecrets = [];
+		localEnvVars = { GHOSTABLE_DEPLOY_SEED: 'seed' };
+		snapshots = { GHOSTABLE_DEPLOY_SEED: { value: 'seed', rawValue: 'seed' } };
 
 		const consoleLog = vi.spyOn(console, 'log').mockImplementation(() => {});
 
@@ -293,7 +456,8 @@ describe('env:diff ignore behaviour', () => {
 		await program.parseAsync([
 			'node',
 			'test',
-			'env:diff',
+			'env',
+			'diff',
 			'--env',
 			'prod',
 			'--token',
@@ -301,35 +465,64 @@ describe('env:diff ignore behaviour', () => {
 			'--show-ignored',
 		]);
 
-		expect(logOutputs.info).toContain('Ignored keys (1): GHOSTABLE_MASTER_SEED');
+		expect(logOutputs.info).toContain('Ignored keys (1): GHOSTABLE_DEPLOY_SEED');
 		const combinedOutput = consoleLog.mock.calls.flat().join(' ');
-		expect(combinedOutput).not.toContain('GHOSTABLE_MASTER_SEED');
+		expect(combinedOutput).not.toContain('GHOSTABLE_DEPLOY_SEED');
 
 		consoleLog.mockRestore();
 	});
 });
 
-describe('env:push ignore behaviour', () => {
+describe('env push ignore behaviour', () => {
 	it('skips ignored keys when uploading', async () => {
 		localEnvVars = {
 			FOO: 'value',
-			GHOSTABLE_MASTER_SEED: 'true',
+			GHOSTABLE_DEPLOY_SEED: 'true',
 			CUSTOM_TOKEN: 'custom',
 		};
 		snapshots = {
-			FOO: { rawValue: 'value' },
-			GHOSTABLE_MASTER_SEED: { rawValue: 'true' },
-			CUSTOM_TOKEN: { rawValue: 'custom' },
+			FOO: { value: 'value', rawValue: 'value' },
+			GHOSTABLE_DEPLOY_SEED: { value: 'true', rawValue: 'true' },
+			CUSTOM_TOKEN: { value: 'custom', rawValue: 'custom' },
 		};
 
 		const program = new Command();
 		registerEnvPushCommand(program);
-		await program.parseAsync(['node', 'test', 'env:push', '--env', 'prod', '--assume-yes']);
+		await program.parseAsync(['node', 'test', 'env', 'push', '--env', 'prod', '--assume-yes']);
 
-		expect(uploadCalls).toHaveLength(1);
-		const uploadedNames = uploadCalls[0]?.payload.secrets.map((payload: any) => payload.name);
-		expect(uploadedNames).toEqual(['FOO']);
-		expect(uploadCalls[0]?.options).toEqual({});
+		expect(ensureEnvironmentKeyMock).toHaveBeenCalledTimes(1);
+		expect(publishKeyEnvelopesMock).not.toHaveBeenCalled();
+		expect(buildSecretPayloadMock).toHaveBeenCalledTimes(1);
+
+		const [call] = buildSecretPayloadMock.mock.calls;
+		expect(call[0]).toMatchObject({
+			name: 'FOO',
+			plaintext: 'value',
+			envKekVersion: 1,
+			envKekFingerprint: 'fingerprint-1',
+			meta: {
+				lineBytes: Buffer.byteLength('value', 'utf8'),
+				isCommented: false,
+			},
+		});
+
+		expect(client.push).toHaveBeenCalledTimes(1);
+		const [args] = client.push.mock.calls;
+		expect(args[0]).toBe('project-id');
+		expect(args[1]).toBe('prod');
+		expect(args[2]).toMatchObject({
+			device_id: 'device-123',
+			secrets: [
+				expect.objectContaining({
+					name: 'FOO',
+					env: 'prod',
+					ciphertext: 'cipher-FOO',
+					env_kek_version: 1,
+					env_kek_fingerprint: 'fingerprint-1',
+				}),
+			],
+		});
+		expect(args[3]).toEqual({ sync: false });
 	});
 
 	it('passes sync flag to upload when requested', async () => {
@@ -337,7 +530,7 @@ describe('env:push ignore behaviour', () => {
 			FOO: 'value',
 		};
 		snapshots = {
-			FOO: { rawValue: 'value' },
+			FOO: { value: 'value', rawValue: 'value' },
 		};
 
 		const program = new Command();
@@ -345,19 +538,22 @@ describe('env:push ignore behaviour', () => {
 		await program.parseAsync([
 			'node',
 			'test',
-			'env:push',
+			'env',
+			'push',
 			'--env',
 			'prod',
 			'--assume-yes',
 			'--sync',
 		]);
 
-		expect(uploadCalls).toHaveLength(1);
-		expect(uploadCalls[0]?.options).toEqual({ sync: true });
+		expect(buildSecretPayloadMock).toHaveBeenCalledTimes(1);
+		expect(client.push).toHaveBeenCalledTimes(1);
+		const [args] = client.push.mock.calls;
+		expect(args[3]).toEqual({ sync: true });
 	});
 });
 
-describe('env:pull ignore behaviour', () => {
+describe('env pull ignore behaviour', () => {
 	it('omits ignored keys from written file and reports them', async () => {
 		remoteBundle = {
 			chain: ['prod'],
@@ -391,7 +587,7 @@ describe('env:pull ignore behaviour', () => {
 				},
 				{
 					env: 'prod',
-					name: 'GHOSTABLE_MASTER_SEED',
+					name: 'GHOSTABLE_DEPLOY_SEED',
 					ciphertext: 'seed',
 					nonce: 'nonce',
 					alg: 'xchacha20',
@@ -406,11 +602,10 @@ describe('env:pull ignore behaviour', () => {
 		await program.parseAsync([
 			'node',
 			'test',
-			'env:pull',
+			'env',
+			'pull',
 			'--env',
 			'prod',
-			'--token',
-			'api-token',
 			'--show-ignored',
 		]);
 
@@ -418,15 +613,15 @@ describe('env:pull ignore behaviour', () => {
 		const [{ content }] = writeFileCalls;
 		expect(content).toContain('FOO=foo-value');
 		expect(content).not.toContain('GHOSTABLE_CI_TOKEN');
-		expect(content).not.toContain('GHOSTABLE_MASTER_SEED');
+		expect(content).not.toContain('GHOSTABLE_DEPLOY_SEED');
 		expect(content).not.toContain('CUSTOM_TOKEN');
 		expect(logOutputs.info).toContain(
-			'Ignored keys (3): GHOSTABLE_CI_TOKEN, GHOSTABLE_MASTER_SEED, CUSTOM_TOKEN',
+			'Ignored keys (3): GHOSTABLE_CI_TOKEN, GHOSTABLE_DEPLOY_SEED, CUSTOM_TOKEN',
 		);
 	});
 });
 
-describe('env:pull file management', () => {
+describe('env pull file management', () => {
 	it('merges remote keys into existing file and creates a backup', async () => {
 		vi.useFakeTimers();
 		vi.setSystemTime(new Date('2024-01-02T03:04:05.678Z'));
@@ -437,8 +632,8 @@ describe('env:pull file management', () => {
 				UPDATE_ME: 'old',
 			};
 			snapshots = {
-				KEEP: { rawValue: 'keep-value' },
-				UPDATE_ME: { rawValue: 'old' },
+				KEEP: { value: 'keep-value', rawValue: 'keep-value' },
+				UPDATE_ME: { value: 'old', rawValue: 'old' },
 			};
 			remoteBundle = {
 				chain: ['prod'],
@@ -466,15 +661,7 @@ describe('env:pull file management', () => {
 
 			const program = new Command();
 			registerEnvPullCommand(program);
-			await program.parseAsync([
-				'node',
-				'test',
-				'env:pull',
-				'--env',
-				'prod',
-				'--token',
-				'api-token',
-			]);
+			await program.parseAsync(['node', 'test', 'env', 'pull', '--env', 'prod']);
 
 			expect(copyFileCalls).toHaveLength(1);
 			expect(copyFileCalls[0]).toEqual({
@@ -502,8 +689,8 @@ describe('env:pull file management', () => {
 			REMOVE_ME: 'bye',
 		};
 		snapshots = {
-			KEEP: { rawValue: 'keep-value' },
-			REMOVE_ME: { rawValue: 'bye' },
+			KEEP: { value: 'keep-value', rawValue: 'keep-value' },
+			REMOVE_ME: { value: 'bye', rawValue: 'bye' },
 		};
 		remoteBundle = {
 			chain: ['prod'],
@@ -522,16 +709,7 @@ describe('env:pull file management', () => {
 
 		const program = new Command();
 		registerEnvPullCommand(program);
-		await program.parseAsync([
-			'node',
-			'test',
-			'env:pull',
-			'--env',
-			'prod',
-			'--token',
-			'api-token',
-			'--replace',
-		]);
+		await program.parseAsync(['node', 'test', 'env', 'pull', '--env', 'prod', '--replace']);
 
 		expect(writeFileCalls).toHaveLength(1);
 		const [{ content }] = writeFileCalls;
@@ -540,9 +718,204 @@ describe('env:pull file management', () => {
 		expect(logOutputs.info).toContain('CREATE 0 | UPDATE 0 | DELETE 1');
 	});
 
+	it('treats comment-only differences as updates', async () => {
+		localEnvVars = {
+			FEATURE_FLAG: 'enabled',
+		};
+		snapshots = {
+			FEATURE_FLAG: { value: 'enabled', rawValue: 'enabled', commented: false },
+		};
+		remoteBundle = {
+			chain: ['prod'],
+			secrets: [
+				{
+					env: 'prod',
+					name: 'FEATURE_FLAG',
+					ciphertext: 'enabled',
+					nonce: 'nonce',
+					alg: 'xchacha20',
+					aad: {},
+					meta: { is_commented: true },
+				},
+			],
+		};
+
+		const program = new Command();
+		registerEnvPullCommand(program);
+		await program.parseAsync(['node', 'test', 'env', 'pull', '--env', 'prod']);
+
+		expect(writeFileCalls).toHaveLength(1);
+		const [{ content }] = writeFileCalls;
+		expect(content).toContain('# FEATURE_FLAG=enabled');
+		expect(logOutputs.info).toContain('CREATE 0 | UPDATE 1');
+	});
+
+	it('inserts a blank line between grouped prefixes with --format grouped', async () => {
+		remoteBundle = {
+			chain: ['prod'],
+			secrets: [
+				{
+					env: 'prod',
+					name: 'APP_SECRET',
+					ciphertext: 'app-secret',
+					nonce: 'nonce',
+					alg: 'xchacha20',
+					aad: {},
+					meta: {},
+				},
+				{
+					env: 'prod',
+					name: 'DB_URL',
+					ciphertext: 'postgres://db',
+					nonce: 'nonce',
+					alg: 'xchacha20',
+					aad: {},
+					meta: {},
+				},
+			],
+		};
+
+		const program = new Command();
+		registerEnvPullCommand(program);
+		await program.parseAsync([
+			'node',
+			'test',
+			'env',
+			'pull',
+			'--env',
+			'prod',
+			'--format',
+			'grouped',
+		]);
+
+		expect(writeFileCalls).toHaveLength(1);
+		const [{ content }] = writeFileCalls;
+		expect(content).toContain('APP_SECRET=app-secret\n\nDB_URL=postgres://db');
+	});
+
+	it('maintains a blank line between grouped headers and entries with --format grouped:comments', async () => {
+		remoteBundle = {
+			chain: ['prod'],
+			secrets: [
+				{
+					env: 'prod',
+					name: 'APP_SECRET',
+					ciphertext: 'app-secret',
+					nonce: 'nonce',
+					alg: 'xchacha20',
+					aad: {},
+					meta: {},
+				},
+			],
+		};
+
+		const program = new Command();
+		registerEnvPullCommand(program);
+		await program.parseAsync([
+			'node',
+			'test',
+			'env',
+			'pull',
+			'--env',
+			'prod',
+			'--format',
+			'grouped:comments',
+		]);
+
+		expect(writeFileCalls).toHaveLength(1);
+		const [{ content }] = writeFileCalls;
+		expect(content).toContain('# APP\nAPP_SECRET=app-secret');
+	});
+
+	it('rewrites the file when switching formats without value changes', async () => {
+		localEnvVars = {
+			APP_SECRET: 'app-secret',
+			DB_URL: 'postgres://db',
+		};
+		snapshots = {
+			APP_SECRET: { value: 'app-secret', rawValue: 'app-secret' },
+			DB_URL: { value: 'postgres://db', rawValue: 'postgres://db' },
+		};
+		envFileContent = 'APP_SECRET=app-secret\nDB_URL=postgres://db\n';
+		remoteBundle = {
+			chain: ['prod'],
+			secrets: [
+				{
+					env: 'prod',
+					name: 'APP_SECRET',
+					ciphertext: 'app-secret',
+					nonce: 'nonce',
+					alg: 'xchacha20',
+					aad: {},
+					meta: {},
+				},
+				{
+					env: 'prod',
+					name: 'DB_URL',
+					ciphertext: 'postgres://db',
+					nonce: 'nonce',
+					alg: 'xchacha20',
+					aad: {},
+					meta: {},
+				},
+			],
+		};
+
+		const program = new Command();
+		registerEnvPullCommand(program);
+		await program.parseAsync([
+			'node',
+			'test',
+			'env',
+			'pull',
+			'--env',
+			'prod',
+			'--format',
+			'grouped',
+		]);
+
+		expect(writeFileCalls).toHaveLength(1);
+		const [{ content }] = writeFileCalls;
+		expect(content).toContain('APP_SECRET=app-secret');
+		expect(content).toContain('\n\nDB_URL=postgres://db');
+		expect(logOutputs.info).toContain(
+			'Formatting differs from requested output (grouped); will rewrite file.',
+		);
+	});
+
+	it('does not report creates when commented entries already exist locally', async () => {
+		localEnvVars = {};
+		snapshots = {
+			FEATURE_FLAG: { value: 'enabled', rawValue: 'enabled', commented: true },
+		};
+		envFileContent = '# FEATURE_FLAG=enabled\n';
+		remoteBundle = {
+			chain: ['prod'],
+			secrets: [
+				{
+					env: 'prod',
+					name: 'FEATURE_FLAG',
+					ciphertext: 'enabled',
+					nonce: 'nonce',
+					alg: 'xchacha20',
+					aad: {},
+					meta: { is_commented: true },
+				},
+			],
+		};
+
+		const program = new Command();
+		registerEnvPullCommand(program);
+		await program.parseAsync(['node', 'test', 'env', 'pull', '--env', 'prod']);
+
+		expect(writeFileCalls).toHaveLength(0);
+		expect(logOutputs.info).toContain('CREATE 0 | UPDATE 0');
+		expect(logOutputs.ok[0]).toContain('already up to date');
+	});
+
 	it('skips backups when --no-backup is provided', async () => {
 		localEnvVars = { EXISTING: 'one' };
-		snapshots = { EXISTING: { rawValue: 'one' } };
+		snapshots = { EXISTING: { value: 'one', rawValue: 'one' } };
 		remoteBundle = {
 			chain: ['prod'],
 			secrets: [
@@ -560,16 +933,7 @@ describe('env:pull file management', () => {
 
 		const program = new Command();
 		registerEnvPullCommand(program);
-		await program.parseAsync([
-			'node',
-			'test',
-			'env:pull',
-			'--env',
-			'prod',
-			'--token',
-			'api-token',
-			'--no-backup',
-		]);
+		await program.parseAsync(['node', 'test', 'env', 'pull', '--env', 'prod', '--no-backup']);
 
 		expect(copyFileCalls).toHaveLength(0);
 		expect(writeFileCalls).toHaveLength(1);
