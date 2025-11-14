@@ -16,9 +16,18 @@ export type ManifestEnvsLegacy =
 	| Array<string | { name: string; type?: string; ignore?: string[] }>;
 export type ManifestEnvs = Record<string, EnvEntry> | ManifestEnvsLegacy;
 
+export interface ManifestStack {
+	language?: string;
+	framework?: string;
+	platform?: string;
+	[key: string]: unknown;
+}
+
 export interface ManifestShape {
 	id?: string;
 	name?: string;
+	deployment_provider?: string;
+	stack?: ManifestStack;
 	environments?: ManifestEnvs;
 	[key: string]: unknown;
 }
@@ -163,6 +172,8 @@ export class Manifest {
 		project: {
 			id: string;
 			name?: string;
+			deploymentProvider?: string;
+			stack?: ManifestStack;
 			environments?: ManifestEnvs;
 		},
 		file = resolveManifestPath(),
@@ -171,10 +182,19 @@ export class Manifest {
 		const manifest: ManifestShape = {
 			id: project.id,
 			name: project.name,
+			stack: project.stack,
 			environments: Object.fromEntries(
 				Object.entries(envs).sort(([a], [b]) => a.localeCompare(b)),
 			),
 		};
+
+		if (project.deploymentProvider) {
+			const stackPlatform = project.stack?.platform;
+			if (!stackPlatform || stackPlatform !== project.deploymentProvider) {
+				manifest.deployment_provider = project.deploymentProvider;
+			}
+		}
+
 		writeYaml(file, manifest);
 	}
 

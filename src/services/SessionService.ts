@@ -1,6 +1,6 @@
 import { config } from '../config/index.js';
 import type { Session } from '@/types';
-import { loadKeytar } from '../support/keyring.js';
+import { loadKeytar } from '@/keychain';
 
 export class SessionService {
 	async load(): Promise<Session | null> {
