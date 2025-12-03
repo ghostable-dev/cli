@@ -28,6 +28,10 @@ export type DeploymentTokenJson =
 	  }
 	| ({ id: string } & DeploymentTokenAttributesJson);
 
+export type DeploymentRecipientJson = {
+	edek_b64: string;
+};
+
 export type DeploymentTokenListResponseJson = {
 	data?: DeploymentTokenJson[];
 };
@@ -36,10 +40,12 @@ export type CreateDeploymentTokenRequestJson = {
 	name: string;
 	environment_id: string;
 	public_key: string;
+	recipient?: DeploymentRecipientJson;
 };
 
 export type RotateDeploymentTokenRequestJson = {
 	public_key: string;
+	recipient?: DeploymentRecipientJson;
 };
 
 export type CreateDeploymentTokenResponseJson = {
