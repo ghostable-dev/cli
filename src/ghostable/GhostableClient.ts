@@ -457,7 +457,12 @@ export class GhostableClient {
 
 	async createDeployToken(
 		projectId: string,
-		input: { environmentId: string; name: string; publicKey: string },
+		input: {
+			environmentId: string;
+			name: string;
+			publicKey: string;
+			recipient?: { edekB64: string };
+		},
 	): Promise<DeploymentTokenWithSecret> {
 		const res = await this.http.post<CreateDeploymentTokenResponseJson>(
 			this.deployTokenPath(projectId),
@@ -465,6 +470,11 @@ export class GhostableClient {
 				name: input.name,
 				environment_id: input.environmentId,
 				public_key: input.publicKey,
+				recipient: input.recipient
+					? {
+							edek_b64: input.recipient.edekB64,
+						}
+					: undefined,
 			} satisfies CreateDeploymentTokenRequestJson,
 		);
 		const token = deploymentTokenFromJSON(res.data);
@@ -475,11 +485,18 @@ export class GhostableClient {
 	async rotateDeployToken(
 		projectId: string,
 		tokenId: string,
-		input: { publicKey: string },
+		input: { publicKey: string; recipient?: { edekB64: string } },
 	): Promise<DeploymentTokenWithSecret> {
 		const res = await this.http.post<RotateDeploymentTokenResponseJson>(
 			`${this.deployTokenPath(projectId, tokenId)}/rotate`,
-			{ public_key: input.publicKey } satisfies RotateDeploymentTokenRequestJson,
+			{
+				public_key: input.publicKey,
+				recipient: input.recipient
+					? {
+							edek_b64: input.recipient.edekB64,
+						}
+					: undefined,
+			} satisfies RotateDeploymentTokenRequestJson,
 		);
 		const token = deploymentTokenFromJSON(res.data);
 		const { secret, apiToken } = this.parseDeploymentTokenMeta(res.meta);
