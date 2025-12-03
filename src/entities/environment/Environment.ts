@@ -1,15 +1,11 @@
 import type { EnvironmentJson } from '@/ghostable/types/environment.js';
 
-/**
- * Domain model for an Environment.
- * Normalizes timestamps and optional baseId.
- */
+/** Domain model for an Environment. Normalizes timestamps. */
 export class Environment {
 	constructor(
 		public readonly id: string,
 		public readonly name: string,
 		public readonly type: string,
-		public readonly baseId?: string,
 		public readonly createdAt?: Date,
 		public readonly updatedAt?: Date,
 	) {}
@@ -19,7 +15,6 @@ export class Environment {
 			json.id,
 			json.name,
 			json.type,
-			json.base_id ?? undefined,
 			json.created_at ? new Date(json.created_at) : undefined,
 			json.updated_at ? new Date(json.updated_at) : undefined,
 		);
@@ -28,10 +23,5 @@ export class Environment {
 	/** User-facing label. */
 	label(): string {
 		return this.name;
-	}
-
-	/** Returns true if this environment inherits from another. */
-	hasBase(): boolean {
-		return !!this.baseId;
 	}
 }

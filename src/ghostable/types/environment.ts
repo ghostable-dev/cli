@@ -13,9 +13,6 @@ export type EnvironmentJson = {
 	/** Type identifier (e.g., "production", "development"). */
 	type: string;
 
-	/** Parent environment ID (UUID) or null. */
-	base_id: string | null;
-
 	/** ISO 8601 timestamps. */
 	created_at: string;
 	updated_at: string;

@@ -202,7 +202,6 @@ export function registerEnvCreateCommand(program: Command) {
 							projectId,
 							name: name!,
 							type: selectedType,
-							baseId: null,
 						});
 						createSpinner.succeed(`Environment "${createdEnv.name}" created.`);
 					} catch (error) {

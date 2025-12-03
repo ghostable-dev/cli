@@ -263,13 +263,11 @@ export class GhostableClient {
 		projectId: string;
 		name: string;
 		type: string;
-		baseId: string | null;
 	}): Promise<Environment> {
 		const p = encodeURIComponent(input.projectId);
 		const res = await this.http.post<{ data: EnvironmentJson }>(`/projects/${p}/environments`, {
 			name: input.name,
 			type: input.type,
-			base_id: input.baseId,
 		});
 		const json = res.data;
 		return Environment.fromJSON(json);
