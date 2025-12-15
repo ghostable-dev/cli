@@ -41,6 +41,10 @@ const INTERACTIVE_COMMANDS: InteractiveCommandConfig[] = [
 		commandPath: ['deploy-token'],
 		label: '`ghostable deploy-token`',
 	},
+	{
+		commandPath: ['backup'],
+		label: '`ghostable backup`',
+	},
 ];
 
 const humanReadableArgName = (arg: Argument): string => {

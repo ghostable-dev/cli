@@ -6,3 +6,4 @@ export * from './device.js';
 export * from './deploy-token.js';
 export * from './history.js';
 export * from './rollback.js';
+export * from './backup.js';
