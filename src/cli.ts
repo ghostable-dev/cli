@@ -41,6 +41,10 @@ const INTERACTIVE_COMMANDS: InteractiveCommandConfig[] = [
 		commandPath: ['deploy-token'],
 		label: '`ghostable deploy-token`',
 	},
+	{
+		commandPath: ['backup'],
+		label: '`ghostable backup`',
+	},
 ];
 
 const humanReadableArgName = (arg: Argument): string => {
@@ -115,7 +119,7 @@ async function maybePromptInteractiveSubcommand(
 
 const program = new Command();
 program.name('ghostable').description('Manage Ghostable environment secrets from the CLI');
-program.version('v2.2.2');
+program.version('v2.4.0');
 await registerAllCommands(program);
 program.configureHelp({
 	subcommandTerm: (cmd) => {

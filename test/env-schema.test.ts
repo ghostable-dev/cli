@@ -9,9 +9,8 @@ vi.mock('../src/support/workdir.js', () => ({
 	resolveWorkDir: () => workDir,
 }));
 
-const { loadMergedSchema, validateVariables, SchemaNotFoundError } = await import(
-	'../src/environment/validation/schema.js'
-);
+const { loadMergedSchema, validateVariables, SchemaNotFoundError } =
+	await import('../src/environment/validation/schema.js');
 
 const tmpDirs: string[] = [];
 

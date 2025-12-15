@@ -114,7 +114,7 @@ export class EnvironmentKeyService {
 		return raw.toString('base64');
 	}
 
-	private static decodeRecipientEnvelope(payloadB64: string): EncryptedEnvelope {
+	static decodeRecipientEnvelope(payloadB64: string): EncryptedEnvelope {
 		try {
 			const raw = Buffer.from(payloadB64, 'base64').toString('utf8');
 			const parsed = JSON.parse(raw);
@@ -143,7 +143,7 @@ export class EnvironmentKeyService {
 		};
 	}
 
-	private static decryptEnvironmentKeyCiphertext(
+	static decryptEnvironmentKeyCiphertext(
 		envelope: EnvironmentKeyEnvelope,
 		dek: Uint8Array,
 	): Uint8Array {

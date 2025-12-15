@@ -71,9 +71,8 @@ vi.mock('@/services/EnvelopeService.js', () => ({
 let EnvironmentKeyService: EnvironmentKeyServiceCtor;
 
 beforeAll(async () => {
-	({ EnvironmentKeyService } = await import(
-		'../../src/environment/keys/EnvironmentKeyService.js'
-	));
+	({ EnvironmentKeyService } =
+		await import('../../src/environment/keys/EnvironmentKeyService.js'));
 });
 
 beforeEach(() => {

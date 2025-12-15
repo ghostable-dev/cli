@@ -48,6 +48,9 @@ import type {
 	RollbackResultResponse,
 	RollbackResultResponseJson,
 	SignedRollbackVariableRequestJson,
+	BackupEnvelope,
+	BackupEnvelopeJson,
+	SignedCreateBackupRequestJson,
 } from './types/index.js';
 import {
 	environmentKeyResponseFromJSON,
@@ -57,6 +60,7 @@ import {
 	environmentHistoryFromJSON,
 	projectHistoryFromJSON,
 	rollbackResultFromJSON,
+	backupEnvelopeFromJSON,
 } from './types/index.js';
 
 type LoginResponse = { token?: string; two_factor?: boolean };
@@ -393,6 +397,21 @@ export class GhostableClient {
 			}
 			throw error;
 		}
+	}
+
+	async createEnvironmentBackup(
+		projectId: string,
+		envName: string,
+		request: SignedCreateBackupRequestJson,
+	): Promise<BackupEnvelope> {
+		const p = encodeURIComponent(projectId);
+		const e = encodeURIComponent(envName);
+		const json = await this.http.post<BackupEnvelopeJson>(
+			`/projects/${p}/environments/${e}/backups`,
+			request,
+		);
+
+		return backupEnvelopeFromJSON(json);
 	}
 
 	async createEnvironmentKey(
