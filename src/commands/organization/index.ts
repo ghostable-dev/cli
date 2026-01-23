@@ -2,7 +2,6 @@ import { Command } from 'commander';
 import { configureOrganizationCurrentCommand } from './current.js';
 import { configureOrganizationListCommand } from './list.js';
 import { configureOrganizationSwitchCommand } from './switch.js';
-import { configureOrganizationProjectsCommand } from './projects.js';
 
 export function registerOrganizationCommands(program: Command) {
 	const org = program
@@ -13,5 +12,4 @@ export function registerOrganizationCommands(program: Command) {
 	configureOrganizationListCommand(org);
 	configureOrganizationCurrentCommand(org);
 	configureOrganizationSwitchCommand(org);
-	configureOrganizationProjectsCommand(org);
 }
