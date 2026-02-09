@@ -115,8 +115,7 @@ export async function reshareEnvironmentKey(opts: {
 	try {
 		keyService = await EnvironmentKeyService.create();
 	} catch (error) {
-		log.error(`❌ Failed to access environment keys: ${toErrorMessage(error)}`);
-		process.exit(1);
+		throw new Error(`Failed to access environment keys: ${toErrorMessage(error)}`);
 	}
 
 	try {
@@ -139,7 +138,6 @@ export async function reshareEnvironmentKey(opts: {
 			extraDeployTokens,
 		});
 	} catch (error) {
-		log.error(`❌ Failed to share environment key: ${toErrorMessage(error)}`);
-		process.exit(1);
+		throw new Error(`Failed to share environment key: ${toErrorMessage(error)}`);
 	}
 }

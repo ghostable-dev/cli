@@ -124,4 +124,38 @@ describe('KeyService', () => {
 			Buffer.from(new Uint8Array(32).fill(2)).toString('base64'),
 		);
 	});
+
+	it('decrypts envelopes with canonicalized meta ordering when aad_b64 is absent', async () => {
+		const sender = await KeyService.createDeviceIdentity('Sender', 'macos');
+		const recipient = await KeyService.createDeviceIdentity('Recipient', 'linux');
+		const payload = new Uint8Array([9, 8, 7, 6]);
+
+		const envelope = await KeyService.encryptForDevice(
+			sender,
+			recipient.encryptionKey.publicKey,
+			payload,
+			{
+				project_id: 'project-123',
+				environment: 'local',
+				key_fingerprint: 'fp-abc',
+			},
+		);
+
+		const reorderedEnvelope = {
+			...envelope,
+			aadB64: undefined,
+			meta: {
+				environment: 'local',
+				key_fingerprint: 'fp-abc',
+				project_id: 'project-123',
+			},
+		};
+
+		const decrypted = await KeyService.decryptOnThisDevice(
+			reorderedEnvelope,
+			recipient.deviceId,
+		);
+
+		expect(Array.from(decrypted)).toEqual(Array.from(payload));
+	});
 });
