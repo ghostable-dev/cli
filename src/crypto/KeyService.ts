@@ -14,6 +14,11 @@ import { EncryptedEnvelope } from './types/EncryptedEnvelope.js';
 
 export class KeyService {
 	private static keyStore: KeyStore;
+	private static readonly META_PREFERRED_KEYS = [
+		'project_id',
+		'environment',
+		'key_fingerprint',
+	] as const;
 
 	/** Initializes the KeyService with a KeyStore implementation. */
 	static initialize(keyStore: KeyStore) {
@@ -79,11 +84,8 @@ export class KeyService {
 		);
 		const nonce = randomBytes(24);
 		const cipher = new XChaCha20Poly1305(sharedSecret);
-		const ciphertext = cipher.seal(
-			nonce,
-			bytes,
-			meta ? Buffer.from(JSON.stringify(meta)) : undefined,
-		);
+		const metaAad = this.encodeMetaAAD(meta);
+		const ciphertext = cipher.seal(nonce, bytes, metaAad);
 
 		const envelope: EncryptedEnvelope = {
 			id: uuid(),
@@ -95,6 +97,7 @@ export class KeyService {
 			ciphertextB64: toBase64(ciphertext),
 			createdAtIso: new Date().toISOString(),
 			meta,
+			aadB64: metaAad ? toBase64(metaAad) : undefined,
 			senderKid: this.thumbprint(senderIdentity.signingKey.publicKey),
 		};
 
@@ -109,7 +112,7 @@ export class KeyService {
 			envelope.nonceB64,
 			envelope.ciphertextB64,
 			envelope.createdAtIso,
-			envelope.meta ? JSON.stringify(envelope.meta) : '',
+			this.metaForSignature(envelope.meta),
 		].join(':');
 		envelope.signatureB64 = toBase64(await ed25519.sign(Buffer.from(canonical), privSign));
 
@@ -130,11 +133,10 @@ export class KeyService {
 			fromBase64(envelope.fromEphemeralPublicKey),
 		);
 		const cipher = new XChaCha20Poly1305(sharedSecret);
-		const plaintext = cipher.open(
-			nonce,
-			ciphertext,
-			envelope.meta ? Buffer.from(JSON.stringify(envelope.meta)) : undefined,
-		);
+		const aad = envelope.aadB64
+			? fromBase64(envelope.aadB64)
+			: this.encodeMetaAAD(envelope.meta);
+		const plaintext = cipher.open(nonce, ciphertext, aad);
 		if (!plaintext) {
 			throw new Error('Decryption failed: invalid nonce, ciphertext, or associated data');
 		}
@@ -164,12 +166,45 @@ export class KeyService {
 			envelope.nonceB64,
 			envelope.ciphertextB64,
 			envelope.createdAtIso,
-			envelope.meta ? JSON.stringify(envelope.meta) : '',
+			this.metaForSignature(envelope.meta),
 		].join(':');
 		return ed25519.verify(
 			fromBase64(envelope.signatureB64),
 			Buffer.from(canonical),
 			fromBase64(senderPublicKeyB64),
 		);
+	}
+
+	private static encodeMetaAAD(meta?: Record<string, string>): Uint8Array | undefined {
+		if (!meta) return undefined;
+
+		const ordered = this.canonicalizeMeta(meta);
+		return Buffer.from(JSON.stringify(ordered));
+	}
+
+	private static metaForSignature(meta?: Record<string, string>): string {
+		if (!meta) return '';
+		return JSON.stringify(this.canonicalizeMeta(meta));
+	}
+
+	private static canonicalizeMeta(meta: Record<string, string>): Record<string, string> {
+		const ordered: Record<string, string> = {};
+		const preferred = this.META_PREFERRED_KEYS.filter((key) =>
+			Object.prototype.hasOwnProperty.call(meta, key),
+		);
+		const remaining = Object.keys(meta)
+			.filter(
+				(key) =>
+					!this.META_PREFERRED_KEYS.includes(
+						key as (typeof this.META_PREFERRED_KEYS)[number],
+					),
+			)
+			.sort();
+
+		for (const key of [...preferred, ...remaining]) {
+			ordered[key] = meta[key] ?? '';
+		}
+
+		return ordered;
 	}
 }

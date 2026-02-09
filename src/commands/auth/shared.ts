@@ -4,6 +4,7 @@ import type { SessionService } from '../../services/SessionService.js';
 import { log } from '../../support/logger.js';
 import { toErrorMessage } from '../../support/errors.js';
 import { linkDeviceFlow } from '../device/index.js';
+import { bestEffortReshareForCurrentManifest } from '../environment/reshare-support.js';
 
 export async function finalizeAuthentication(
 	token: string,
@@ -40,4 +41,6 @@ export async function finalizeAuthentication(
 			`⚠️ Device provisioning skipped: ${toErrorMessage(deviceError) ?? String(deviceError)}`,
 		);
 	}
+
+	await bestEffortReshareForCurrentManifest(authed);
 }
