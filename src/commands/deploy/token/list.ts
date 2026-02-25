@@ -18,7 +18,7 @@ export function configureListCommand(parent: Command) {
 
 			let tokens;
 			try {
-				tokens = await client.listDeployTokens(projectId, environment.name);
+				tokens = await client.listDeployTokens(projectId, environment.id);
 			} catch (error) {
 				log.error(`❌ Failed to load deployment tokens: ${toErrorMessage(error)}`);
 				process.exit(1);

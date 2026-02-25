@@ -1,5 +1,6 @@
 import { HttpClient } from './http/HttpClient.js';
 import { HttpError } from './http/errors.js';
+import { KeyReshareRequiredError } from './key-reshare-errors.js';
 
 import {
 	DeploymentProvider,
@@ -51,10 +52,17 @@ import type {
 	BackupEnvelope,
 	BackupEnvelopeJson,
 	SignedCreateBackupRequestJson,
+	EnvironmentKeyReshareRequestJson,
+	EnvironmentKeyReshareRequestListResponse,
+	EnvironmentKeyReshareRequestListResponseJson,
+	EnvironmentKeyReshareRequestResponseJson,
+	ListEnvironmentKeyReshareRequestsOptions,
 } from './types/index.js';
 import {
 	environmentKeyResponseFromJSON,
 	environmentKeysFromJSON,
+	environmentKeyReshareRequestListFromJSON,
+	environmentKeyReshareRequestResponseFromJSON,
 	deploymentTokenFromJSON,
 	variableHistoryFromJSON,
 	environmentHistoryFromJSON,
@@ -104,6 +112,84 @@ export class GhostableClient {
 
 	withToken(token: string) {
 		return new GhostableClient(this.http.withBearer(token), this.pushHttp.withBearer(token));
+	}
+
+	private static parseJsonBody(body: string): Record<string, unknown> | null {
+		const trimmed = body.trim();
+		if (!trimmed) {
+			return null;
+		}
+
+		try {
+			const parsed = JSON.parse(trimmed);
+			return parsed && typeof parsed === 'object'
+				? (parsed as Record<string, unknown>)
+				: null;
+		} catch {
+			return null;
+		}
+	}
+
+	private static keyReshareRequiredFromHttpError(
+		error: HttpError,
+	): KeyReshareRequiredError | null {
+		if (error.status !== 409) {
+			return null;
+		}
+
+		const parsed = GhostableClient.parseJsonBody(error.body);
+		if (!parsed) {
+			return null;
+		}
+
+		const rawError =
+			parsed.error && typeof parsed.error === 'object'
+				? (parsed.error as Record<string, unknown>)
+				: null;
+
+		if (!rawError) {
+			return null;
+		}
+
+		const code = typeof rawError.code === 'string' ? rawError.code : null;
+		if (code !== 'ENV_KEY_RESHARE_REQUIRED') {
+			return null;
+		}
+
+		const pendingRequestIds = Array.isArray(rawError.pending_request_ids)
+			? rawError.pending_request_ids
+					.map((value) => (typeof value === 'string' ? value : ''))
+					.filter((value) => value.length > 0)
+			: [];
+
+		const requiredKeyVersion =
+			typeof rawError.required_key_version === 'number'
+				? rawError.required_key_version
+				: null;
+		const organizationId =
+			typeof rawError.organization_id === 'string' ? rawError.organization_id : null;
+		const projectId = typeof rawError.project_id === 'string' ? rawError.project_id : null;
+		const environmentId =
+			typeof rawError.environment_id === 'string' ? rawError.environment_id : null;
+		const environmentName =
+			typeof rawError.environment_name === 'string' ? rawError.environment_name : null;
+		const detail =
+			typeof rawError.detail === 'string' && rawError.detail.trim().length > 0
+				? rawError.detail.trim()
+				: undefined;
+
+		return new KeyReshareRequiredError(
+			{
+				pendingRequestIds,
+				requiredKeyVersion,
+				organizationId,
+				projectId,
+				environmentId,
+				environmentName,
+			},
+			detail,
+			error.status,
+		);
 	}
 
 	async login(email: string, password: string, code?: string): Promise<string> {
@@ -166,6 +252,41 @@ export class GhostableClient {
 	async organizations(): Promise<Organization[]> {
 		const res = await this.http.get<{ data?: OrganizationJson[] }>('/organizations');
 		return (res.data ?? []).map(Organization.fromJSON);
+	}
+
+	async listOrganizationKeyReshareRequests(
+		organizationId: string,
+		options: ListEnvironmentKeyReshareRequestsOptions = {},
+	): Promise<EnvironmentKeyReshareRequestListResponse> {
+		const org = encodeURIComponent(organizationId);
+		const qs = new URLSearchParams();
+		if (options.role) qs.set('role', options.role);
+		if (options.status) qs.set('status', options.status);
+		if (options.projectId) qs.set('project_id', options.projectId);
+		if (options.environmentId) qs.set('environment_id', options.environmentId);
+		if (options.deviceId) qs.set('device_id', options.deviceId);
+		if (options.page !== undefined) qs.set('page', String(options.page));
+		if (options.perPage !== undefined) qs.set('per_page', String(options.perPage));
+
+		const suffix = qs.toString() ? `?${qs.toString()}` : '';
+		const json = await this.http.get<EnvironmentKeyReshareRequestListResponseJson>(
+			`/organizations/${org}/key-reshare-requests${suffix}`,
+		);
+
+		return environmentKeyReshareRequestListFromJSON(json);
+	}
+
+	async getOrganizationKeyReshareRequest(
+		organizationId: string,
+		requestId: string,
+	): Promise<EnvironmentKeyReshareRequestJson> {
+		const org = encodeURIComponent(organizationId);
+		const reqId = encodeURIComponent(requestId);
+		const json = await this.http.get<EnvironmentKeyReshareRequestResponseJson>(
+			`/organizations/${org}/key-reshare-requests/${reqId}`,
+		);
+
+		return environmentKeyReshareRequestResponseFromJSON(json);
 	}
 
 	async projects(organizationId: string): Promise<Project[]> {
@@ -234,8 +355,12 @@ export class GhostableClient {
 
 	async getProject(projectId: string): Promise<Project> {
 		const p = encodeURIComponent(projectId);
-		const res = await this.http.get<ProjectJson>(`/projects/${p}`);
-		return Project.fromJSON(res);
+		const res = await this.http.get<{ data?: ProjectJson } | ProjectJson>(`/projects/${p}`);
+		const json: ProjectJson | undefined = 'data' in res ? res.data : (res as ProjectJson);
+		if (!json) {
+			throw new Error('Malformed project response.');
+		}
+		return Project.fromJSON(json);
 	}
 
 	async getEnvironments(projectId: string): Promise<Environment[]> {
@@ -315,10 +440,22 @@ export class GhostableClient {
 		const headers: Record<string, string> = {};
 		if (opts?.deviceId) headers['X-Device-ID'] = opts.deviceId;
 
-		const json = await this.http.get<EnvironmentSecretBundleJson>(
-			`/projects/${p}/environments/${e}/pull${suffix}`,
-			headers,
-		);
+		let json: EnvironmentSecretBundleJson;
+		try {
+			json = await this.http.get<EnvironmentSecretBundleJson>(
+				`/projects/${p}/environments/${e}/pull${suffix}`,
+				headers,
+			);
+		} catch (error) {
+			if (error instanceof HttpError) {
+				const keyReshareError = GhostableClient.keyReshareRequiredFromHttpError(error);
+				if (keyReshareError) {
+					throw keyReshareError;
+				}
+			}
+
+			throw error;
+		}
 
 		return EnvironmentSecretBundle.fromJSON(json);
 	}
@@ -382,19 +519,41 @@ export class GhostableClient {
 		return projectHistoryFromJSON(json);
 	}
 
-	async getEnvironmentKey(projectId: string, envName: string): Promise<EnvironmentKey | null> {
+	async getEnvironmentKey(
+		projectId: string,
+		envName: string,
+		opts?: {
+			deviceId?: string;
+		},
+	): Promise<EnvironmentKey | null> {
 		const p = encodeURIComponent(projectId);
 		const e = encodeURIComponent(envName);
+		const qs = new URLSearchParams();
+		const headers: Record<string, string> = {};
+		if (opts?.deviceId) {
+			qs.set('device_id', opts.deviceId);
+			headers['X-Device-ID'] = opts.deviceId;
+		}
+		const suffix = qs.toString() ? `?${qs.toString()}` : '';
 
 		try {
 			const json = await this.http.get<EnvironmentKeyResponseJson>(
-				`/projects/${p}/environments/${e}/key`,
+				`/projects/${p}/environments/${e}/key${suffix}`,
+				headers,
 			);
 			return environmentKeyResponseFromJSON(json).data;
 		} catch (error) {
 			if (error instanceof HttpError && error.status === 404) {
 				return null;
 			}
+
+			if (error instanceof HttpError) {
+				const keyReshareError = GhostableClient.keyReshareRequiredFromHttpError(error);
+				if (keyReshareError) {
+					throw keyReshareError;
+				}
+			}
+
 			throw error;
 		}
 	}
@@ -448,8 +607,8 @@ export class GhostableClient {
 		return `/projects/${p}/deploy-tokens${suffix}`;
 	}
 
-	async listDeployTokens(projectId: string, envName?: string): Promise<DeploymentToken[]> {
-		const qs = envName ? `?environment=${encodeURIComponent(envName)}` : '';
+	async listDeployTokens(projectId: string, environmentId?: string): Promise<DeploymentToken[]> {
+		const qs = environmentId ? `?environment_id=${encodeURIComponent(environmentId)}` : '';
 		const res = await this.http.get<DeploymentTokenListResponseJson>(
 			`${this.deployTokenPath(projectId)}${qs}`,
 		);

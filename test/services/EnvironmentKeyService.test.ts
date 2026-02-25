@@ -117,7 +117,9 @@ describe('EnvironmentKeyService.ensureEnvironmentKey', () => {
 		expect(result.version).toBe(7);
 		expect(result.fingerprint).toBe('cached-fingerprint');
 		expect(Buffer.from(result.key).toString('base64')).toBe(storedKey.keyB64);
-		expect(client.getEnvironmentKey).toHaveBeenCalledWith('proj-1', 'production');
+		expect(client.getEnvironmentKey).toHaveBeenCalledWith('proj-1', 'production', {
+			deviceId: identity.deviceId,
+		});
 
 		expect(keytarMock.setPassword).toHaveBeenCalledTimes(1);
 		const [serviceName, account, payload] = keytarMock.setPassword.mock.calls[0];
@@ -215,6 +217,8 @@ describe('EnvironmentKeyService.ensureEnvironmentKey', () => {
 });
 
 describe('EnvironmentKeyService.publishKeyEnvelopes', () => {
+	const validRecipientPublicKey = Buffer.alloc(32, 7).toString('base64');
+
 	const identity: DeviceIdentity = {
 		deviceId: 'device-signer',
 		createdAtIso: '2024-01-01T00:00:00.000Z',
@@ -248,7 +252,7 @@ describe('EnvironmentKeyService.publishKeyEnvelopes', () => {
 	it('signs payloads when creating a new environment key', async () => {
 		const listDevices = vi
 			.fn<GhostableClientCtor['prototype']['listDevices']>()
-			.mockResolvedValue([{ id: 'device-peer', publicKey: 'recipient-public' }]);
+			.mockResolvedValue([{ id: 'device-peer', publicKey: validRecipientPublicKey }]);
 		const listDeployTokens = vi
 			.fn<GhostableClientCtor['prototype']['listDeployTokens']>()
 			.mockResolvedValue([]);
@@ -299,7 +303,7 @@ describe('EnvironmentKeyService.publishKeyEnvelopes', () => {
 	it('signs payloads when rotating an existing environment key', async () => {
 		const listDevices = vi
 			.fn<GhostableClientCtor['prototype']['listDevices']>()
-			.mockResolvedValue([{ id: 'device-peer', publicKey: 'recipient-public' }]);
+			.mockResolvedValue([{ id: 'device-peer', publicKey: validRecipientPublicKey }]);
 		const listDeployTokens = vi
 			.fn<GhostableClientCtor['prototype']['listDeployTokens']>()
 			.mockResolvedValue([]);

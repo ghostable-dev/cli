@@ -161,3 +161,49 @@ export async function bestEffortReshareForCurrentManifest(client: GhostableClien
 		log.warn(`⚠️ Automatic key re-share skipped: ${toErrorMessage(error)}`);
 	}
 }
+
+export async function showPendingReshareRequestsForLinkedDevice(opts: {
+	client: GhostableClient;
+	organizationId: string;
+	deviceId: string;
+}): Promise<void> {
+	const { client, organizationId, deviceId } = opts;
+
+	try {
+		const pending = await client.listOrganizationKeyReshareRequests(organizationId, {
+			role: 'recipient',
+			status: 'pending',
+			deviceId,
+			perPage: 100,
+		});
+
+		if (!pending.data.length) {
+			return;
+		}
+
+		const environments = pending.data
+			.map((request) => request.environmentName ?? request.environmentId)
+			.filter((value): value is string => typeof value === 'string' && value.length > 0);
+		const uniqueEnvironments = Array.from(new Set(environments));
+
+		log.warn(
+			'⚠️ This device is waiting for environment key re-sharing before it can decrypt data.',
+		);
+		if (uniqueEnvironments.length > 0) {
+			log.info(
+				`Pending environment${uniqueEnvironments.length === 1 ? '' : 's'}: ${uniqueEnvironments.join(', ')}`,
+			);
+		}
+
+		log.info(
+			'An organization member with environment manage permissions must fulfill the pending request(s).',
+		);
+		if (pending.data[0]?.id) {
+			log.info(
+				`CLI fallback for an actor: ghostable env reshare fulfill ${pending.data[0].id}`,
+			);
+		}
+	} catch (error) {
+		log.warn(`⚠️ Could not load pending key re-share status: ${toErrorMessage(error)}`);
+	}
+}
