@@ -17,6 +17,7 @@ import { initSodium, deriveKeys, aeadDecrypt, scopeFromAAD } from '@/crypto';
 import { EnvironmentKeyService } from '@/environment/keys/EnvironmentKeyService.js';
 import { readEnvFileSafeWithMetadata, resolveEnvFile } from '@/environment/files/env-files.js';
 import { registerEnvSubcommand } from './_shared.js';
+import { printKeyReshareGuidance } from './key-reshare-guidance.js';
 
 import type { EnvironmentSecret, EnvironmentSecretBundle } from '@/entities';
 
@@ -113,6 +114,19 @@ export function registerEnvDiffCommand(program: Command) {
 							deviceId: identity.deviceId,
 						});
 					} catch (error) {
+						if (
+							await printKeyReshareGuidance({
+								error,
+								client,
+								projectId,
+								envName: envName!,
+								deviceId: identity.deviceId,
+							})
+						) {
+							process.exit(1);
+							return;
+						}
+
 						log.error(`❌ Failed to pull environment bundle: ${toErrorMessage(error)}`);
 						process.exit(1);
 						return;
@@ -145,6 +159,20 @@ export function registerEnvDiffCommand(program: Command) {
 							});
 							envKeys.set(env, key);
 						} catch (error) {
+							if (
+								await printKeyReshareGuidance({
+									error,
+									client,
+									projectId,
+									envName: env,
+									deviceId: identity.deviceId,
+									envKeyService,
+								})
+							) {
+								process.exit(1);
+								return;
+							}
+
 							log.error(
 								`❌ Failed to load environment key for ${env}: ${toErrorMessage(error)}`,
 							);

@@ -61,6 +61,14 @@ export type EnsureEnvironmentKeyResult = {
 export class EnvironmentKeyService {
 	private constructor(private readonly keytar: Keytar) {}
 
+	private static isValidX25519PublicKey(publicKeyB64: string): boolean {
+		if (!publicKeyB64) {
+			return false;
+		}
+
+		return Buffer.from(publicKeyB64, 'base64').byteLength === 32;
+	}
+
 	static async create(): Promise<EnvironmentKeyService> {
 		const keytar = await loadKeytar();
 		if (!keytar) {
@@ -187,6 +195,11 @@ export class EnvironmentKeyService {
 		);
 	}
 
+	async hasLocalEnvironmentKey(projectId: string, envName: string): Promise<boolean> {
+		const stored = await this.loadLocal(projectId, envName);
+		return stored !== null;
+	}
+
 	async ensureEnvironmentKey(opts: {
 		client: GhostableClient;
 		projectId: string;
@@ -200,7 +213,9 @@ export class EnvironmentKeyService {
 			? EnvironmentKeyService.normalizeFingerprint(cached.fingerprint)
 			: '';
 
-		const remote = await client.getEnvironmentKey(projectId, envName);
+		const remote = await client.getEnvironmentKey(projectId, envName, {
+			deviceId: identity.deviceId,
+		});
 
 		if (remote) {
 			const remoteFingerprint = EnvironmentKeyService.normalizeFingerprint(
@@ -273,6 +288,7 @@ export class EnvironmentKeyService {
 		fingerprint: string;
 		created: boolean;
 		extraDeployTokens?: DeploymentToken[];
+		requestIds?: string[];
 	}): Promise<void> {
 		const {
 			client,
@@ -285,6 +301,7 @@ export class EnvironmentKeyService {
 			fingerprint,
 			created,
 			extraDeployTokens,
+			requestIds,
 		} = opts;
 
 		const devices = await client.listDevices(projectId, envName);
@@ -307,7 +324,12 @@ export class EnvironmentKeyService {
 			key_fingerprint: fingerprint,
 		} as const;
 		for (const device of devices) {
-			if (!device.publicKey) continue;
+			if (
+				!device.publicKey ||
+				!EnvironmentKeyService.isValidX25519PublicKey(device.publicKey)
+			) {
+				continue;
+			}
 			const envelope = await EnvelopeService.encrypt({
 				sender: identity,
 				recipientPublicKey: device.publicKey,
@@ -323,7 +345,13 @@ export class EnvironmentKeyService {
 		}
 
 		for (const token of allDeployTokens) {
-			if (!token.publicKey || !isDeploymentTokenActive(token)) continue;
+			if (
+				!token.publicKey ||
+				!isDeploymentTokenActive(token) ||
+				!EnvironmentKeyService.isValidX25519PublicKey(token.publicKey)
+			) {
+				continue;
+			}
 			const envelope = await EnvelopeService.encrypt({
 				sender: identity,
 				recipientPublicKey: token.publicKey,
@@ -371,6 +399,7 @@ export class EnvironmentKeyService {
 			createEnvironmentKeyEnvelopeRequestToJSON({
 				fingerprint,
 				envelope,
+				requestIds,
 			} satisfies CreateEnvironmentKeyEnvelopeRequest);
 		const signedEnvelopeRequest: SignedCreateEnvironmentKeyEnvelopeRequestJson =
 			await EnvironmentKeyService.signPayload(unsignedEnvelopeRequest, identity);

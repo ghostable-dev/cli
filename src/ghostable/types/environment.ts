@@ -397,11 +397,13 @@ export function createEnvironmentKeyRequestToJSON(
 export type CreateEnvironmentKeyEnvelopeRequestJson = {
 	fingerprint: string;
 	envelope: EnvironmentKeyEnvelopeUploadJson;
+	request_ids?: string[];
 };
 
 export type CreateEnvironmentKeyEnvelopeRequest = {
 	fingerprint: string;
 	envelope: EnvironmentKeyEnvelopeUpload;
+	requestIds?: string[];
 };
 
 export type SignedCreateEnvironmentKeyEnvelopeRequestJson =
@@ -413,6 +415,7 @@ export function createEnvironmentKeyEnvelopeRequestToJSON(
 	return {
 		fingerprint: request.fingerprint,
 		envelope: environmentKeyEnvelopeUploadToJSON(request.envelope),
+		...(request.requestIds?.length ? { request_ids: request.requestIds } : {}),
 	};
 }
 

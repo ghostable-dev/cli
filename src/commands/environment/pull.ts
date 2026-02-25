@@ -22,6 +22,7 @@ import {
 } from '@/environment/files/env-format.js';
 import { registerEnvSubcommand } from './_shared.js';
 import { promptWithCancel } from '@/support/prompts.js';
+import { printKeyReshareGuidance } from './key-reshare-guidance.js';
 
 import type { EnvironmentSecret, EnvironmentSecretBundle } from '@/entities';
 
@@ -161,6 +162,19 @@ export function registerEnvPullCommand(program: Command) {
 							deviceId: identity.deviceId,
 						});
 					} catch (error) {
+						if (
+							await printKeyReshareGuidance({
+								error,
+								client,
+								projectId,
+								envName: envName!,
+								deviceId: identity.deviceId,
+							})
+						) {
+							process.exit(1);
+							return;
+						}
+
 						log.error(`❌ Failed to pull environment bundle: ${toErrorMessage(error)}`);
 						process.exit(1);
 						return;
@@ -202,6 +216,20 @@ export function registerEnvPullCommand(program: Command) {
 							});
 							envKeys.set(env, key);
 						} catch (error) {
+							if (
+								await printKeyReshareGuidance({
+									error,
+									client,
+									projectId,
+									envName: env,
+									deviceId: identity.deviceId,
+									envKeyService,
+								})
+							) {
+								process.exit(1);
+								return;
+							}
+
 							log.error(
 								`❌ Failed to load environment key for ${env}: ${toErrorMessage(error)}`,
 							);

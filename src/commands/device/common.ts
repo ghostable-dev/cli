@@ -8,13 +8,15 @@ export type AuthedClient = { client: GhostableClient };
 export type LinkedIdentity = Awaited<ReturnType<DeviceIdentityService['requireIdentity']>>;
 
 export async function getAuthedClient(): Promise<AuthedClient> {
-	const session = await new SessionService().load();
-	if (!session?.accessToken) {
-		log.error('❌ Not authenticated. Run `ghostable login`.');
+	const tokenFromEnv = process.env.GHOSTABLE_TOKEN?.trim() || '';
+	const session = tokenFromEnv ? null : await new SessionService().load();
+	const token = tokenFromEnv || session?.accessToken || '';
+	if (!token) {
+		log.error('❌ Not authenticated. Run `ghostable login` or set GHOSTABLE_TOKEN.');
 		process.exit(1);
 	}
 
-	const client = GhostableClient.unauthenticated(config.apiBase).withToken(session.accessToken);
+	const client = GhostableClient.unauthenticated(config.apiBase).withToken(token);
 	return { client };
 }
 

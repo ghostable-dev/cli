@@ -30,13 +30,15 @@ export async function requireProjectContext(): Promise<ProjectContext> {
 }
 
 export async function requireAuthedClient(): Promise<GhostableClient> {
-	const session = await new SessionService().load();
-	if (!session?.accessToken) {
-		log.error('❌ Not authenticated. Run `ghostable login`.');
+	const tokenFromEnv = process.env.GHOSTABLE_TOKEN?.trim() || '';
+	const session = tokenFromEnv ? null : await new SessionService().load();
+	const token = tokenFromEnv || session?.accessToken || '';
+	if (!token) {
+		log.error('❌ Not authenticated. Run `ghostable login` or set GHOSTABLE_TOKEN.');
 		process.exit(1);
 	}
 
-	return GhostableClient.unauthenticated(config.apiBase).withToken(session.accessToken);
+	return GhostableClient.unauthenticated(config.apiBase).withToken(token);
 }
 
 export async function selectEnvironment(
@@ -108,8 +110,9 @@ export async function reshareEnvironmentKey(opts: {
 	envName: string;
 	identity: DeviceIdentity;
 	extraDeployTokens?: DeploymentToken[];
+	requestIds?: string[];
 }): Promise<void> {
-	const { client, projectId, envId, envName, identity, extraDeployTokens } = opts;
+	const { client, projectId, envId, envName, identity, extraDeployTokens, requestIds } = opts;
 
 	let keyService: EnvironmentKeyService;
 	try {
@@ -136,6 +139,7 @@ export async function reshareEnvironmentKey(opts: {
 			fingerprint: keyInfo.fingerprint,
 			created: keyInfo.created,
 			extraDeployTokens,
+			requestIds,
 		});
 	} catch (error) {
 		throw new Error(`Failed to share environment key: ${toErrorMessage(error)}`);

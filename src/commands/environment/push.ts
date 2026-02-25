@@ -78,13 +78,14 @@ export async function runEnvPush(opts: PushOptions): Promise<void> {
 
 	// 3) Resolve token / org
 	const sessionSvc = new SessionService();
-	const sess = await sessionSvc.load();
-	if (!sess?.accessToken) {
-		log.error('❌ No API token. Run `ghostable login`.');
+	const tokenFromEnv = process.env.GHOSTABLE_TOKEN?.trim() || '';
+	const sess = tokenFromEnv ? null : await sessionSvc.load();
+	const token = tokenFromEnv || sess?.accessToken || '';
+	if (!token) {
+		log.error('❌ No API token. Run `ghostable login` or set GHOSTABLE_TOKEN.');
 		process.exit(1);
 	}
-	const token = sess.accessToken;
-	let orgId = sess.organizationId ?? '';
+	let orgId = sess?.organizationId ?? '';
 
 	// 4) Resolve .env file path
 	const filePath = resolveEnvFile(envName!, opts.file, true);

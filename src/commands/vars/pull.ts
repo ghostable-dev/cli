@@ -15,6 +15,7 @@ import { EnvironmentKeyService } from '@/environment/keys/EnvironmentKeyService.
 import { registerVarSubcommand } from './_shared.js';
 import { promptWithCancel } from '@/support/prompts.js';
 import { upsertEnvValue } from '@/environment/files/env-upsert.js';
+import { printKeyReshareGuidance } from '../environment/key-reshare-guidance.js';
 
 import type { EnvironmentSecret } from '@/entities';
 
@@ -150,6 +151,19 @@ export function registerVarPullCommand(program: Command) {
 							deviceId: identity.deviceId,
 						});
 					} catch (error) {
+						if (
+							await printKeyReshareGuidance({
+								error,
+								client,
+								projectId,
+								envName: envName!,
+								deviceId: identity.deviceId,
+							})
+						) {
+							process.exit(1);
+							return;
+						}
+
 						log.error(`❌ Failed to pull variable: ${toErrorMessage(error)}`);
 						process.exit(1);
 						return;
@@ -190,6 +204,20 @@ export function registerVarPullCommand(program: Command) {
 							});
 							envKeys.set(env, key);
 						} catch (error) {
+							if (
+								await printKeyReshareGuidance({
+									error,
+									client,
+									projectId,
+									envName: env,
+									deviceId: identity.deviceId,
+									envKeyService,
+								})
+							) {
+								process.exit(1);
+								return;
+							}
+
 							log.error(
 								`❌ Failed to load environment key for ${env}: ${toErrorMessage(error)}`,
 							);
