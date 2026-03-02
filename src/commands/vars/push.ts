@@ -1,5 +1,6 @@
 import { Command } from 'commander';
 import { select } from '@inquirer/prompts';
+import { spawnSync } from 'node:child_process';
 import fs from 'node:fs';
 import chalk from 'chalk';
 
@@ -7,8 +8,12 @@ import { initSodium } from '@/crypto';
 import { config } from '../../config/index.js';
 import { SessionService } from '../../services/SessionService.js';
 import { GhostableClient } from '@/ghostable';
+import { HttpError } from '@/ghostable/http/errors.js';
 import { DeviceIdentityService } from '../../services/DeviceIdentityService.js';
 import { EnvironmentKeyService } from '@/environment/keys/EnvironmentKeyService.js';
+import { detectVersionConflicts, findUntrackedServerKeys } from '@/environment/state/conflicts.js';
+import { refreshEnvironmentVersionState } from '@/environment/state/refresh.js';
+import { loadEnvironmentVersionState } from '@/environment/state/version-state.js';
 import { Manifest } from '../../support/Manifest.js';
 import { log } from '../../support/logger.js';
 import { toErrorMessage } from '../../support/errors.js';
@@ -27,7 +32,146 @@ export type VarPushOptions = {
 	key?: string;
 	file?: string;
 	token?: string;
+	conflictMode?: string;
+	forceOverwrite?: boolean;
 };
+
+const VALID_CONFLICT_MODES = ['warn', 'strict'] as const;
+type ConflictMode = (typeof VALID_CONFLICT_MODES)[number];
+
+type ApiVersionConflict = {
+	key: string;
+	serverVersion: number | null;
+	clientIfVersion: number | null;
+};
+
+type WarnConflictAction = 'pull-and-cancel' | 'continue-overwrite' | 'cancel';
+
+function resolveConflictMode(input?: string): ConflictMode {
+	const normalized = (input ?? 'warn').trim().toLowerCase();
+
+	if (normalized === 'warn' || normalized === 'strict') {
+		return normalized;
+	}
+
+	log.error(
+		`❌ Invalid --conflict-mode "${input}". Valid options: ${VALID_CONFLICT_MODES.join(', ')}`,
+	);
+	process.exit(1);
+	return 'warn';
+}
+
+function formatVersion(value: number | null): string {
+	return value === null ? 'none' : `v${value}`;
+}
+
+function parsePushConflicts(error: HttpError): ApiVersionConflict[] {
+	const raw = error.body?.trim();
+	if (!raw) {
+		return [];
+	}
+
+	try {
+		const parsed = JSON.parse(raw) as {
+			conflicts?: Array<{
+				key?: unknown;
+				server_version?: unknown;
+				client_if_version?: unknown;
+			}>;
+		};
+
+		if (!Array.isArray(parsed.conflicts)) {
+			return [];
+		}
+
+		return parsed.conflicts
+			.map((entry) => {
+				const key = typeof entry.key === 'string' ? entry.key : '';
+				const serverVersion =
+					typeof entry.server_version === 'number' &&
+					Number.isFinite(entry.server_version)
+						? Math.trunc(entry.server_version)
+						: null;
+				const clientIfVersion =
+					typeof entry.client_if_version === 'number' &&
+					Number.isFinite(entry.client_if_version)
+						? Math.trunc(entry.client_if_version)
+						: null;
+
+				return key ? { key, serverVersion, clientIfVersion } : null;
+			})
+			.filter((entry): entry is ApiVersionConflict => entry !== null);
+	} catch {
+		return [];
+	}
+}
+
+async function promptWarnConflictAction(opts: {
+	envName: string;
+	keyName: string;
+	staleCount: number;
+	untrackedCount: number;
+}): Promise<WarnConflictAction> {
+	const reasons: string[] = [];
+	if (opts.staleCount > 0) {
+		reasons.push(`${opts.staleCount} stale key`);
+	}
+	if (opts.untrackedCount > 0) {
+		reasons.push(`${opts.untrackedCount} untracked server key`);
+	}
+
+	const reasonText = reasons.length ? ` (${reasons.join(', ')})` : '';
+
+	return promptWithCancel(() =>
+		select<WarnConflictAction>({
+			message: `Remote changes detected for ${opts.envName}/${opts.keyName}${reasonText}. What should this push do?`,
+			default: 'pull-and-cancel',
+			choices: [
+				{
+					name: 'Pull latest and cancel push (Recommended)',
+					value: 'pull-and-cancel',
+					description:
+						'Stops now so you can sync with `ghostable env pull`, review updates, and push intentionally.',
+				},
+				{
+					name: 'Continue and overwrite server value',
+					value: 'continue-overwrite',
+					description:
+						'Uploads the local value now and replaces the newer server-side value for this key.',
+				},
+				{
+					name: 'Cancel without changes',
+					value: 'cancel',
+					description: 'Exits immediately without uploading anything.',
+				},
+			],
+		}),
+	);
+}
+
+function runInlineEnvPull(opts: { envName: string; file?: string; token?: string }): boolean {
+	const cliEntry = process.argv[1];
+	if (!cliEntry) {
+		return false;
+	}
+
+	const args = [cliEntry, 'env', 'pull', '--env', opts.envName];
+	if (opts.file) {
+		args.push('--file', opts.file);
+	}
+
+	const childEnv = { ...process.env };
+	if (opts.token && opts.token.trim().length > 0) {
+		childEnv.GHOSTABLE_TOKEN = opts.token;
+	}
+
+	const result = spawnSync(process.execPath, args, {
+		stdio: 'inherit',
+		env: childEnv,
+	});
+
+	return result.status === 0;
+}
 
 function resolvePlaintext(parsed: string, snapshot?: EnvVarSnapshot): string {
 	if (!snapshot) return parsed;
@@ -59,6 +203,16 @@ export function registerVarPushCommand(program: Command) {
 				)
 				.option('--file <PATH>', 'Path to .env file (default: .env.<env> or .env)')
 				.option('--token <TOKEN>', 'API token (or stored session / GHOSTABLE_TOKEN)')
+				.option(
+					'--conflict-mode <MODE>',
+					'Conflict handling mode: warn (default) or strict',
+					'warn',
+				)
+				.option(
+					'--force-overwrite',
+					'Bypass optimistic version checks and overwrite remote values',
+					false,
+				)
 				.action(async (opts: VarPushOptions) => {
 					let projectId: string;
 					let projectName: string;
@@ -170,6 +324,8 @@ export function registerVarPushCommand(program: Command) {
 					}
 
 					const target = entries.find((entry) => entry.name === keyName)!;
+					const conflictMode = resolveConflictMode(opts.conflictMode);
+					const forceOverwrite = Boolean(opts.forceOverwrite);
 
 					const sessionToken = token;
 					const client = GhostableClient.unauthenticated(config.apiBase).withToken(
@@ -216,6 +372,151 @@ export function registerVarPushCommand(program: Command) {
 						log.error(`❌ Failed to load environments: ${toErrorMessage(error)}`);
 						process.exit(1);
 						return;
+					}
+
+					const localState = loadEnvironmentVersionState(projectId, envName!);
+					let serverVersions: Record<string, number> = {};
+					let serverVersionsLoaded = false;
+					try {
+						const keysResponse = await client.getEnvironmentKeys(projectId, envName!);
+						serverVersions = {};
+						let versionCount = 0;
+						for (const entry of keysResponse.data) {
+							if (
+								typeof entry.version !== 'number' ||
+								!Number.isFinite(entry.version)
+							) {
+								continue;
+							}
+							serverVersions[entry.name] = Math.trunc(entry.version);
+							versionCount += 1;
+						}
+						if (keysResponse.data.length > 0 && versionCount === 0) {
+							if (conflictMode === 'strict' && !forceOverwrite) {
+								log.error(
+									'❌ Strict conflict mode requires server key versions, but the server response did not include any.',
+								);
+								log.error(
+									'Upgrade the Ghostable API/CLI to a build that supports `include_versions`, or use --force-overwrite.',
+								);
+								process.exit(1);
+								return;
+							}
+
+							log.warn(
+								'⚠️ Server key versions were not returned; optimistic conflict checks are unavailable for this push.',
+							);
+							serverVersionsLoaded = false;
+						} else {
+							serverVersionsLoaded = true;
+						}
+					} catch (error) {
+						if (conflictMode === 'strict' && !forceOverwrite) {
+							log.error(
+								`❌ Strict conflict mode requires current server versions, but they could not be loaded: ${toErrorMessage(error)}`,
+							);
+							process.exit(1);
+							return;
+						}
+
+						log.warn(
+							`⚠️ Could not load server-side key versions for conflict checks: ${toErrorMessage(error)}`,
+						);
+					}
+
+					const localVersions = localState?.versions ?? {};
+					const staleConflicts =
+						serverVersionsLoaded && localState
+							? detectVersionConflicts([target.name], localVersions, serverVersions)
+							: [];
+					const untrackedRemoteKeys =
+						serverVersionsLoaded && localState
+							? findUntrackedServerKeys([target.name], localVersions, serverVersions)
+							: [];
+
+					if (conflictMode === 'strict' && !forceOverwrite) {
+						if (!localState) {
+							log.error(
+								'❌ Strict conflict mode requires a local version baseline. Run `ghostable env state refresh` (or pull first) and retry.',
+							);
+							process.exit(1);
+							return;
+						}
+
+						if (staleConflicts.length || untrackedRemoteKeys.length) {
+							log.error(
+								'❌ Strict conflict mode blocked this push due to version drift for the selected key.',
+							);
+							for (const conflict of staleConflicts) {
+								log.error(
+									`  - ${conflict.key}: local ${formatVersion(conflict.clientIfVersion)} vs server ${formatVersion(conflict.serverVersion)}`,
+								);
+							}
+							for (const key of untrackedRemoteKeys) {
+								log.error(
+									`  - ${key}: server key exists but local state has no baseline version`,
+								);
+							}
+							log.error(
+								'Run `ghostable env state refresh` to update versions, or use --force-overwrite.',
+							);
+							process.exit(1);
+							return;
+						}
+					} else if (!forceOverwrite) {
+						for (const conflict of staleConflicts) {
+							log.warn(
+								`⚠️ ${conflict.key} is stale locally (${formatVersion(conflict.clientIfVersion)} vs ${formatVersion(conflict.serverVersion)}). It will be overwritten in warn mode.`,
+							);
+						}
+						for (const key of untrackedRemoteKeys) {
+							log.warn(
+								`⚠️ ${key} exists on the server without a local baseline version; optimistic conflict checks are skipped in warn mode.`,
+							);
+						}
+
+						const shouldPromptForConflictAction =
+							conflictMode === 'warn' &&
+							process.stdin.isTTY === true &&
+							process.stdout.isTTY === true &&
+							(staleConflicts.length > 0 || untrackedRemoteKeys.length > 0);
+
+						if (shouldPromptForConflictAction) {
+							const action = await promptWarnConflictAction({
+								envName: envName!,
+								keyName: target.name,
+								staleCount: staleConflicts.length,
+								untrackedCount: untrackedRemoteKeys.length,
+							});
+
+							if (action === 'pull-and-cancel') {
+								log.info('Running `ghostable env pull` to sync local values…');
+								const pulled = runInlineEnvPull({
+									envName: envName!,
+									file: opts.file,
+									token: sessionToken,
+								});
+								if (pulled) {
+									log.ok(
+										`Pulled latest values for ${envName!}. Push canceled; review changes and push again if needed.`,
+									);
+								} else {
+									log.warn(
+										`Push canceled. Pull did not complete; run \`ghostable env pull --env ${envName!}\` manually.`,
+									);
+								}
+								return;
+							}
+
+							if (action === 'cancel') {
+								log.warn('Push canceled.');
+								return;
+							}
+
+							log.warn(
+								'⚠️ Continuing in warn mode. The local value may overwrite a newer server-side value.',
+							);
+						}
 					}
 
 					await initSodium();
@@ -278,6 +579,14 @@ export function registerVarPushCommand(program: Command) {
 					}
 
 					try {
+						const localVersion = localVersions[target.name];
+						const shouldIncludeIfVersion =
+							!forceOverwrite &&
+							localState !== null &&
+							serverVersionsLoaded &&
+							localVersion !== undefined &&
+							(conflictMode === 'strict' || staleConflicts.length === 0);
+
 						const payload = await buildSecretPayload({
 							name: target.name,
 							env: envName!,
@@ -286,6 +595,7 @@ export function registerVarPushCommand(program: Command) {
 							plaintext: target.plaintext,
 							keyMaterial: keyInfo.key,
 							edPriv,
+							ifVersion: shouldIncludeIfVersion ? localVersion : undefined,
 							envKekVersion: keyInfo.version,
 							envKekFingerprint: keyInfo.fingerprint,
 							meta: {
@@ -297,14 +607,44 @@ export function registerVarPushCommand(program: Command) {
 						const requestBody = {
 							device_id: identity.deviceId,
 							secrets: [payload],
+							force_overwrite: forceOverwrite,
 						};
 						await client.push(projectId, envName!, requestBody);
+
+						try {
+							await refreshEnvironmentVersionState({
+								client,
+								projectId,
+								envName: envName!,
+								source: 'push',
+							});
+						} catch (error) {
+							log.warn(
+								`⚠️ Push succeeded, but failed to refresh local version state: ${toErrorMessage(error)}`,
+							);
+						}
+
 						log.ok(
 							`✅ Pushed ${chalk.bold(target.name)} from ${chalk.bold(
 								filePath,
 							)} to ${projectId}:${envName!}.`,
 						);
 					} catch (error) {
+						if (error instanceof HttpError && error.status === 409) {
+							const conflicts = parsePushConflicts(error);
+							if (conflicts.length) {
+								log.error('❌ Push rejected due to version conflicts:');
+								for (const conflict of conflicts) {
+									log.error(
+										`  - ${conflict.key}: local ${formatVersion(conflict.clientIfVersion)} vs server ${formatVersion(conflict.serverVersion)}`,
+									);
+								}
+								log.error(
+									'Run `ghostable env state refresh` and retry, or pass --force-overwrite.',
+								);
+							}
+						}
+
 						log.error(`❌ Failed to push variable: ${toErrorMessage(error)}`);
 						process.exit(1);
 					}

@@ -463,9 +463,12 @@ export class GhostableClient {
 	async getEnvironmentKeys(projectId: string, envName: string): Promise<EnvironmentKeysResponse> {
 		const p = encodeURIComponent(projectId);
 		const e = encodeURIComponent(envName);
+		const qs = new URLSearchParams();
+		qs.set('include_versions', '1');
+		const suffix = `?${qs.toString()}`;
 
 		const json = await this.http.get<EnvironmentKeysResponseJson>(
-			`/projects/${p}/environments/${e}/keys`,
+			`/projects/${p}/environments/${e}/keys${suffix}`,
 		);
 
 		return environmentKeysFromJSON(json);
