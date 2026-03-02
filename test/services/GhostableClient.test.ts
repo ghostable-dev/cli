@@ -104,6 +104,28 @@ describe('GhostableClient.push', () => {
 	});
 });
 
+describe('GhostableClient.getEnvironmentKeys', () => {
+	it('requests key versions for optimistic locking support', async () => {
+		const get = vi.fn(async () => ({
+			project_id: 'proj',
+			environment: 'prod',
+			count: 0,
+			data: [],
+		}));
+		const client = new GhostableClient(
+			{ get } as unknown as HttpClient,
+			{} as unknown as HttpClient,
+		);
+
+		await client.getEnvironmentKeys('proj id', 'Prod Env');
+
+		expect(get).toHaveBeenCalledTimes(1);
+		expect(get).toHaveBeenCalledWith(
+			'/projects/proj%20id/environments/Prod%20Env/keys?include_versions=1',
+		);
+	});
+});
+
 describe('GhostableClient.pull', () => {
 	it('pipes device identity via query param and header', async () => {
 		const get = vi.fn(async () => ({}));

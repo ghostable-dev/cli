@@ -447,4 +447,5 @@ export type SignedEnvironmentSecretUploadRequest = EnvironmentSecretUploadReques
 export type SignedEnvironmentSecretBatchUploadRequest = {
 	device_id?: string;
 	secrets: SignedEnvironmentSecretUploadRequest[];
+	force_overwrite?: boolean;
 };

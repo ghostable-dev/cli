@@ -23,6 +23,7 @@ import {
 import { registerEnvSubcommand } from './_shared.js';
 import { promptWithCancel } from '@/support/prompts.js';
 import { printKeyReshareGuidance } from './key-reshare-guidance.js';
+import { refreshEnvironmentVersionState } from '@/environment/state/refresh.js';
 
 import type { EnvironmentSecret, EnvironmentSecretBundle } from '@/entities';
 
@@ -428,6 +429,19 @@ export function registerEnvPullCommand(program: Command) {
 					}
 
 					fs.writeFileSync(outputPath, content, 'utf8');
+
+					try {
+						await refreshEnvironmentVersionState({
+							client,
+							projectId,
+							envName: envName!,
+							source: 'pull',
+						});
+					} catch (error) {
+						log.warn(
+							`⚠️ Updated ${outputPath}, but failed to refresh local version state: ${toErrorMessage(error)}`,
+						);
+					}
 
 					log.ok(`✅ Updated ${outputPath} for ${projectName}:${envName}.`);
 				}),
