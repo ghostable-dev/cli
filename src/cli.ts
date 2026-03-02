@@ -119,7 +119,7 @@ async function maybePromptInteractiveSubcommand(
 
 const program = new Command();
 program.name('ghostable').description('Manage Ghostable environment secrets from the CLI');
-program.version('v2.4.2');
+program.version('v2.5.0');
 await registerAllCommands(program);
 program.configureHelp({
 	subcommandTerm: (cmd) => {
