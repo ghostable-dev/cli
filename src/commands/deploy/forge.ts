@@ -16,6 +16,7 @@ import {
 	resolveDeployMasterSeed,
 	resolveToken,
 } from '../../support/deploy-helpers.js';
+import { fetchDeployBundleWithCache, formatCacheAge } from '../../support/deploy-cache.js';
 import { log } from '../../support/logger.js';
 import { toErrorMessage } from '../../support/errors.js';
 import { resolveWorkDir } from '../../support/workdir.js';
@@ -26,6 +27,7 @@ type DeployForgeOptions = {
 	encrypted?: boolean;
 	out?: string;
 	only?: string[];
+	allowStaleCache?: boolean;
 };
 
 async function runDeployForge(opts: DeployForgeOptions): Promise<void> {
@@ -53,12 +55,23 @@ async function runDeployForge(opts: DeployForgeOptions): Promise<void> {
 	const deploySpin = ora('Fetching environment secret bundle…').start();
 	let bundle: EnvironmentSecretBundle;
 	try {
-		bundle = await client.deploy({
-			includeMeta: true,
-			includeVersions: true,
+		const fetched = await fetchDeployBundleWithCache({
+			client,
+			token,
 			only: opts.only,
+			allowStaleCache: opts.allowStaleCache,
 		});
-		deploySpin.succeed('Bundle fetched.');
+		bundle = fetched.bundle;
+		if (fetched.source === 'live') {
+			deploySpin.succeed('Bundle fetched.');
+		} else {
+			deploySpin.succeed(
+				`Bundle loaded from stale cache (${formatCacheAge(fetched.cacheAgeSeconds ?? 0)} old).`,
+			);
+			log.warn(
+				`⚠️ Using stale encrypted cache due to Ghostable availability issue. Cache: ${fetched.cachePath}`,
+			);
+		}
 	} catch (error) {
 		deploySpin.fail('Failed to fetch bundle.');
 		log.error(toErrorMessage(error));
@@ -140,6 +153,11 @@ function attachForgeCommand(command: Command): Command {
 		.option('--encrypted', 'Also produce an encrypted blob via php artisan env:encrypt', false)
 		.option('--out <PATH>', 'Where to write the encrypted blob (default: .env.encrypted)')
 		.option('--only <KEY...>', 'Limit to specific keys')
+		.option(
+			'--allow-stale-cache',
+			'Allow stale encrypted cache fallback (<=24h) when Ghostable is unavailable',
+			false,
+		)
 		.action(async (opts: DeployForgeOptions) => {
 			await runDeployForge(opts);
 		});

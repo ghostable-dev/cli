@@ -50,7 +50,7 @@ type ApiVersionConflict = {
 type WarnConflictAction = 'pull-and-cancel' | 'continue-overwrite' | 'cancel';
 
 function resolveConflictMode(input?: string): ConflictMode {
-	const normalized = (input ?? 'warn').trim().toLowerCase();
+	const normalized = (input ?? 'strict').trim().toLowerCase();
 
 	if (normalized === 'warn' || normalized === 'strict') {
 		return normalized;
@@ -60,7 +60,7 @@ function resolveConflictMode(input?: string): ConflictMode {
 		`❌ Invalid --conflict-mode "${input}". Valid options: ${VALID_CONFLICT_MODES.join(', ')}`,
 	);
 	process.exit(1);
-	return 'warn';
+	return 'strict';
 }
 
 function formatVersion(value: number | null): string {
@@ -201,8 +201,8 @@ export function registerEnvPushCommand(program: Command) {
 				.option('--prune-server', 'Alias for --sync', false)
 				.option(
 					'--conflict-mode <MODE>',
-					'Conflict handling mode: warn (default) or strict',
-					'warn',
+					'Conflict handling mode: strict (default) or warn',
+					'strict',
 				)
 				.option(
 					'--force-overwrite',

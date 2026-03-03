@@ -16,6 +16,7 @@ import {
 	resolveDeployMasterSeed,
 	resolveToken,
 } from '../../support/deploy-helpers.js';
+import { fetchDeployBundleWithCache, formatCacheAge } from '../../support/deploy-cache.js';
 import { vapor } from '../../support/vapor.js';
 import { log } from '../../support/logger.js';
 import { toErrorMessage } from '../../support/errors.js';
@@ -27,6 +28,7 @@ type DeployVaporOptions = {
 	token?: string;
 	vaporEnv?: string;
 	only?: string[];
+	allowStaleCache?: boolean;
 };
 
 async function runDeployVapor(opts: DeployVaporOptions): Promise<void> {
@@ -54,12 +56,23 @@ async function runDeployVapor(opts: DeployVaporOptions): Promise<void> {
 	const deploySpin = ora('Fetching environment secret bundle…').start();
 	let bundle: EnvironmentSecretBundle;
 	try {
-		bundle = await client.deploy({
-			includeMeta: true,
-			includeVersions: true,
+		const fetched = await fetchDeployBundleWithCache({
+			client,
+			token,
 			only: opts.only,
+			allowStaleCache: opts.allowStaleCache,
 		});
-		deploySpin.succeed('Bundle fetched.');
+		bundle = fetched.bundle;
+		if (fetched.source === 'live') {
+			deploySpin.succeed('Bundle fetched.');
+		} else {
+			deploySpin.succeed(
+				`Bundle loaded from stale cache (${formatCacheAge(fetched.cacheAgeSeconds ?? 0)} old).`,
+			);
+			log.warn(
+				`⚠️ Using stale encrypted cache due to Ghostable availability issue. Cache: ${fetched.cachePath}`,
+			);
+		}
 	} catch (error) {
 		deploySpin.fail('Failed to fetch bundle.');
 		log.error(toErrorMessage(error));
@@ -128,6 +141,11 @@ function attachVaporCommand(command: Command): Command {
 		.option('--token <TOKEN>', 'Ghostable CI token (or env GHOSTABLE_CI_TOKEN)')
 		.option('--vapor-env <ENV>', 'Target Vapor environment')
 		.option('--only <KEY...>', 'Limit to specific keys')
+		.option(
+			'--allow-stale-cache',
+			'Allow stale encrypted cache fallback (<=24h) when Ghostable is unavailable',
+			false,
+		)
 		.action(async (opts: DeployVaporOptions) => {
 			await runDeployVapor(opts);
 		});
