@@ -13,6 +13,7 @@ import {
 	resolveDeployMasterSeed,
 	resolveToken,
 } from '../../support/deploy-helpers.js';
+import { fetchDeployBundleWithCache, formatCacheAge } from '../../support/deploy-cache.js';
 import { log } from '../../support/logger.js';
 import { toErrorMessage } from '../../support/errors.js';
 import { resolveWorkDir } from '../../support/workdir.js';
@@ -24,6 +25,7 @@ type EnvDeployOptions = {
 	token?: string;
 	file?: string; // default: .env
 	only?: string[]; // limit to specific keys
+	allowStaleCache?: boolean;
 };
 
 export function registerEnvDeployCommand(program: Command) {
@@ -39,6 +41,11 @@ export function registerEnvDeployCommand(program: Command) {
 				.option('--token <TOKEN>', 'Ghostable CI token (or env GHOSTABLE_CI_TOKEN)')
 				.option('--file <PATH>', 'Output file (default: .env)')
 				.option('--only <KEY...>', 'Only include these keys')
+				.option(
+					'--allow-stale-cache',
+					'Allow stale encrypted cache fallback (<=24h) when Ghostable is unavailable',
+					false,
+				)
 				.action(async (opts: EnvDeployOptions) => {
 					let masterSeedB64: string;
 					try {
@@ -64,12 +71,23 @@ export function registerEnvDeployCommand(program: Command) {
 					const spin = ora('Fetching environment secret bundle…').start();
 					let bundle: EnvironmentSecretBundle;
 					try {
-						bundle = await client.deploy({
-							includeMeta: true,
-							includeVersions: true,
+						const fetched = await fetchDeployBundleWithCache({
+							client,
+							token,
 							only: opts.only,
+							allowStaleCache: opts.allowStaleCache,
 						});
-						spin.succeed('Bundle fetched.');
+						bundle = fetched.bundle;
+						if (fetched.source === 'live') {
+							spin.succeed('Bundle fetched.');
+						} else {
+							spin.succeed(
+								`Bundle loaded from stale cache (${formatCacheAge(fetched.cacheAgeSeconds ?? 0)} old).`,
+							);
+							log.warn(
+								`⚠️ Using stale encrypted cache due to Ghostable availability issue. Cache: ${fetched.cachePath}`,
+							);
+						}
 					} catch (error) {
 						spin.fail('Failed to fetch bundle.');
 						log.error(toErrorMessage(error));

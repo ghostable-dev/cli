@@ -18,8 +18,8 @@ export function registerEnvSyncCommand(program: Command) {
 				.option('-y, --assume-yes', 'Skip confirmation prompts', false)
 				.option(
 					'--conflict-mode <MODE>',
-					'Conflict handling mode: warn (default) or strict',
-					'warn',
+					'Conflict handling mode: strict (default) or warn',
+					'strict',
 				)
 				.option(
 					'--force-overwrite',
