@@ -55,6 +55,17 @@ jobs:
             artifacts/SHA256SUMS
             artifacts/cli-sbom.cdx.json
 
+      - name: Verify release integrity artifacts
+        run: |
+          bash scripts/release-integrity-verify.sh artifacts
+
+      - name: Verify provenance attestation
+        if: github.event_name == 'release'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh attestation verify artifacts/*.tgz --repo "${{ github.repository }}"
+
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
         with:
