@@ -71,6 +71,7 @@ function renderEnvironmentHistoryTable(entries: EnvironmentHistoryEntry[]) {
 			Key: variableName,
 			Version: versionLabel,
 			Commented: entry.commented ? 'yes' : '',
+			Description: entry.description ?? '',
 		};
 		return acc;
 	}, {});

@@ -3,6 +3,7 @@ import { select } from '@inquirer/prompts';
 
 import { config } from '../../config/index.js';
 import { SessionService } from '../../services/SessionService.js';
+import { EnvironmentVariableContextService } from '../../services/EnvironmentVariableContextService.js';
 import { GhostableClient } from '@/ghostable';
 import { Manifest } from '../../support/Manifest.js';
 import { log } from '../../support/logger.js';
@@ -55,11 +56,21 @@ function renderVariableHistoryTable(entries: VariableHistoryEntry[]) {
 			Version: `v${entry.version}`,
 			Size: entry.line?.display ?? '',
 			Commented: entry.commented ? 'yes' : '',
+			Reason: entry.resolvedChangeReason ? excerptReason(entry.resolvedChangeReason) : '',
 		};
 		return acc;
 	}, {});
 
 	console.table(rows);
+}
+
+function excerptReason(value: string, max = 54): string {
+	const normalized = value.replace(/\s+/g, ' ').trim();
+	if (normalized.length <= max) {
+		return normalized;
+	}
+
+	return `${normalized.slice(0, Math.max(0, max - 1)).trimEnd()}…`;
 }
 
 async function selectVariableName(
@@ -146,6 +157,20 @@ export function registerVarHistoryCommand(program: Command) {
 						log.error(`❌ Failed to load history entries: ${toErrorMessage(error)}`);
 						process.exit(1);
 						return;
+					}
+
+					try {
+						const contextService =
+							await EnvironmentVariableContextService.create(client);
+						history.entries = await contextService.decryptHistoryEntries({
+							projectId,
+							envName,
+							entries: history.entries,
+						});
+					} catch (error) {
+						log.warn(
+							`⚠️ Change reasons could not be decrypted on this device: ${toErrorMessage(error)}`,
+						);
 					}
 
 					displayVariableHistorySummary(projectName, envName, history.variable);
