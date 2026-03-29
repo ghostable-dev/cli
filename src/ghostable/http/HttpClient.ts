@@ -48,6 +48,25 @@ export class HttpClient {
 		return (await res.json().catch(() => ({}))) as T;
 	}
 
+	async put<T>(path: string, body?: unknown, headers: HeadersInit = {}): Promise<T> {
+		const init: {
+			method: 'PUT';
+			headers: HeadersInit;
+			body?: string;
+		} = {
+			method: 'PUT',
+			headers: this.buildHeaders(headers, body !== undefined),
+		};
+
+		if (body !== undefined) {
+			init.body = JSON.stringify(body);
+		}
+
+		const res = await fetch(`${this.baseUrl}${path}`, init);
+		if (!res.ok) throw new HttpError(res.status, await res.text(), `PUT ${path} failed`);
+		return (await res.json().catch(() => ({}))) as T;
+	}
+
 	async delete<T>(path: string, headers: HeadersInit = {}): Promise<T> {
 		const res = await fetch(`${this.baseUrl}${path}`, {
 			method: 'DELETE',

@@ -57,19 +57,30 @@ import type {
 	EnvironmentKeyReshareRequestListResponseJson,
 	EnvironmentKeyReshareRequestResponseJson,
 	ListEnvironmentKeyReshareRequestsOptions,
+	CurrentUser,
+	CurrentUserJson,
+	VariableActionResponse,
+	VariableActionResponseJson,
+	VariableContextEncryptedBodyJson,
+	VariableContextEnvelope,
+	VariableContextEnvelopeResponseJson,
 } from './types/index.js';
 import {
 	environmentKeyResponseFromJSON,
 	environmentKeysFromJSON,
 	environmentKeyReshareRequestListFromJSON,
 	environmentKeyReshareRequestResponseFromJSON,
+	currentUserFromJSON,
 	deploymentTokenFromJSON,
 	variableHistoryFromJSON,
 	environmentHistoryFromJSON,
 	projectHistoryFromJSON,
 	rollbackResultFromJSON,
 	backupEnvelopeFromJSON,
+	variableActionResponseFromJSON,
+	variableContextEnvelopeFromJSON,
 } from './types/index.js';
+import { buildVariableContextRequestPayload } from '@/support/variable-context.js';
 
 type LoginResponse = { token?: string; two_factor?: boolean };
 type BrowserLoginStartResponse = {
@@ -252,6 +263,11 @@ export class GhostableClient {
 	async organizations(): Promise<Organization[]> {
 		const res = await this.http.get<{ data?: OrganizationJson[] }>('/organizations');
 		return (res.data ?? []).map(Organization.fromJSON);
+	}
+
+	async currentUser(): Promise<CurrentUser> {
+		const json = await this.http.get<CurrentUserJson>('/user');
+		return currentUserFromJSON(json);
 	}
 
 	async listOrganizationKeyReshareRequests(
@@ -486,6 +502,71 @@ export class GhostableClient {
 			`/projects/${p}/environments/${e}/variables/${v}/history`,
 		);
 		return variableHistoryFromJSON(json);
+	}
+
+	async getVariableContext(
+		projectId: string,
+		envName: string,
+		variable: string,
+	): Promise<VariableContextEnvelope> {
+		const p = encodeURIComponent(projectId);
+		const e = encodeURIComponent(envName);
+		const v = encodeURIComponent(variable);
+		const json = await this.pushHttp.get<VariableContextEnvelopeResponseJson>(
+			`/projects/${p}/environments/${e}/variables/${v}/context`,
+		);
+		return variableContextEnvelopeFromJSON(json);
+	}
+
+	async updateVariableNote(
+		projectId: string,
+		envName: string,
+		variable: string,
+		deviceId: string,
+		note: VariableContextEncryptedBodyJson,
+	): Promise<VariableActionResponse> {
+		const p = encodeURIComponent(projectId);
+		const e = encodeURIComponent(envName);
+		const v = encodeURIComponent(variable);
+		const json = await this.pushHttp.put<VariableActionResponseJson>(
+			`/projects/${p}/environments/${e}/variables/${v}/context/note`,
+			buildVariableContextRequestPayload(deviceId, 'note', note),
+		);
+		return variableActionResponseFromJSON(json);
+	}
+
+	async createVariableComment(
+		projectId: string,
+		envName: string,
+		variable: string,
+		deviceId: string,
+		comment: VariableContextEncryptedBodyJson,
+	): Promise<VariableActionResponse> {
+		const p = encodeURIComponent(projectId);
+		const e = encodeURIComponent(envName);
+		const v = encodeURIComponent(variable);
+		const json = await this.pushHttp.post<VariableActionResponseJson>(
+			`/projects/${p}/environments/${e}/variables/${v}/context/comments`,
+			buildVariableContextRequestPayload(deviceId, 'comment', comment),
+		);
+		return variableActionResponseFromJSON(json);
+	}
+
+	async deleteVariableComment(
+		projectId: string,
+		envName: string,
+		variable: string,
+		commentId: string,
+		deviceId: string,
+	): Promise<VariableActionResponse> {
+		const p = encodeURIComponent(projectId);
+		const e = encodeURIComponent(envName);
+		const v = encodeURIComponent(variable);
+		const c = encodeURIComponent(commentId);
+		const json = await this.pushHttp.delete<VariableActionResponseJson>(
+			`/projects/${p}/environments/${e}/variables/${v}/context/comments/${c}?device_id=${encodeURIComponent(deviceId)}`,
+		);
+		return variableActionResponseFromJSON(json);
 	}
 
 	async rollbackVariable(

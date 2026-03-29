@@ -1,4 +1,5 @@
 import type { AAD, CipherAlg, Claims } from '@/crypto';
+import type { VariableContextEncryptedBodyJson } from './variable-context.js';
 
 /**
  * Environment shape returned by Ghostable’s API.
@@ -434,6 +435,9 @@ export type EnvironmentSecretUploadRequest = EnvironmentSecretCommon & {
 
 	/** Indicates if the .env line was commented out locally. */
 	is_commented?: boolean;
+
+	/** Optional encrypted reason attached to the new saved version. */
+	change_note?: VariableContextEncryptedBodyJson;
 };
 
 /**

@@ -104,6 +104,30 @@ describe('GhostableClient.push', () => {
 	});
 });
 
+describe('GhostableClient.currentUser', () => {
+	it('loads the authenticated user profile', async () => {
+		const get = vi.fn(async () => ({
+			data: {
+				type: 'users',
+				id: 'user-1',
+				attributes: {
+					name: 'Dana',
+					email: 'dana@example.com',
+					created_at: '2026-03-27T12:00:00Z',
+					updated_at: '2026-03-27T12:05:00Z',
+				},
+			},
+		}));
+		const client = makeClientWithGet(get);
+
+		const currentUser = await client.currentUser();
+
+		expect(get).toHaveBeenCalledWith('/user');
+		expect(currentUser.id).toBe('user-1');
+		expect(currentUser.email).toBe('dana@example.com');
+	});
+});
+
 describe('GhostableClient.getEnvironmentKeys', () => {
 	it('requests key versions for optimistic locking support', async () => {
 		const get = vi.fn(async () => ({
@@ -183,5 +207,134 @@ describe('GhostableClient.rollbackVariable', () => {
 		expect(response.data.variable.rolledBackToVersion).toBe(3);
 		expect(response.data.snapshotId).toBe('snap-123');
 		expect(response.data.updatedBy?.label).toBe('dana@example.com');
+	});
+});
+
+describe('GhostableClient variable context', () => {
+	it('loads context for a variable', async () => {
+		const get = vi.fn(async () => ({
+			data: {
+				scope: 'variable_context',
+				environment: { id: 'env-1', name: 'production', type: 'production' },
+				variable: { id: 'secret-1', name: 'APP_KEY', latest_version: 7 },
+				note: null,
+				comments: [],
+				permissions: {
+					edit_note: true,
+					comment: true,
+					view_version_change_notes: true,
+				},
+			},
+		}));
+		const client = new GhostableClient(
+			{ get } as unknown as HttpClient,
+			{ get } as unknown as HttpClient,
+		);
+
+		const response = await client.getVariableContext('proj id', 'Prod Env', 'APP_KEY');
+
+		expect(get).toHaveBeenCalledWith(
+			'/projects/proj%20id/environments/Prod%20Env/variables/APP_KEY/context',
+		);
+		expect(response.variable.latestVersion).toBe(7);
+		expect(response.permissions.editNote).toBe(true);
+	});
+
+	it('updates the encrypted note payload', async () => {
+		const put = vi.fn(async () => ({
+			status: 'updated',
+			data: { note_id: 'note-1' },
+		}));
+		const client = new GhostableClient(
+			{ put } as unknown as HttpClient,
+			{ put } as unknown as HttpClient,
+		);
+
+		const response = await client.updateVariableNote(
+			'proj_123',
+			'production',
+			'APP_KEY',
+			'device_123',
+			{
+				ciphertext: 'b64:ciphertext',
+				nonce: 'b64:nonce',
+				alg: 'xchacha20-poly1305',
+				aad: {
+					env: 'production',
+					org: 'org_123',
+					project: 'proj_123',
+					scope: 'note',
+					variable: 'APP_KEY',
+				},
+				claims: { hmac: 'b64:hmac' },
+				client_sig: 'signature',
+			},
+		);
+
+		expect(put).toHaveBeenCalledWith(
+			'/projects/proj_123/environments/production/variables/APP_KEY/context/note',
+			expect.objectContaining({
+				device_id: 'device_123',
+				note: expect.objectContaining({
+					client_sig: 'signature',
+				}),
+			}),
+		);
+		expect(response.noteId).toBe('note-1');
+	});
+
+	it('creates a comment and appends device_id to delete requests', async () => {
+		const post = vi.fn(async () => ({
+			status: 'created',
+			data: { comment_id: 'comment-1' },
+		}));
+		const del = vi.fn(async () => ({
+			status: 'deleted',
+		}));
+		const client = new GhostableClient(
+			{ post, delete: del } as unknown as HttpClient,
+			{ post, delete: del } as unknown as HttpClient,
+		);
+
+		const createResponse = await client.createVariableComment(
+			'proj_123',
+			'production',
+			'APP_KEY',
+			'device_123',
+			{
+				ciphertext: 'b64:ciphertext',
+				nonce: 'b64:nonce',
+				alg: 'xchacha20-poly1305',
+				aad: {
+					env: 'production',
+					org: 'org_123',
+					project: 'proj_123',
+					scope: 'comment',
+					variable: 'APP_KEY',
+				},
+				claims: { hmac: 'b64:hmac' },
+				client_sig: 'signature',
+			},
+		);
+
+		const deleteResponse = await client.deleteVariableComment(
+			'proj_123',
+			'production',
+			'APP_KEY',
+			'comment_123',
+			'device_123',
+		);
+
+		expect(post).toHaveBeenCalledWith(
+			'/projects/proj_123/environments/production/variables/APP_KEY/context/comments',
+			expect.objectContaining({
+				device_id: 'device_123',
+			}),
+		);
+		expect(del).toHaveBeenCalledWith(
+			'/projects/proj_123/environments/production/variables/APP_KEY/context/comments/comment_123?device_id=device_123',
+		);
+		expect(createResponse.commentId).toBe('comment-1');
+		expect(deleteResponse.status).toBe('deleted');
 	});
 });

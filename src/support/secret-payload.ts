@@ -1,5 +1,6 @@
 import { aeadEncrypt, b64, deriveKeys, edSign, hmacSHA256 } from '@/crypto';
 import type { SignedEnvironmentSecretUploadRequest } from '@/ghostable/types/environment.js';
+import type { VariableContextEncryptedBodyJson } from '@/ghostable/types/variable-context.js';
 import type { AAD, Claims } from '@/crypto';
 
 type SecretUploadMetadata = {
@@ -17,6 +18,7 @@ export async function buildSecretPayload(opts: {
 	keyMaterial: Uint8Array;
 	edPriv: Uint8Array;
 	ifVersion?: number;
+	changeNote?: VariableContextEncryptedBodyJson;
 	envKekVersion?: number;
 	envKekFingerprint?: string;
 	meta?: SecretUploadMetadata;
@@ -30,6 +32,7 @@ export async function buildSecretPayload(opts: {
 		keyMaterial,
 		edPriv,
 		ifVersion,
+		changeNote,
 		envKekVersion,
 		envKekFingerprint,
 		meta,
@@ -46,7 +49,7 @@ export async function buildSecretPayload(opts: {
 
 	const metadata = meta ?? {};
 
-	const body = {
+	const body: Omit<SignedEnvironmentSecretUploadRequest, 'client_sig'> = {
 		name,
 		env,
 		ciphertext: bundle.ciphertext,
@@ -62,6 +65,7 @@ export async function buildSecretPayload(opts: {
 			? { is_vapor_secret: metadata.isVaporSecret }
 			: {}),
 		...(metadata.isCommented !== undefined ? { is_commented: metadata.isCommented } : {}),
+		...(changeNote ? { change_note: changeNote } : {}),
 	};
 
 	const bytes = new TextEncoder().encode(JSON.stringify(body));

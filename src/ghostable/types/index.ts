@@ -8,3 +8,5 @@ export * from './history.js';
 export * from './rollback.js';
 export * from './backup.js';
 export * from './key-reshare.js';
+export * from './user.js';
+export * from './variable-context.js';

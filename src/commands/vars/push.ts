@@ -1,5 +1,5 @@
 import { Command } from 'commander';
-import { select } from '@inquirer/prompts';
+import { input, select } from '@inquirer/prompts';
 import { spawnSync } from 'node:child_process';
 import fs from 'node:fs';
 import chalk from 'chalk';
@@ -26,6 +26,7 @@ import { getIgnoredKeys, filterIgnoredKeys } from '../../support/ignore.js';
 import { buildSecretPayload } from '../../support/secret-payload.js';
 import { registerVarSubcommand } from './_shared.js';
 import { promptWithCancel } from '@/support/prompts.js';
+import { buildEncryptedVariableContextBody } from '@/support/variable-context.js';
 
 export type VarPushOptions = {
 	env?: string;
@@ -519,6 +520,18 @@ export function registerVarPushCommand(program: Command) {
 						}
 					}
 
+					let changeReason: string | undefined;
+					if (process.stdin.isTTY === true && process.stdout.isTTY === true) {
+						const enteredReason = await promptWithCancel(() =>
+							input({
+								message: 'Reason for change (optional)',
+								default: '',
+							}),
+						);
+
+						changeReason = enteredReason.trim() || undefined;
+					}
+
 					await initSodium();
 
 					let identityService: DeviceIdentityService;
@@ -587,6 +600,19 @@ export function registerVarPushCommand(program: Command) {
 							localVersion !== undefined &&
 							(conflictMode === 'strict' || staleConflicts.length === 0);
 
+						const changeNote = changeReason
+							? await buildEncryptedVariableContextBody({
+									orgId: orgId,
+									projectId,
+									environmentName: envName!,
+									variableName: target.name,
+									scope: 'change_note',
+									plaintext: changeReason,
+									keyMaterial: keyInfo.key,
+									signingPrivateKey: edPriv,
+								})
+							: undefined;
+
 						const payload = await buildSecretPayload({
 							name: target.name,
 							env: envName!,
@@ -596,6 +622,7 @@ export function registerVarPushCommand(program: Command) {
 							keyMaterial: keyInfo.key,
 							edPriv,
 							ifVersion: shouldIncludeIfVersion ? localVersion : undefined,
+							changeNote,
 							envKekVersion: keyInfo.version,
 							envKekFingerprint: keyInfo.fingerprint,
 							meta: {

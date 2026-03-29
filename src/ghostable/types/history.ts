@@ -1,3 +1,8 @@
+import type {
+	VariableContextEncryptedBody,
+	VariableContextEncryptedBodyJson,
+} from './variable-context.js';
+
 export type HistoryActorJson = {
 	type: string;
 	id?: string | null;
@@ -92,6 +97,7 @@ export type VariableHistoryEntryJson = {
 	line?: HistoryLineJson | null;
 	commented?: boolean;
 	version_id?: string | null;
+	change_note?: VariableHistoryChangeNoteJson | null;
 };
 
 export type VariableHistoryEntry = {
@@ -104,6 +110,40 @@ export type VariableHistoryEntry = {
 	line: HistoryLine | null;
 	commented: boolean;
 	versionId: string | null;
+	changeNote: VariableHistoryChangeNote | null;
+	resolvedChangeReason?: string | null;
+};
+
+export type VariableHistoryChangeNoteJson = {
+	id: string;
+	created_at?: string | null;
+	actor?: HistoryActorJson | null;
+	body: VariableContextEncryptedBodyJson;
+};
+
+export type VariableHistoryChangeNote = {
+	id: string;
+	createdAt: string | null;
+	actor: HistoryActor | null;
+	body: VariableContextEncryptedBody;
+};
+
+export type VariableHistoryMetaJson = {
+	limit?: number | null;
+	truncated?: boolean | null;
+	more_url?: string | null;
+	permissions?: {
+		view_version_change_notes?: boolean | null;
+	} | null;
+};
+
+export type VariableHistoryMeta = {
+	limit: number | null;
+	truncated: boolean;
+	moreUrl: string | null;
+	permissions: {
+		viewVersionChangeNotes: boolean;
+	};
 };
 
 export type VariableHistoryResponseJson = {
@@ -112,6 +152,7 @@ export type VariableHistoryResponseJson = {
 		environment: HistoryEnvironmentRefJson;
 		variable: VariableHistorySummaryJson;
 		entries: VariableHistoryEntryJson[];
+		meta?: VariableHistoryMetaJson | null;
 	};
 };
 
@@ -120,6 +161,7 @@ export type VariableHistoryResponse = {
 	environment: HistoryEnvironmentRef;
 	variable: VariableHistorySummary;
 	entries: VariableHistoryEntry[];
+	meta: VariableHistoryMeta | null;
 };
 
 export type EnvironmentHistorySummaryJson = {
@@ -146,6 +188,7 @@ export type EnvironmentHistoryEntryJson = {
 	kek?: HistoryKekJson | null;
 	line?: HistoryLineJson | null;
 	commented?: boolean;
+	description?: string | null;
 };
 
 export type EnvironmentHistoryEntry = {
@@ -158,6 +201,7 @@ export type EnvironmentHistoryEntry = {
 	kek: HistoryKek | null;
 	line: HistoryLine | null;
 	commented: boolean;
+	description: string | null;
 };
 
 export type EnvironmentHistoryResponseJson = {
@@ -208,6 +252,7 @@ export type ProjectHistoryEntryJson = {
 	kek?: HistoryKekJson | null;
 	line?: HistoryLineJson | null;
 	commented?: boolean;
+	description?: string | null;
 };
 
 export type ProjectHistoryEntry = {
@@ -223,6 +268,7 @@ export type ProjectHistoryEntry = {
 	kek: HistoryKek | null;
 	line: HistoryLine | null;
 	commented: boolean;
+	description: string | null;
 };
 
 export type ProjectHistoryResponseJson = {
@@ -275,6 +321,55 @@ function historyEnvironmentRefFromJSON(json: HistoryEnvironmentRefJson): History
 	};
 }
 
+function variableContextEncryptedBodyFromJSON(
+	json: VariableContextEncryptedBodyJson,
+): VariableContextEncryptedBody {
+	return {
+		ciphertext: json.ciphertext,
+		nonce: json.nonce,
+		alg: json.alg,
+		aad: json.aad ?? {},
+		claims: json.claims
+			? {
+					hmac: json.claims.hmac ?? null,
+				}
+			: null,
+		clientSig: json.client_sig ?? null,
+	};
+}
+
+function variableHistoryChangeNoteFromJSON(
+	json?: VariableHistoryChangeNoteJson | null,
+): VariableHistoryChangeNote | null {
+	if (!json) {
+		return null;
+	}
+
+	return {
+		id: json.id,
+		createdAt: json.created_at ?? null,
+		actor: historyActorFromJSON(json.actor),
+		body: variableContextEncryptedBodyFromJSON(json.body),
+	};
+}
+
+function variableHistoryMetaFromJSON(
+	json?: VariableHistoryMetaJson | null,
+): VariableHistoryMeta | null {
+	if (!json) {
+		return null;
+	}
+
+	return {
+		limit: typeof json.limit === 'number' ? json.limit : null,
+		truncated: Boolean(json.truncated),
+		moreUrl: json.more_url ?? null,
+		permissions: {
+			viewVersionChangeNotes: Boolean(json.permissions?.view_version_change_notes),
+		},
+	};
+}
+
 function historyEntryVariableFromJSON(
 	json?: HistoryEntryVariableJson | null,
 ): HistoryEntryVariable | null {
@@ -314,6 +409,7 @@ function variableHistoryEntryFromJSON(json: VariableHistoryEntryJson): VariableH
 		line: historyLineFromJSON(json.line),
 		commented: Boolean(json.commented),
 		versionId: json.version_id ?? json.variable?.version_id ?? null,
+		changeNote: variableHistoryChangeNoteFromJSON(json.change_note),
 	};
 }
 
@@ -345,6 +441,7 @@ function environmentHistoryEntryFromJSON(
 		kek: historyKekFromJSON(json.kek),
 		line: historyLineFromJSON(json.line),
 		commented: Boolean(json.commented),
+		description: json.description ?? null,
 	};
 }
 
@@ -382,6 +479,7 @@ function projectHistoryEntryFromJSON(json: ProjectHistoryEntryJson): ProjectHist
 		kek: historyKekFromJSON(json.kek),
 		line: historyLineFromJSON(json.line),
 		commented: Boolean(json.commented),
+		description: json.description ?? null,
 	};
 }
 
@@ -393,6 +491,7 @@ export function variableHistoryFromJSON(
 		environment: historyEnvironmentRefFromJSON(json.data.environment),
 		variable: variableSummaryFromJSON(json.data.variable),
 		entries: json.data.entries.map(variableHistoryEntryFromJSON),
+		meta: variableHistoryMetaFromJSON(json.data.meta),
 	};
 }
 
