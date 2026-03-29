@@ -488,7 +488,17 @@ describe('env push ignore behaviour', () => {
 
 		const program = new Command();
 		registerEnvPushCommand(program);
-		await program.parseAsync(['node', 'test', 'env', 'push', '--env', 'prod', '--assume-yes']);
+		await program.parseAsync([
+			'node',
+			'test',
+			'env',
+			'push',
+			'--env',
+			'prod',
+			'--assume-yes',
+			'--conflict-mode',
+			'warn',
+		]);
 
 		expect(ensureEnvironmentKeyMock).toHaveBeenCalledTimes(1);
 		expect(publishKeyEnvelopesMock).not.toHaveBeenCalled();
@@ -543,6 +553,8 @@ describe('env push ignore behaviour', () => {
 			'--env',
 			'prod',
 			'--assume-yes',
+			'--conflict-mode',
+			'warn',
 			'--sync',
 		]);
 
