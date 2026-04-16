@@ -342,4 +342,47 @@ describe('EnvironmentKeyService.publishKeyEnvelopes', () => {
 		expect(payload.client_sig).toBe(Buffer.from([0xca, 0xfe]).toString('base64'));
 		expect(payload.fingerprint).toBe('local-fingerprint');
 	});
+
+	it('forwards request_ids when publishing key envelopes for recovery', async () => {
+		const listDevices = vi
+			.fn<GhostableClientCtor['prototype']['listDevices']>()
+			.mockResolvedValue([{ id: 'device-peer', publicKey: validRecipientPublicKey }]);
+		const listDeployTokens = vi
+			.fn<GhostableClientCtor['prototype']['listDeployTokens']>()
+			.mockResolvedValue([]);
+		const createEnvironmentKey =
+			vi.fn<GhostableClientCtor['prototype']['createEnvironmentKey']>();
+		const createEnvironmentKeyEnvelope = vi
+			.fn<GhostableClientCtor['prototype']['createEnvironmentKeyEnvelope']>()
+			.mockResolvedValue();
+		const client = {
+			listDevices,
+			listDeployTokens,
+			createEnvironmentKey,
+			createEnvironmentKeyEnvelope,
+		} as unknown as GhostableClientCtor['prototype'];
+
+		edSignMock.mockResolvedValueOnce(new Uint8Array([0xbe, 0xef]));
+		keytarMock.setPassword.mockResolvedValue();
+
+		const service = await EnvironmentKeyService.create();
+		await service.publishKeyEnvelopes({
+			client,
+			projectId: 'proj-3',
+			envId: 'env-3',
+			envName: 'production',
+			identity,
+			key: new Uint8Array([8, 8, 8]),
+			version: 6,
+			fingerprint: 'fingerprint-recovery',
+			created: false,
+			requestIds: ['req_1', 'req_2'],
+		});
+
+		expect(createEnvironmentKeyEnvelope).toHaveBeenCalledTimes(1);
+		const [, , payload] = createEnvironmentKeyEnvelope.mock.calls[0];
+		expect(payload.request_ids).toEqual(['req_1', 'req_2']);
+		expect(payload.device_id).toBe(identity.deviceId);
+		expect(payload.client_sig).toBe(Buffer.from([0xbe, 0xef]).toString('base64'));
+	});
 });
