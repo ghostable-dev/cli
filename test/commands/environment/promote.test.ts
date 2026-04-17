@@ -1,5 +1,6 @@
 import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { Command } from 'commander';
+import { KeyReshareRequiredError } from '../../../src/ghostable/key-reshare-errors.js';
 
 const selectMock = vi.hoisted(() => vi.fn());
 const confirmMock = vi.hoisted(() => vi.fn());
@@ -13,6 +14,12 @@ const reshareEnvironmentKeyMock = vi.hoisted(() => vi.fn());
 const buildSecretPayloadMock = vi.hoisted(() => vi.fn());
 const ensureEnvironmentKeyMock = vi.hoisted(() => vi.fn());
 const environmentKeyServiceCreateMock = vi.hoisted(() => vi.fn());
+const initSodiumMock = vi.hoisted(() => vi.fn());
+const scopeFromAADMock = vi.hoisted(() => vi.fn());
+const deriveKeysMock = vi.hoisted(() => vi.fn());
+const aeadDecryptMock = vi.hoisted(() => vi.fn());
+const deviceIdentityCreateMock = vi.hoisted(() => vi.fn());
+const deviceIdentityRequireIdentityMock = vi.hoisted(() => vi.fn());
 
 const logInfoMock = vi.hoisted(() => vi.fn());
 const logWarnMock = vi.hoisted(() => vi.fn());
@@ -59,6 +66,19 @@ vi.mock('../../../src/environment/keys/EnvironmentKeyService.js', () => ({
 
 vi.mock('../../../src/support/secret-payload.js', () => ({
 	buildSecretPayload: buildSecretPayloadMock,
+}));
+
+vi.mock('@/crypto', () => ({
+	initSodium: initSodiumMock,
+	scopeFromAAD: scopeFromAADMock,
+	deriveKeys: deriveKeysMock,
+	aeadDecrypt: aeadDecryptMock,
+}));
+
+vi.mock('../../../src/services/DeviceIdentityService.js', () => ({
+	DeviceIdentityService: {
+		create: deviceIdentityCreateMock,
+	},
 }));
 
 type RegisterEnvPromoteCommand =
@@ -111,12 +131,42 @@ beforeEach(() => {
 		claims: { hmac: 'hmac' },
 		client_sig: 'signature',
 	});
+
+	initSodiumMock.mockResolvedValue(undefined);
+	scopeFromAADMock.mockReturnValue('scope');
+	deriveKeysMock.mockReturnValue({
+		encKey: new Uint8Array([9, 9, 9]),
+	});
+	aeadDecryptMock.mockReturnValue(new TextEncoder().encode('decrypted-value'));
+	deviceIdentityRequireIdentityMock.mockResolvedValue({
+		deviceId: 'device_123',
+		signingKey: {
+			privateKey: Buffer.from('signing-private-key').toString('base64'),
+		},
+	});
+	deviceIdentityCreateMock.mockResolvedValue({
+		requireIdentity: deviceIdentityRequireIdentityMock,
+	});
 });
 
 function createProgram(): Command {
 	const program = new Command();
 	registerEnvPromoteCommand(program);
 	return program;
+}
+
+function setInteractiveTTY(enabled: boolean): () => void {
+	const stdin = process.stdin as NodeJS.ReadStream & { isTTY?: boolean };
+	const stdout = process.stdout as NodeJS.WriteStream & { isTTY?: boolean };
+	const previousStdin = stdin.isTTY;
+	const previousStdout = stdout.isTTY;
+	stdin.isTTY = enabled;
+	stdout.isTTY = enabled;
+
+	return () => {
+		stdin.isTTY = previousStdin;
+		stdout.isTTY = previousStdout;
+	};
 }
 
 describe('env promote command', () => {
@@ -395,5 +445,374 @@ describe('env promote command', () => {
 			}),
 		);
 		expect(inputMock).not.toHaveBeenCalled();
+	});
+
+	it('retries create once after key-share recovery and reuses idempotency key', async () => {
+		selectMock
+			.mockResolvedValueOnce('env_local')
+			.mockResolvedValueOnce('env_prod')
+			.mockResolvedValueOnce('APP_DEBUG');
+		confirmMock.mockResolvedValueOnce(false).mockResolvedValueOnce(true);
+
+		const keyReshareError = new KeyReshareRequiredError({
+			pendingRequestIds: ['req_create_1'],
+			requiredKeyVersion: 3,
+			organizationId: 'org_123',
+			projectId: 'proj_123',
+			environmentId: 'env_prod',
+			environmentName: 'production',
+		});
+
+		const client = {
+			getEnvironments: vi.fn(async () => [
+				{ id: 'env_local', name: 'local', type: 'development' },
+				{ id: 'env_prod', name: 'production', type: 'production' },
+			]),
+			getEnvironmentKeys: vi.fn(async () => ({
+				data: [{ name: 'APP_DEBUG', version: 1 }],
+			})),
+			previewVariablePromotionRequest: vi.fn(async () => ({
+				source_environment_id: 'env_local',
+				source_environment_name: 'local',
+				target_environment_id: 'env_prod',
+				target_environment_name: 'production',
+				total_entries: 1,
+				can_view_target_variables: true,
+				creates_count: 1,
+				updates_count: 0,
+				overlap_count: 0,
+			})),
+			getProject: vi.fn(async () => ({ id: 'proj_123', organizationId: 'org_123' })),
+			createVariablePromotionRequest: vi
+				.fn()
+				.mockRejectedValueOnce(keyReshareError)
+				.mockResolvedValueOnce({ data: { id: 'promo_retry' } }),
+		};
+
+		requireAuthedClientMock.mockResolvedValue(client);
+
+		const program = createProgram();
+		await program.parseAsync([
+			'node',
+			'ghostable',
+			'env',
+			'promote',
+			'--idempotency-key',
+			'idem-create-retry',
+		]);
+
+		expect(reshareEnvironmentKeyMock).toHaveBeenCalledWith(
+			expect.objectContaining({
+				projectId: 'proj_123',
+				envName: 'production',
+				requestIds: ['req_create_1'],
+			}),
+		);
+		expect(client.createVariablePromotionRequest).toHaveBeenCalledTimes(2);
+		expect(client.createVariablePromotionRequest.mock.calls[0]?.[3]).toEqual({
+			idempotencyKey: 'idem-create-retry',
+		});
+		expect(client.createVariablePromotionRequest.mock.calls[1]?.[3]).toEqual({
+			idempotencyKey: 'idem-create-retry',
+		});
+	});
+
+	it('retries approve once after key-share recovery', async () => {
+		const promotionRequest = {
+			type: 'environment-variable-promotion-requests',
+			id: 'promo_approve_retry',
+			attributes: {
+				source_environment_name: 'local',
+				target_environment_name: 'production',
+				target_environment_id: 'env_prod',
+				status: 'pending',
+				entry_count: 1,
+				include_values: true,
+				entries: [
+					{
+						name: 'APP_URL',
+						line_bytes: 16,
+						is_commented: false,
+						has_payload: false,
+						source_value_present: false,
+					},
+				],
+			},
+		};
+
+		const keyReshareError = new KeyReshareRequiredError({
+			pendingRequestIds: ['req_approve_1'],
+			requiredKeyVersion: 4,
+			organizationId: 'org_123',
+			projectId: 'proj_123',
+			environmentId: 'env_prod',
+			environmentName: 'production',
+		});
+
+		const client = {
+			getEnvironments: vi.fn(async () => [
+				{ id: 'env_local', name: 'local', type: 'development' },
+				{ id: 'env_prod', name: 'production', type: 'production' },
+			]),
+			listVariablePromotionRequests: vi
+				.fn()
+				.mockImplementation(async (_projectId: string, envName: string) =>
+					envName === 'local' ? [promotionRequest] : [],
+				),
+			getProject: vi.fn(async () => ({ id: 'proj_123', organizationId: 'org_123' })),
+			approveVariablePromotionRequest: vi
+				.fn()
+				.mockRejectedValueOnce(keyReshareError)
+				.mockResolvedValueOnce({
+					...promotionRequest,
+					attributes: {
+						...promotionRequest.attributes,
+						status: 'approved',
+					},
+				}),
+		};
+
+		requireAuthedClientMock.mockResolvedValue(client);
+
+		const program = createProgram();
+		await program.parseAsync([
+			'node',
+			'ghostable',
+			'env',
+			'promote',
+			'approve',
+			'promo_approve_retry',
+			'--set',
+			'APP_URL=https://retry.example.com',
+		]);
+
+		expect(reshareEnvironmentKeyMock).toHaveBeenCalledWith(
+			expect.objectContaining({
+				projectId: 'proj_123',
+				envName: 'production',
+				requestIds: ['req_approve_1'],
+			}),
+		);
+		expect(client.approveVariablePromotionRequest).toHaveBeenCalledTimes(2);
+	});
+
+	it('propagates source metadata when include-values is enabled', async () => {
+		selectMock
+			.mockResolvedValueOnce('env_local')
+			.mockResolvedValueOnce('env_prod')
+			.mockResolvedValueOnce('APP_URL');
+
+		buildSecretPayloadMock.mockImplementation(async (opts) => ({
+			name: opts.name,
+			env: opts.env,
+			ciphertext: 'ciphertext',
+			nonce: 'nonce',
+			alg: 'xchacha20-poly1305',
+			aad: {
+				org: opts.org,
+				project: opts.project,
+				env: opts.env,
+				name: opts.name,
+			},
+			claims: { hmac: 'hmac' },
+			client_sig: 'signature',
+		}));
+
+		aeadDecryptMock.mockReturnValue(new TextEncoder().encode('https://api.example.com'));
+
+		const client = {
+			getEnvironments: vi.fn(async () => [
+				{ id: 'env_local', name: 'local', type: 'development' },
+				{ id: 'env_prod', name: 'production', type: 'production' },
+			]),
+			getEnvironmentKeys: vi.fn(async () => ({
+				data: [{ name: 'APP_URL', version: 1 }],
+			})),
+			previewVariablePromotionRequest: vi.fn(async () => ({
+				source_environment_id: 'env_local',
+				source_environment_name: 'local',
+				target_environment_id: 'env_prod',
+				target_environment_name: 'production',
+				total_entries: 1,
+				can_view_target_variables: true,
+				creates_count: 0,
+				updates_count: 1,
+				overlap_count: 1,
+			})),
+			getProject: vi.fn(async () => ({ id: 'proj_123', organizationId: 'org_123' })),
+			pull: vi.fn(async () => ({
+				env: 'local',
+				chain: ['local'],
+				secrets: [
+					{
+						env: 'local',
+						name: 'APP_URL',
+						alg: 'xchacha20-poly1305',
+						nonce: 'nonce',
+						ciphertext: 'ciphertext',
+						aad: {
+							org: 'org_123',
+							project: 'proj_123',
+							env: 'local',
+							name: 'APP_URL',
+						},
+						meta: {
+							line_bytes: 44,
+							is_commented: true,
+						},
+						version: 9,
+					},
+				],
+			})),
+			createVariablePromotionRequest: vi.fn(async () => ({
+				data: { id: 'promo_include_values' },
+			})),
+		};
+
+		requireAuthedClientMock.mockResolvedValue(client);
+
+		const program = createProgram();
+		await program.parseAsync([
+			'node',
+			'ghostable',
+			'env',
+			'promote',
+			'--include-values',
+			'--yes',
+		]);
+
+		expect(client.pull).toHaveBeenCalledWith('proj_123', 'local', {
+			includeMeta: true,
+			includeVersions: true,
+			only: ['APP_URL'],
+			deviceId: 'device_123',
+		});
+		expect(buildSecretPayloadMock).toHaveBeenCalledWith(
+			expect.objectContaining({
+				name: 'APP_URL',
+				plaintext: 'https://api.example.com',
+				meta: {
+					lineBytes: 44,
+					isCommented: true,
+				},
+			}),
+		);
+		const payload = client.createVariablePromotionRequest.mock.calls[0]?.[2];
+		expect(payload.include_values).toBe(true);
+		expect(payload.entries[0]).toEqual(
+			expect.objectContaining({
+				name: 'APP_URL',
+				source_if_version: 9,
+				line_bytes: 44,
+				is_commented: true,
+				source_value_present: true,
+			}),
+		);
+	});
+
+	it('routes root promote command to guided review in interactive mode', async () => {
+		const restoreTTY = setInteractiveTTY(true);
+		try {
+			selectMock
+				.mockResolvedValueOnce('review')
+				.mockResolvedValueOnce('promo_1')
+				.mockResolvedValueOnce('reject');
+			inputMock.mockResolvedValueOnce('Not now');
+
+			const request = {
+				type: 'environment-variable-promotion-requests',
+				id: 'promo_1',
+				attributes: {
+					source_environment_name: 'local',
+					target_environment_name: 'production',
+					target_environment_id: 'env_prod',
+					status: 'pending',
+					entry_count: 1,
+					entries: [{ name: 'APP_URL' }],
+					include_values: false,
+				},
+			};
+
+			const client = {
+				getEnvironments: vi.fn(async () => [
+					{ id: 'env_local', name: 'local', type: 'development' },
+					{ id: 'env_prod', name: 'production', type: 'production' },
+				]),
+				listVariablePromotionRequests: vi
+					.fn()
+					.mockImplementation(async (_projectId: string, envName: string) =>
+						envName === 'local' ? [request] : [],
+					),
+				rejectVariablePromotionRequest: vi.fn(async () => request),
+			};
+
+			requireAuthedClientMock.mockResolvedValue(client);
+
+			const program = createProgram();
+			await program.parseAsync(['node', 'ghostable', 'env', 'promote']);
+
+			expect(client.rejectVariablePromotionRequest).toHaveBeenCalledWith(
+				'proj_123',
+				'local',
+				'promo_1',
+				'Not now',
+			);
+		} finally {
+			restoreTTY();
+		}
+	});
+
+	it('bypasses root promote menu when explicit create flags are provided', async () => {
+		const restoreTTY = setInteractiveTTY(true);
+		try {
+			confirmMock.mockResolvedValueOnce(false);
+
+			const client = {
+				getEnvironments: vi.fn(async () => [
+					{ id: 'env_local', name: 'local', type: 'development' },
+					{ id: 'env_prod', name: 'production', type: 'production' },
+				]),
+				getEnvironmentKeys: vi.fn(async () => ({
+					data: [{ name: 'APP_DEBUG', version: 1 }],
+				})),
+				previewVariablePromotionRequest: vi.fn(async () => ({
+					source_environment_id: 'env_local',
+					source_environment_name: 'local',
+					target_environment_id: 'env_prod',
+					target_environment_name: 'production',
+					total_entries: 1,
+					can_view_target_variables: true,
+					creates_count: 1,
+					updates_count: 0,
+					overlap_count: 0,
+				})),
+				getProject: vi.fn(async () => ({ id: 'proj_123', organizationId: 'org_123' })),
+				createVariablePromotionRequest: vi.fn(async () => ({
+					data: { id: 'promo_explicit' },
+				})),
+			};
+
+			requireAuthedClientMock.mockResolvedValue(client);
+
+			const program = createProgram();
+			await program.parseAsync([
+				'node',
+				'ghostable',
+				'env',
+				'promote',
+				'--source-env',
+				'local',
+				'--target-env',
+				'production',
+				'--keys',
+				'APP_DEBUG',
+				'--yes',
+			]);
+
+			expect(client.createVariablePromotionRequest).toHaveBeenCalledTimes(1);
+			expect(selectMock).not.toHaveBeenCalled();
+		} finally {
+			restoreTTY();
+		}
 	});
 });
