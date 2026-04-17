@@ -338,3 +338,309 @@ describe('GhostableClient variable context', () => {
 		expect(deleteResponse.status).toBe('deleted');
 	});
 });
+
+describe('GhostableClient variable promotion requests', () => {
+	it('previews promotion effects for selected keys', async () => {
+		const post = vi.fn(async () => ({
+			data: {
+				source_environment_id: 'env-source',
+				source_environment_name: 'local',
+				target_environment_id: 'env-target',
+				target_environment_name: 'production',
+				total_entries: 2,
+				can_view_target_variables: true,
+				creates_count: 1,
+				updates_count: 1,
+				overlap_count: 1,
+				overlapping_keys: ['APP_KEY'],
+			},
+		}));
+
+		const client = new GhostableClient(
+			{ post } as unknown as HttpClient,
+			{} as unknown as HttpClient,
+		);
+
+		const preview = await client.previewVariablePromotionRequest('proj_123', 'local', {
+			target_environment_id: 'env-target',
+			entries: [{ name: 'APP_KEY' }, { name: 'APP_DEBUG' }],
+		});
+
+		expect(post).toHaveBeenCalledWith(
+			'/projects/proj_123/environments/local/promotion-requests/preview',
+			expect.objectContaining({
+				target_environment_id: 'env-target',
+			}),
+		);
+		expect(preview.total_entries).toBe(2);
+		expect(preview.updates_count).toBe(1);
+	});
+
+	it('creates requests with idempotency headers and returns the created resource', async () => {
+		const post = vi.fn(async () => ({
+			data: {
+				type: 'environment-variable-promotion-requests',
+				id: 'promo_123',
+				attributes: {
+					organization_id: 'org_123',
+					project_id: 'proj_123',
+					source_environment_id: 'env_source',
+					target_environment_id: 'env_target',
+					status: 'pending',
+					include_values: false,
+					entry_count: 1,
+					entries: [{ name: 'APP_KEY' }],
+				},
+			},
+			meta: { code: 'PROMOTION_REQUIRES_APPROVAL' },
+		}));
+
+		const client = new GhostableClient(
+			{ post } as unknown as HttpClient,
+			{} as unknown as HttpClient,
+		);
+
+		const response = await client.createVariablePromotionRequest(
+			'proj_123',
+			'local',
+			{
+				device_id: 'device_123',
+				target_environment_id: 'env_target',
+				include_values: false,
+				entries: [
+					{
+						name: 'APP_KEY',
+						payload: {
+							env: 'production',
+							name: 'APP_KEY',
+							ciphertext: 'ciphertext',
+							nonce: 'nonce',
+							alg: 'xchacha20-poly1305',
+							aad: {
+								org: 'org_123',
+								project: 'proj_123',
+								env: 'production',
+								name: 'APP_KEY',
+							},
+							claims: { hmac: 'hmac' },
+							client_sig: 'sig',
+						},
+					},
+				],
+			},
+			{ idempotencyKey: 'idem-001' },
+		);
+
+		expect(post).toHaveBeenCalledWith(
+			'/projects/proj_123/environments/local/promotion-requests',
+			expect.objectContaining({
+				device_id: 'device_123',
+			}),
+			expect.objectContaining({
+				'X-Idempotency-Key': 'idem-001',
+			}),
+		);
+		expect(response.data.id).toBe('promo_123');
+	});
+
+	it('lists and retrieves request resources', async () => {
+		const get = vi
+			.fn()
+			.mockResolvedValueOnce({
+				data: [
+					{
+						type: 'environment-variable-promotion-requests',
+						id: 'promo_1',
+						attributes: {
+							organization_id: 'org_123',
+							project_id: 'proj_123',
+							source_environment_id: 'env_source',
+							target_environment_id: 'env_target',
+							status: 'pending',
+							include_values: true,
+							entry_count: 1,
+							entries: [{ name: 'APP_KEY', has_payload: true }],
+						},
+					},
+				],
+			})
+			.mockResolvedValueOnce({
+				data: {
+					type: 'environment-variable-promotion-requests',
+					id: 'promo_1',
+					attributes: {
+						organization_id: 'org_123',
+						project_id: 'proj_123',
+						source_environment_id: 'env_source',
+						target_environment_id: 'env_target',
+						status: 'pending',
+						include_values: true,
+						entry_count: 1,
+						entries: [{ name: 'APP_KEY', has_payload: true }],
+					},
+				},
+			});
+
+		const client = new GhostableClient(
+			{ get } as unknown as HttpClient,
+			{} as unknown as HttpClient,
+		);
+
+		const list = await client.listVariablePromotionRequests('proj_123', 'local', {
+			status: 'pending',
+		});
+		const one = await client.getVariablePromotionRequest('proj_123', 'local', 'promo_1');
+
+		expect(get).toHaveBeenNthCalledWith(
+			1,
+			'/projects/proj_123/environments/local/promotion-requests?status=pending',
+		);
+		expect(get).toHaveBeenNthCalledWith(
+			2,
+			'/projects/proj_123/environments/local/promotion-requests/promo_1',
+		);
+		expect(list[0].id).toBe('promo_1');
+		expect(one.id).toBe('promo_1');
+	});
+
+	it('approves, rejects, and cancels promotion requests', async () => {
+		const post = vi
+			.fn()
+			.mockResolvedValueOnce({
+				data: {
+					type: 'environment-variable-promotion-requests',
+					id: 'promo_approve',
+					attributes: {
+						organization_id: 'org_123',
+						project_id: 'proj_123',
+						source_environment_id: 'env_source',
+						target_environment_id: 'env_target',
+						status: 'approved',
+						include_values: true,
+						entry_count: 1,
+						entries: [{ name: 'APP_KEY' }],
+					},
+				},
+			})
+			.mockResolvedValueOnce({
+				data: {
+					type: 'environment-variable-promotion-requests',
+					id: 'promo_reject',
+					attributes: {
+						organization_id: 'org_123',
+						project_id: 'proj_123',
+						source_environment_id: 'env_source',
+						target_environment_id: 'env_target',
+						status: 'rejected',
+						include_values: true,
+						entry_count: 1,
+						entries: [{ name: 'APP_KEY' }],
+					},
+				},
+			})
+			.mockResolvedValueOnce({
+				data: {
+					type: 'environment-variable-promotion-requests',
+					id: 'promo_cancel',
+					attributes: {
+						organization_id: 'org_123',
+						project_id: 'proj_123',
+						source_environment_id: 'env_source',
+						target_environment_id: 'env_target',
+						status: 'cancelled',
+						include_values: true,
+						entry_count: 1,
+						entries: [{ name: 'APP_KEY' }],
+					},
+				},
+			});
+
+		const client = new GhostableClient(
+			{ post } as unknown as HttpClient,
+			{} as unknown as HttpClient,
+		);
+
+		const approved = await client.approveVariablePromotionRequest(
+			'proj_123',
+			'local',
+			'promo_approve',
+			{
+				device_id: 'device_123',
+				entries: [],
+			},
+		);
+		const rejected = await client.rejectVariablePromotionRequest(
+			'proj_123',
+			'local',
+			'promo_reject',
+			'Not approved.',
+		);
+		const cancelled = await client.cancelVariablePromotionRequest(
+			'proj_123',
+			'local',
+			'promo_cancel',
+			'No longer needed.',
+		);
+
+		expect(post).toHaveBeenNthCalledWith(
+			1,
+			'/projects/proj_123/environments/local/promotion-requests/promo_approve/approve',
+			expect.objectContaining({
+				device_id: 'device_123',
+			}),
+		);
+		expect(post).toHaveBeenNthCalledWith(
+			2,
+			'/projects/proj_123/environments/local/promotion-requests/promo_reject/reject',
+			expect.objectContaining({
+				reason: 'Not approved.',
+			}),
+		);
+		expect(post).toHaveBeenNthCalledWith(
+			3,
+			'/projects/proj_123/environments/local/promotion-requests/promo_cancel/cancel',
+			expect.objectContaining({
+				reason: 'No longer needed.',
+			}),
+		);
+		expect(approved.id).toBe('promo_approve');
+		expect(rejected.id).toBe('promo_reject');
+		expect(cancelled.id).toBe('promo_cancel');
+	});
+
+	it('approves a request without override entries by sending an empty object body', async () => {
+		const post = vi.fn(async () => ({
+			data: {
+				type: 'environment-variable-promotion-requests',
+				id: 'promo_no_override',
+				attributes: {
+					organization_id: 'org_123',
+					project_id: 'proj_123',
+					source_environment_id: 'env_source',
+					target_environment_id: 'env_target',
+					status: 'approved',
+					include_values: true,
+					entry_count: 1,
+					entries: [{ name: 'APP_URL' }],
+				},
+			},
+		}));
+
+		const client = new GhostableClient(
+			{ post } as unknown as HttpClient,
+			{} as unknown as HttpClient,
+		);
+
+		const approved = await client.approveVariablePromotionRequest(
+			'proj_123',
+			'local',
+			'promo_no_override',
+		);
+
+		expect(post).toHaveBeenCalledWith(
+			'/projects/proj_123/environments/local/promotion-requests/promo_no_override/approve',
+			{},
+		);
+		expect(approved.id).toBe('promo_no_override');
+	});
+});

@@ -64,6 +64,16 @@ import type {
 	VariableContextEncryptedBodyJson,
 	VariableContextEnvelope,
 	VariableContextEnvelopeResponseJson,
+	EnvironmentVariablePromotionRequestStatus,
+	PreviewEnvironmentVariablePromotionRequestJson,
+	EnvironmentVariablePromotionPreviewDataJson,
+	EnvironmentVariablePromotionPreviewResponseJson,
+	CreateEnvironmentVariablePromotionRequestJson,
+	EnvironmentVariablePromotionRequestResponseJson,
+	EnvironmentVariablePromotionRequestListResponseJson,
+	EnvironmentVariablePromotionRequestResourceJson,
+	ApproveEnvironmentVariablePromotionRequestJson,
+	RejectEnvironmentVariablePromotionRequestJson,
 } from './types/index.js';
 import {
 	environmentKeyResponseFromJSON,
@@ -502,6 +512,155 @@ export class GhostableClient {
 			`/projects/${p}/environments/${e}/variables/${v}/history`,
 		);
 		return variableHistoryFromJSON(json);
+	}
+
+	async previewVariablePromotionRequest(
+		projectId: string,
+		sourceEnvironmentName: string,
+		request: PreviewEnvironmentVariablePromotionRequestJson,
+	): Promise<EnvironmentVariablePromotionPreviewDataJson> {
+		const p = encodeURIComponent(projectId);
+		const e = encodeURIComponent(sourceEnvironmentName);
+		const json = await this.http.post<EnvironmentVariablePromotionPreviewResponseJson>(
+			`/projects/${p}/environments/${e}/promotion-requests/preview`,
+			request,
+		);
+		return json.data;
+	}
+
+	async createVariablePromotionRequest(
+		projectId: string,
+		sourceEnvironmentName: string,
+		request: CreateEnvironmentVariablePromotionRequestJson,
+		opts?: { idempotencyKey?: string },
+	): Promise<EnvironmentVariablePromotionRequestResponseJson> {
+		const p = encodeURIComponent(projectId);
+		const e = encodeURIComponent(sourceEnvironmentName);
+		const headers: Record<string, string> = {};
+		const idempotencyKey = opts?.idempotencyKey?.trim();
+		if (idempotencyKey) {
+			headers['X-Idempotency-Key'] = idempotencyKey;
+		}
+
+		try {
+			return await this.http.post<EnvironmentVariablePromotionRequestResponseJson>(
+				`/projects/${p}/environments/${e}/promotion-requests`,
+				request,
+				headers,
+			);
+		} catch (error) {
+			if (error instanceof HttpError) {
+				const keyReshareError = GhostableClient.keyReshareRequiredFromHttpError(error);
+				if (keyReshareError) {
+					throw keyReshareError;
+				}
+			}
+
+			throw error;
+		}
+	}
+
+	async listVariablePromotionRequests(
+		projectId: string,
+		sourceEnvironmentName: string,
+		options: { status?: EnvironmentVariablePromotionRequestStatus } = {},
+	): Promise<EnvironmentVariablePromotionRequestResourceJson[]> {
+		const p = encodeURIComponent(projectId);
+		const e = encodeURIComponent(sourceEnvironmentName);
+		const qs = new URLSearchParams();
+		if (options.status) {
+			qs.set('status', options.status);
+		}
+
+		const suffix = qs.toString() ? `?${qs.toString()}` : '';
+		const json = await this.http.get<EnvironmentVariablePromotionRequestListResponseJson>(
+			`/projects/${p}/environments/${e}/promotion-requests${suffix}`,
+		);
+
+		return json.data ?? [];
+	}
+
+	async getVariablePromotionRequest(
+		projectId: string,
+		sourceEnvironmentName: string,
+		requestId: string,
+	): Promise<EnvironmentVariablePromotionRequestResourceJson> {
+		const p = encodeURIComponent(projectId);
+		const e = encodeURIComponent(sourceEnvironmentName);
+		const r = encodeURIComponent(requestId);
+		const json = await this.http.get<EnvironmentVariablePromotionRequestResponseJson>(
+			`/projects/${p}/environments/${e}/promotion-requests/${r}`,
+		);
+		return json.data;
+	}
+
+	async approveVariablePromotionRequest(
+		projectId: string,
+		sourceEnvironmentName: string,
+		requestId: string,
+		body?: ApproveEnvironmentVariablePromotionRequestJson,
+	): Promise<EnvironmentVariablePromotionRequestResourceJson> {
+		const p = encodeURIComponent(projectId);
+		const e = encodeURIComponent(sourceEnvironmentName);
+		const r = encodeURIComponent(requestId);
+		const payload = body && Object.keys(body).length > 0 ? body : {};
+
+		try {
+			const json = await this.http.post<EnvironmentVariablePromotionRequestResponseJson>(
+				`/projects/${p}/environments/${e}/promotion-requests/${r}/approve`,
+				payload,
+			);
+			return json.data;
+		} catch (error) {
+			if (error instanceof HttpError) {
+				const keyReshareError = GhostableClient.keyReshareRequiredFromHttpError(error);
+				if (keyReshareError) {
+					throw keyReshareError;
+				}
+			}
+
+			throw error;
+		}
+	}
+
+	async rejectVariablePromotionRequest(
+		projectId: string,
+		sourceEnvironmentName: string,
+		requestId: string,
+		reason?: string,
+	): Promise<EnvironmentVariablePromotionRequestResourceJson> {
+		const p = encodeURIComponent(projectId);
+		const e = encodeURIComponent(sourceEnvironmentName);
+		const r = encodeURIComponent(requestId);
+		const payload: RejectEnvironmentVariablePromotionRequestJson = {};
+		if (reason?.trim()) {
+			payload.reason = reason.trim();
+		}
+		const json = await this.http.post<EnvironmentVariablePromotionRequestResponseJson>(
+			`/projects/${p}/environments/${e}/promotion-requests/${r}/reject`,
+			payload,
+		);
+		return json.data;
+	}
+
+	async cancelVariablePromotionRequest(
+		projectId: string,
+		sourceEnvironmentName: string,
+		requestId: string,
+		reason?: string,
+	): Promise<EnvironmentVariablePromotionRequestResourceJson> {
+		const p = encodeURIComponent(projectId);
+		const e = encodeURIComponent(sourceEnvironmentName);
+		const r = encodeURIComponent(requestId);
+		const payload: RejectEnvironmentVariablePromotionRequestJson = {};
+		if (reason?.trim()) {
+			payload.reason = reason.trim();
+		}
+		const json = await this.http.post<EnvironmentVariablePromotionRequestResponseJson>(
+			`/projects/${p}/environments/${e}/promotion-requests/${r}/cancel`,
+			payload,
+		);
+		return json.data;
 	}
 
 	async getVariableContext(

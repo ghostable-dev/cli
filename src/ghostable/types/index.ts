@@ -10,3 +10,4 @@ export * from './backup.js';
 export * from './key-reshare.js';
 export * from './user.js';
 export * from './variable-context.js';
+export * from './promotion.js';
