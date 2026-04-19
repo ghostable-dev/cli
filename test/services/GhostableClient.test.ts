@@ -150,6 +150,53 @@ describe('GhostableClient.getEnvironmentKeys', () => {
 	});
 });
 
+describe('GhostableClient.deploy', () => {
+	it('forwards GitHub Actions context headers when available', async () => {
+		const get = vi.fn(async () => ({
+			env: 'production',
+			chain: ['production'],
+			secrets: [],
+		}));
+		const client = makeClientWithGet(get);
+
+		const previous = {
+			repository: process.env.GITHUB_REPOSITORY,
+			workflow: process.env.GITHUB_WORKFLOW,
+			runId: process.env.GITHUB_RUN_ID,
+			runAttempt: process.env.GITHUB_RUN_ATTEMPT,
+			sha: process.env.GITHUB_SHA,
+			ref: process.env.GITHUB_REF,
+		};
+
+		process.env.GITHUB_REPOSITORY = 'ghostable-dev/cli';
+		process.env.GITHUB_WORKFLOW = 'Deploy';
+		process.env.GITHUB_RUN_ID = '12345';
+		process.env.GITHUB_RUN_ATTEMPT = '2';
+		process.env.GITHUB_SHA = 'abc123';
+		process.env.GITHUB_REF = 'refs/heads/main';
+
+		try {
+			await client.deploy({ includeMeta: false });
+		} finally {
+			process.env.GITHUB_REPOSITORY = previous.repository;
+			process.env.GITHUB_WORKFLOW = previous.workflow;
+			process.env.GITHUB_RUN_ID = previous.runId;
+			process.env.GITHUB_RUN_ATTEMPT = previous.runAttempt;
+			process.env.GITHUB_SHA = previous.sha;
+			process.env.GITHUB_REF = previous.ref;
+		}
+
+		expect(get).toHaveBeenCalledWith('/ci/deploy', {
+			'X-GitHub-Repository': 'ghostable-dev/cli',
+			'X-GitHub-Workflow': 'Deploy',
+			'X-GitHub-Run-Id': '12345',
+			'X-GitHub-Run-Attempt': '2',
+			'X-GitHub-Sha': 'abc123',
+			'X-GitHub-Ref': 'refs/heads/main',
+		});
+	});
+});
+
 describe('GhostableClient.pull', () => {
 	it('pipes device identity via query param and header', async () => {
 		const get = vi.fn(async () => ({}));

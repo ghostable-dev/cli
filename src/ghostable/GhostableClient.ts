@@ -944,10 +944,37 @@ export class GhostableClient {
 		if (opts?.only?.length) for (const k of opts.only) qs.append('only[]', k);
 
 		const suffix = qs.toString() ? `?${qs.toString()}` : '';
+		const headers = this.githubDeployHeadersFromEnvironment();
 
-		const json = await this.http.get<EnvironmentSecretBundleJson>(`/ci/deploy${suffix}`);
+		const json = await this.http.get<EnvironmentSecretBundleJson>(
+			`/ci/deploy${suffix}`,
+			headers,
+		);
 
 		return EnvironmentSecretBundle.fromJSON(json);
+	}
+
+	private githubDeployHeadersFromEnvironment(): Record<string, string> {
+		const headers: Record<string, string> = {};
+
+		const mappings: Array<[string, string]> = [
+			['GITHUB_REPOSITORY', 'X-GitHub-Repository'],
+			['GITHUB_WORKFLOW', 'X-GitHub-Workflow'],
+			['GITHUB_RUN_ID', 'X-GitHub-Run-Id'],
+			['GITHUB_RUN_ATTEMPT', 'X-GitHub-Run-Attempt'],
+			['GITHUB_SHA', 'X-GitHub-Sha'],
+			['GITHUB_REF', 'X-GitHub-Ref'],
+		];
+
+		for (const [source, destination] of mappings) {
+			const value = (process.env[source] ?? '').trim();
+
+			if (value !== '') {
+				headers[destination] = value;
+			}
+		}
+
+		return headers;
 	}
 
 	private devicePath(deviceId?: string): string {
