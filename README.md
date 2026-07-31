@@ -1,8 +1,5 @@
 # Ghostable CLI
 
-[![npm version](https://img.shields.io/npm/v/@ghostable/cli.svg)](https://www.npmjs.com/package/@ghostable/cli)
-[![npm downloads](https://img.shields.io/npm/dm/@ghostable/cli.svg)](https://www.npmjs.com/package/@ghostable/cli)
-
 **Ghostable** is a secure, zero-knowledge platform designed to simplify and protect your management of environment variables across teams, projects, and deployment providers.
 
 Use the Ghostable CLI to effortlessly:
